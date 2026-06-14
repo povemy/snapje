@@ -1,0 +1,2002 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState, useCallback } from 'react'
+     4→import { useAuthStore } from '@/stores/auth-store'
+     5→import { useAppStore } from '@/stores/app-store'
+     6→import { useNotificationStore } from '@/stores/notification-store'
+     7→import { useSocket } from '@/hooks/use-socket'
+     8→import type { AuthUser, AppRole, AppView, Deal, Order, Vendor, AppNotification } from '@/types'
+     9→import { AnimatePresence, motion } from 'framer-motion'
+    10→import {
+    11→  Home, Compass, ShoppingBag, User, ChefHat, LayoutDashboard,
+    12→  PlusCircle, Package, CheckCircle, CreditCard, Shield, Users,
+    13→  BarChart3, MapPin, Bell, Search, ArrowLeft, Menu, X,
+    14→  Star, Clock, Flame, TrendingUp, Store, Settings, LogOut,
+    15→  ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
+    16→  AlertTriangle, Ban, RefreshCw, DollarSign, ShoppingCart,
+    17→  Utensils, Bike, Building2, Crown, Sparkles, MoreVertical
+    18→} from 'lucide-react'
+    19→import { Button } from '@/components/ui/button'
+    20→import { Input } from '@/components/ui/input'
+    21→import { Badge } from '@/components/ui/badge'
+    22→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    23→import { Skeleton } from '@/components/ui/skeleton'
+    24→import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+    25→import { Separator } from '@/components/ui/separator'
+    26→import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+    27→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+    28→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    29→import { Textarea } from '@/components/ui/textarea'
+    30→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    31→import { Label } from '@/components/ui/label'
+    32→import { Progress } from '@/components/ui/progress'
+    33→import { ScrollArea } from '@/components/ui/scroll-area'
+    34→import { toast } from 'sonner'
+    35→
+    36→// ============================================
+    37→// API Helper
+    38→// ============================================
+    39→async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string }> {
+    40→  try {
+    41→    const res = await fetch(path, {
+    42→      headers: { 'Content-Type': 'application/json', ...options?.headers },
+    43→      ...options,
+    44→    })
+    45→    return await res.json()
+    46→  } catch {
+    47→    return { success: false, error: 'Network error' }
+    48→  }
+    49→}
+    50→
+    51→// ============================================
+    52→// Page Transition Variants
+    53→// ============================================
+    54→const pageVariants = {
+    55→  initial: { opacity: 0, scale: 0.98, y: 8 },
+    56→  animate: { opacity: 1, scale: 1, y: 0 },
+    57→  exit: { opacity: 0, scale: 0.98, y: -8 },
+    58→}
+    59→
+    60→const pageTransition = {
+    61→  type: 'spring',
+    62→  stiffness: 300,
+    63→  damping: 25,
+    64→  duration: 0.2,
+    65→}
+    66→
+    67→// ============================================
+    68→// AUTH SCREEN
+    69→// ============================================
+    70→function AuthScreen() {
+    71→  const [isLogin, setIsLogin] = useState(true)
+    72→  const [email, setEmail] = useState('')
+    73→  const [password, setPassword] = useState('')
+    74→  const [name, setName] = useState('')
+    75→  const [phone, setPhone] = useState('')
+    76→  const [loading, setLoading] = useState(false)
+    77→  const { login } = useAuthStore()
+    78→
+    79→  const handleSubmit = async (e: React.FormEvent) => {
+    80→    e.preventDefault()
+    81→    setLoading(true)
+    82→
+    83→    try {
+    84→      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
+    85→      const body = isLogin
+    86→        ? { email, password }
+    87→        : { email, password, name, phone }
+    88→
+    89→      const res = await apiFetch<AuthUser>(endpoint, {
+    90→        method: 'POST',
+    91→        body: JSON.stringify(body),
+    92→      })
+    93→
+    94→      if (res.success && res.data) {
+    95→        login(res.data)
+    96→        toast.success(isLogin ? 'Welcome back!' : 'Account created!')
+    97→      } else {
+    98→        toast.error(res.error || 'Authentication failed')
+    99→      }
+   100→    } finally {
+   101→      setLoading(false)
+   102→    }
+   103→  }
+   104→
+   105→  return (
+   106→    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#eef4ff] to-white px-5">
+   107→      <motion.div
+   108→        initial={{ opacity: 0, y: 20 }}
+   109→        animate={{ opacity: 1, y: 0 }}
+   110→        transition={{ stiffness: 300, damping: 25 }}
+   111→        className="w-full max-w-sm"
+   112→      >
+   113→        {/* Logo */}
+   114→        <div className="text-center mb-8">
+   115→          <motion.div
+   116→            initial={{ scale: 0.8 }}
+   117→            animate={{ scale: 1 }}
+   118→            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+   119→            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#89cff0] to-[#0d6683] mb-4 shadow-card"
+   120→          >
+   121→            <Flame className="w-10 h-10 text-white" />
+   122→          </motion.div>
+   123→          <h1 className="text-3xl font-extrabold text-[#0d1c2d] tracking-tight">FlashBite</h1>
+   124→          <p className="text-[#40484d] mt-1 text-sm">Hyper-local food flash deals</p>
+   125→        </div>
+   126→
+   127→        {/* Toggle */}
+   128→        <div className="flex bg-[#e5efff] rounded-xl p-1 mb-6">
+   129→          <button
+   130→            onClick={() => setIsLogin(true)}
+   131→            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+   132→              isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+   133→            }`}
+   134→          >
+   135→            Sign In
+   136→          </button>
+   137→          <button
+   138→            onClick={() => setIsLogin(false)}
+   139→            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+   140→              !isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+   141→            }`}
+   142→          >
+   143→            Sign Up
+   144→          </button>
+   145→        </div>
+   146→
+   147→        {/* Form */}
+   148→        <form onSubmit={handleSubmit} className="space-y-4">
+   149→          {!isLogin && (
+   150→            <div>
+   151→              <Label htmlFor="name" className="text-sm font-semibold text-[#0d1c2d]">Full Name</Label>
+   152→              <Input
+   153→                id="name"
+   154→                value={name}
+   155→                onChange={(e) => setName(e.target.value)}
+   156→                placeholder="Your name"
+   157→                className="mt-1.5 h-12 rounded-xl"
+   158→                required={!isLogin}
+   159→              />
+   160→            </div>
+   161→          )}
+   162→          <div>
+   163→            <Label htmlFor="email" className="text-sm font-semibold text-[#0d1c2d]">Email</Label>
+   164→            <Input
+   165→              id="email"
+   166→              type="email"
+   167→              value={email}
+   168→              onChange={(e) => setEmail(e.target.value)}
+   169→              placeholder="you@example.com"
+   170→              className="mt-1.5 h-12 rounded-xl"
+   171→              required
+   172→            />
+   173→          </div>
+   174→          <div>
+   175→            <Label htmlFor="password" className="text-sm font-semibold text-[#0d1c2d]">Password</Label>
+   176→            <Input
+   177→              id="password"
+   178→              type="password"
+   179→              value={password}
+   180→              onChange={(e) => setPassword(e.target.value)}
+   181→              placeholder="••••••••"
+   182→              className="mt-1.5 h-12 rounded-xl"
+   183→              required
+   184→              minLength={6}
+   185→            />
+   186→          </div>
+   187→          {!isLogin && (
+   188→            <div>
+   189→              <Label htmlFor="phone" className="text-sm font-semibold text-[#0d1c2d]">Phone (optional)</Label>
+   190→              <Input
+   191→                id="phone"
+   192→                value={phone}
+   193→                onChange={(e) => setPhone(e.target.value)}
+   194→                placeholder="+60 12 345 6789"
+   195→                className="mt-1.5 h-12 rounded-xl"
+   196→              />
+   197→            </div>
+   198→          )}
+   199→          <Button
+   200→            type="submit"
+   201→            disabled={loading}
+   202→            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
+   203→          >
+   204→            {loading ? (
+   205→              <RefreshCw className="w-5 h-5 animate-spin" />
+   206→            ) : isLogin ? (
+   207→              'Sign In'
+   208→            ) : (
+   209→              'Create Account'
+   210→            )}
+   211→          </Button>
+   212→        </form>
+   213→
+   214→        {/* Demo hint */}
+   215→        <div className="mt-6 p-3 bg-[#eef4ff] rounded-xl text-center">
+   216→          <p className="text-xs text-[#40484d]">
+   217→            🎯 Demo: <span className="font-semibold">foodie@test.com</span> / <span className="font-semibold">vendor@test.com</span> / <span className="font-semibold">admin@test.com</span>
+   218→          </p>
+   219→          <p className="text-xs text-[#70787d] mt-0.5">Password: <span className="font-semibold">password123</span></p>
+   220→        </div>
+   221→      </motion.div>
+   222→    </div>
+   223→  )
+   224→}
+   225→
+   226→// ============================================
+   227→// COUNTDOWN TIMER COMPONENT
+   228→// ============================================
+   229→function CountdownTimer({ expiresAt, compact = false }: { expiresAt: string; compact?: boolean }) {
+   230→  const [timeLeft, setTimeLeft] = useState('')
+   231→
+   232→  useEffect(() => {
+   233→    const update = () => {
+   234→      const diff = new Date(expiresAt).getTime() - Date.now()
+   235→      if (diff <= 0) {
+   236→        setTimeLeft('Expired')
+   237→        return
+   238→      }
+   239→      const hours = Math.floor(diff / 3600000)
+   240→      const mins = Math.floor((diff % 3600000) / 60000)
+   241→      const secs = Math.floor((diff % 60000) / 1000)
+   242→
+   243→      if (hours > 0) {
+   244→        setTimeLeft(`${hours}h ${mins}m`)
+   245→      } else if (mins > 0) {
+   246→        setTimeLeft(`${mins}m ${secs}s`)
+   247→      } else {
+   248→        setTimeLeft(`${secs}s`)
+   249→      }
+   250→    }
+   251→    update()
+   252→    const interval = setInterval(update, 1000)
+   253→    return () => clearInterval(interval)
+   254→  }, [expiresAt])
+   255→
+   256→  const isUrgent = timeLeft !== 'Expired' && !timeLeft.includes('h')
+   257→
+   258→  return (
+   259→    <span className={`inline-flex items-center gap-1 ${compact ? 'text-xs' : 'text-sm'} font-bold ${
+   260→      timeLeft === 'Expired' ? 'text-[#70787d]' : isUrgent ? 'text-[#FB923C] animate-pulse-urgent' : 'text-[#0d6683]'
+   261→    }`}>
+   262→      <Clock className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+   263→      {timeLeft}
+   264→    </span>
+   265→  )
+   266→}
+   267→
+   268→// ============================================
+   269→// DEAL CARD COMPONENT
+   270→// ============================================
+   271→function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; onSelect: () => void }) {
+   272→  const isLowStock = deal.availableQuantity <= 5 && deal.availableQuantity > 0
+   273→  const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
+   274→
+   275→  return (
+   276→    <motion.div
+   277→      whileHover={{ y: -2 }}
+   278→      whileTap={{ scale: 0.98 }}
+   279→      onClick={onSelect}
+   280→      className="cursor-pointer"
+   281→    >
+   282→      <Card className="overflow-hidden border-0 shadow-card hover:shadow-card-hover transition-shadow duration-200 rounded-2xl">
+   283→        {/* Image */}
+   284→        <div className="relative aspect-[4/3] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff] overflow-hidden">
+   285→          {deal.imageUrl ? (
+   286→            <img
+   287→              src={deal.imageUrl}
+   288→              alt={deal.title}
+   289→              className="w-full h-full object-cover"
+   290→              loading="lazy"
+   291→            />
+   292→          ) : (
+   293→            <div className="w-full h-full flex items-center justify-center">
+   294→              <Utensils className="w-12 h-12 text-[#89cff0]" />
+   295→            </div>
+   296→          )}
+   297→          {/* Discount Badge */}
+   298→          <div className="absolute top-3 left-3">
+   299→            <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-chip border-0">
+   300→              -{deal.discountPercent}%
+   301→            </Badge>
+   302→          </div>
+   303→          {/* Distance */}
+   304→          {deal.distance !== undefined && (
+   305→            <div className="absolute top-3 right-3">
+   306→              <Badge variant="secondary" className="bg-white/90 text-[#0d1c2d] text-xs px-2 py-1 rounded-lg shadow-chip">
+   307→                <MapPin className="w-3 h-3 mr-0.5" />
+   308→                {deal.distance.toFixed(1)}km
+   309→              </Badge>
+   310→            </div>
+   311→          )}
+   312→          {/* Stock overlay */}
+   313→          {isSoldOut && (
+   314→            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+   315→              <span className="text-white font-bold text-lg">SOLD OUT</span>
+   316→            </div>
+   317→          )}
+   318→        </div>
+   319→        {/* Info */}
+   320→        <CardContent className="p-4">
+   321→          <div className="flex items-start justify-between gap-2">
+   322→            <div className="flex-1 min-w-0">
+   323→              <h3 className="font-bold text-[#0d1c2d] text-base truncate">{deal.title}</h3>
+   324→              <p className="text-sm text-[#40484d] truncate mt-0.5">
+   325→                {deal.vendor?.businessName || 'Vendor'}
+   326→              </p>
+   327→            </div>
+   328→            <div className="text-right flex-shrink-0">
+   329→              <p className="text-lg font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</p>
+   330→              <p className="text-xs text-[#70787d] line-through">RM{deal.originalPrice.toFixed(2)}</p>
+   331→            </div>
+   332→          </div>
+   333→          {/* Bottom row */}
+   334→          <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d4e4fa]">
+   335→            <CountdownTimer expiresAt={deal.expiresAt} compact />
+   336→            <div className={`text-xs font-bold ${isLowStock ? 'text-[#FB923C] animate-pulse-urgent' : isSoldOut ? 'text-[#70787d]' : 'text-[#34D399]'}`}>
+   337→              {isSoldOut ? 'Sold out' : isLowStock ? `🔥 Only ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
+   338→            </div>
+   339→          </div>
+   340→        </CardContent>
+   341→      </Card>
+   342→    </motion.div>
+   343→  )
+   344→}
+   345→
+   346→// ============================================
+   347→// FOODIE: HOME VIEW
+   348→// ============================================
+   349→function FoodieHomeView() {
+   350→  const { navigate } = useAppStore()
+   351→  const { selectedCategory, setSelectedCategory, searchQuery, setSearchQuery } = useAppStore()
+   352→  const [deals, setDeals] = useState<Deal[]>([])
+   353→  const [loading, setLoading] = useState(true)
+   354→  const categories = ['All', 'Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage']
+   355→
+   356→  const fetchDeals = useCallback(async () => {
+   357→    setLoading(true)
+   358→    const params = new URLSearchParams({ status: 'active' })
+   359→    if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
+   360→    if (searchQuery) params.set('search', searchQuery)
+   361→    // Use default KL location
+   362→    params.set('lat', '3.1390')
+   363→    params.set('lng', '101.6869')
+   364→    params.set('maxDistance', '20')
+   365→
+   366→    const res = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${params}`)
+   367→    if (res.success && res.data) {
+   368→      setDeals(res.data.deals)
+   369→    }
+   370→    setLoading(false)
+   371→  }, [selectedCategory, searchQuery])
+   372→
+   373→  useEffect(() => { fetchDeals() }, [fetchDeals])
+   374→
+   375→  return (
+   376→    <div className="pb-28">
+   377→      {/* Header */}
+   378→      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-5 pt-4 pb-3" style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}>
+   379→        <div className="flex items-center justify-between mb-3">
+   380→          <div>
+   381→            <h1 className="text-2xl font-extrabold text-[#0d1c2d]">FlashBite</h1>
+   382→            <p className="text-sm text-[#40484d] flex items-center gap-1">
+   383→              <MapPin className="w-3.5 h-3.5 text-[#0d6683]" />
+   384→              Kuala Lumpur
+   385→            </p>
+   386→          </div>
+   387→          <div className="flex items-center gap-2">
+   388→            <NotificationBell />
+   389→          </div>
+   390→        </div>
+   391→        {/* Search */}
+   392→        <div className="relative">
+   393→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#70787d]" />
+   394→          <Input
+   395→            placeholder="Search deals..."
+   396→            value={searchQuery}
+   397→            onChange={(e) => setSearchQuery(e.target.value)}
+   398→            className="pl-9 h-10 rounded-xl text-sm"
+   399→          />
+   400→        </div>
+   401→        {/* Categories */}
+   402→        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
+   403→          {categories.map((cat) => (
+   404→            <button
+   405→              key={cat}
+   406→              onClick={() => setSelectedCategory(cat === 'All' ? null : cat)}
+   407→              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
+   408→                (cat === 'All' && !selectedCategory) || selectedCategory === cat
+   409→                  ? 'bg-[#0d6683] text-white'
+   410→                  : 'bg-[#e5efff] text-[#40484d] hover:bg-[#dbe9ff]'
+   411→              }`}
+   412→            >
+   413→              {cat}
+   414→            </button>
+   415→          ))}
+   416→        </div>
+   417→      </div>
+   418→
+   419→      {/* Deals Feed */}
+   420→      <div className="px-5 mt-4 space-y-4">
+   421→        {loading ? (
+   422→          // Skeleton loaders
+   423→          Array.from({ length: 3 }).map((_, i) => (
+   424→            <Card key={i} className="overflow-hidden border-0 shadow-card rounded-2xl">
+   425→              <Skeleton className="aspect-[4/3] rounded-none" />
+   426→              <div className="p-4 space-y-3">
+   427→                <Skeleton className="h-5 w-3/4" />
+   428→                <Skeleton className="h-4 w-1/2" />
+   429→                <div className="flex justify-between">
+   430→                  <Skeleton className="h-4 w-20" />
+   431→                  <Skeleton className="h-4 w-16" />
+   432→                </div>
+   433→              </div>
+   434→            </Card>
+   435→          ))
+   436→        ) : deals.length === 0 ? (
+   437→          <div className="text-center py-16">
+   438→            <Utensils className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
+   439→            <h3 className="text-lg font-bold text-[#0d1c2d]">No deals found</h3>
+   440→            <p className="text-sm text-[#40484d] mt-1">Check back soon for new flash deals!</p>
+   441→          </div>
+   442→        ) : (
+   443→          deals.map((deal) => (
+   444→            <DealCard
+   445→              key={deal.id}
+   446→              deal={deal}
+   447→              onSelect={() => navigate('deal-detail', { id: deal.id })}
+   448→            />
+   449→          ))
+   450→        )}
+   451→      </div>
+   452→    </div>
+   453→  )
+   454→}
+   455→
+   456→// ============================================
+   457→// FOODIE: DEAL DETAIL VIEW
+   458→// ============================================
+   459→function DealDetailView() {
+   460→  const { viewParams, goBack } = useAppStore()
+   461→  const [deal, setDeal] = useState<Deal | null>(null)
+   462→  const [loading, setLoading] = useState(true)
+   463→  const [claiming, setClaiming] = useState(false)
+   464→  const [claimed, setClaimed] = useState(false)
+   465→  const [order, setOrder] = useState<Order | null>(null)
+   466→  const { user } = useAuthStore()
+   467→
+   468→  useEffect(() => {
+   469→    if (!viewParams.id) return
+   470→    setLoading(true)
+   471→    apiFetch<Deal>(`/api/deals/${viewParams.id}`).then((res) => {
+   472→      if (res.success && res.data) setDeal(res.data)
+   473→    }).finally(() => setLoading(false))
+   474→  }, [viewParams.id])
+   475→
+   476→  const handleClaim = async () => {
+   477→    if (!deal || !user) return
+   478→    setClaiming(true)
+   479→    try {
+   480→      // Step 1: Claim (create reservation)
+   481→      const claimRes = await apiFetch<{ reservation: { id: string } }>(`/api/deals/${deal.id}/claim`, {
+   482→        method: 'POST',
+   483→        body: JSON.stringify({ quantity: 1 }),
+   484→      })
+   485→      if (!claimRes.success) {
+   486→        toast.error(claimRes.error || 'Failed to claim deal')
+   487→        return
+   488→      }
+   489→
+   490→      const reservationId = claimRes.data?.reservation?.id
+   491→
+   492→      // Step 2: Confirm reservation → Order
+   493→      const confirmRes = await apiFetch<Order>(`/api/deals/${deal.id}/confirm`, {
+   494→        method: 'POST',
+   495→        body: JSON.stringify({ reservationId }),
+   496→      })
+   497→      if (confirmRes.success && confirmRes.data) {
+   498→        setOrder(confirmRes.data)
+   499→        setClaimed(true)
+   500→        toast.success('Deal claimed! Check your orders for the QR code.')
+   501→
+   502→        // Refresh deal to show updated stock
+   503→        const refreshRes = await apiFetch<Deal>(`/api/deals/${deal.id}`)
+   504→        if (refreshRes.success && refreshRes.data) setDeal(refreshRes.data)
+   505→      } else {
+   506→        toast.error(confirmRes.error || 'Failed to confirm claim')
+   507→      }
+   508→    } finally {
+   509→      setClaiming(false)
+   510→    }
+   511→  }
+   512→
+   513→  if (loading) {
+   514→    return (
+   515→      <div className="pb-28">
+   516→        <Skeleton className="aspect-[16/10] rounded-none" />
+   517→        <div className="px-5 py-4 space-y-4">
+   518→          <Skeleton className="h-7 w-3/4" />
+   519→          <Skeleton className="h-5 w-1/2" />
+   520→          <Skeleton className="h-20 w-full" />
+   521→        </div>
+   522→      </div>
+   523→    )
+   524→  }
+   525→
+   526→  if (!deal) {
+   527→    return (
+   528→      <div className="flex items-center justify-center h-[60vh]">
+   529→        <p className="text-[#40484d]">Deal not found</p>
+   530→      </div>
+   531→    )
+   532→  }
+   533→
+   534→  const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
+   535→
+   536→  return (
+   537→    <div className="pb-28">
+   538→      {/* Back button */}
+   539→      <button onClick={goBack} className="fixed top-4 left-4 z-50 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-card">
+   540→        <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+   541→      </button>
+   542→
+   543→      {/* Hero Image */}
+   544→      <div className="relative aspect-[16/10] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff]">
+   545→        {deal.imageUrl ? (
+   546→          <img src={deal.imageUrl} alt={deal.title} className="w-full h-full object-cover" />
+   547→        ) : (
+   548→          <div className="w-full h-full flex items-center justify-center">
+   549→            <Utensils className="w-20 h-20 text-[#89cff0]" />
+   550→          </div>
+   551→        )}
+   552→        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+   553→        <div className="absolute bottom-4 left-5 right-5">
+   554→          <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold border-0 rounded-lg">
+   555→            -{deal.discountPercent}% OFF
+   556→          </Badge>
+   557→        </div>
+   558→      </div>
+   559→
+   560→      {/* Content */}
+   561→      <div className="px-5 pt-4">
+   562→        <h1 className="text-2xl font-extrabold text-[#0d1c2d]">{deal.title}</h1>
+   563→        <p className="text-[#40484d] mt-1 flex items-center gap-1.5">
+   564→          <Store className="w-4 h-4" />
+   565→          {deal.vendor?.businessName || 'Vendor'}
+   566→        </p>
+   567→
+   568→        {/* Price */}
+   569→        <div className="flex items-end gap-3 mt-4">
+   570→          <span className="text-3xl font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</span>
+   571→          <span className="text-lg text-[#70787d] line-through mb-0.5">RM{deal.originalPrice.toFixed(2)}</span>
+   572→        </div>
+   573→
+   574→        {/* Info Cards */}
+   575→        <div className="grid grid-cols-3 gap-3 mt-4">
+   576→          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
+   577→            <Clock className="w-5 h-5 text-[#0d6683] mx-auto mb-1" />
+   578→            <p className="text-xs text-[#40484d]">Ends in</p>
+   579→            <CountdownTimer expiresAt={deal.expiresAt} compact />
+   580→          </div>
+   581→          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
+   582→            <Flame className={`w-5 h-5 mx-auto mb-1 ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#0d6683]'}`} />
+   583→            <p className="text-xs text-[#40484d]">Stock</p>
+   584→            <p className={`text-sm font-bold ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#0d1c2d]'}`}>
+   585→              {deal.availableQuantity} left
+   586→            </p>
+   587→          </div>
+   588→          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
+   589→            <MapPin className="w-5 h-5 text-[#0d6683] mx-auto mb-1" />
+   590→            <p className="text-xs text-[#40484d]">Distance</p>
+   591→            <p className="text-sm font-bold text-[#0d1c2d]">
+   592→              {deal.distance ? `${deal.distance.toFixed(1)}km` : 'Nearby'}
+   593→            </p>
+   594→          </div>
+   595→        </div>
+   596→
+   597→        {/* Description */}
+   598→        <div className="mt-5">
+   599→          <h3 className="font-bold text-[#0d1c2d] mb-2">About this deal</h3>
+   600→          <p className="text-sm text-[#40484d] leading-relaxed">{deal.description}</p>
+   601→        </div>
+   602→
+   603→        {/* Pickup Info */}
+   604→        <div className="mt-5">
+   605→          <h3 className="font-bold text-[#0d1c2d] mb-2">Pickup Details</h3>
+   606→          <div className="bg-[#eef4ff] rounded-xl p-4">
+   607→            <p className="text-sm text-[#40484d] flex items-center gap-2">
+   608→              <MapPin className="w-4 h-4 text-[#0d6683]" />
+   609→              Pickup only
+   610→            </p>
+   611→            {deal.pickupInstructions && (
+   612→              <p className="text-sm text-[#40484d] mt-2">{deal.pickupInstructions}</p>
+   613→            )}
+   614→          </div>
+   615→        </div>
+   616→
+   617→        {/* Claimed Success */}
+   618→        {claimed && order && (
+   619→          <motion.div
+   620→            initial={{ opacity: 0, scale: 0.9 }}
+   621→            animate={{ opacity: 1, scale: 1 }}
+   622→            className="mt-5 bg-[#ecfdf5] border border-[#34D399]/30 rounded-xl p-4"
+   623→          >
+   624→            <div className="flex items-center gap-2 mb-2">
+   625→              <CheckCircle className="w-5 h-5 text-[#059669]" />
+   626→              <span className="font-bold text-[#059669]">Deal Claimed!</span>
+   627→            </div>
+   628→            <p className="text-sm text-[#065f46]">
+   629→              Order #{order.orderNumber}. Check your Orders for the pickup QR code.
+   630→            </p>
+   631→          </motion.div>
+   632→        )}
+   633→      </div>
+   634→
+   635→      {/* Sticky Bottom Action */}
+   636→      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] px-5 py-3 z-40">
+   637→        <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
+   638→          <div>
+   639→            <p className="text-xs text-[#40484d]">Flash Deal Price</p>
+   640→            <p className="text-2xl font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</p>
+   641→          </div>
+   642→          <Button
+   643→            onClick={handleClaim}
+   644→            disabled={claiming || isSoldOut || claimed}
+   645→            className={`h-12 px-8 rounded-xl font-bold text-base transition-all active:scale-95 ${
+   646→              claimed
+   647→                ? 'bg-[#34D399] hover:bg-[#34D399] text-white'
+   648→                : isSoldOut
+   649→                ? 'bg-[#70787d] text-white cursor-not-allowed'
+   650→                : 'bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90'
+   651→            }`}
+   652→          >
+   653→            {claiming ? (
+   654→              <RefreshCw className="w-5 h-5 animate-spin" />
+   655→            ) : claimed ? (
+   656→              <>
+   657→                <Check className="w-5 h-5 mr-1" /> Claimed
+   658→              </>
+   659→            ) : isSoldOut ? (
+   660→              'Sold Out'
+   661→            ) : (
+   662→              <>
+   663→                <Zap className="w-5 h-5 mr-1" /> Claim Deal
+   664→              </>
+   665→            )}
+   666→          </Button>
+   667→        </div>
+   668→      </div>
+   669→    </div>
+   670→  )
+   671→}
+   672→
+   673→// ============================================
+   674→// FOODIE: ORDERS VIEW
+   675→// ============================================
+   676→function FoodieOrdersView() {
+   677→  const [orders, setOrders] = useState<Order[]>([])
+   678→  const [loading, setLoading] = useState(true)
+   679→  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+   680→  const { navigate } = useAppStore()
+   681→
+   682→  useEffect(() => {
+   683→    setLoading(true)
+   684→    apiFetch<{ orders: Order[] }>('/api/orders').then((res) => {
+   685→      if (res.success && res.data) setOrders(res.data.orders || [])
+   686→    }).finally(() => setLoading(false))
+   687→  }, [])
+   688→
+   689→  const activeOrders = orders.filter(o => o.status === 'pending_pickup')
+   690→  const completedOrders = orders.filter(o => o.status === 'completed')
+   691→
+   692→  return (
+   693→    <div className="pb-28 px-5 pt-2">
+   694→      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">My Orders</h1>
+   695→
+   696→      {loading ? (
+   697→        Array.from({ length: 2 }).map((_, i) => (
+   698→          <Card key={i} className="mb-3 border-0 shadow-card rounded-2xl">
+   699→            <CardContent className="p-4"><Skeleton className="h-16 w-full rounded-xl" /></CardContent>
+   700→          </Card>
+   701→        ))
+   702→      ) : orders.length === 0 ? (
+   703→        <div className="text-center py-16">
+   704→          <ShoppingBag className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
+   705→          <h3 className="text-lg font-bold text-[#0d1c2d]">No orders yet</h3>
+   706→          <p className="text-sm text-[#40484d] mt-1">Claim your first flash deal!</p>
+   707→          <Button onClick={() => navigate('home')} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+   708→            Browse Deals
+   709→          </Button>
+   710→        </div>
+   711→      ) : (
+   712→        <>
+   713→          {activeOrders.length > 0 && (
+   714→            <div className="mb-6">
+   715→              <h2 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+   716→                <Clock className="w-4 h-4 text-[#FB923C]" /> Active Orders
+   717→              </h2>
+   718→              <div className="space-y-3">
+   719→                {activeOrders.map((order) => (
+   720→                  <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
+   721→                    <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
+   722→                      <CardContent className="p-4">
+   723→                        <div className="flex justify-between items-start">
+   724→                          <div>
+   725→                            <p className="font-bold text-[#0d1c2d]">{order.deal?.title || 'Deal'}</p>
+   726→                            <p className="text-xs text-[#40484d] mt-0.5">#{order.orderNumber}</p>
+   727→                          </div>
+   728→                          <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold">
+   729→                            Pending Pickup
+   730→                          </Badge>
+   731→                        </div>
+   732→                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d4e4fa]">
+   733→                          <span className="text-lg font-extrabold text-[#0d6683]">RM{order.totalPrice.toFixed(2)}</span>
+   734→                          <span className="text-xs text-[#40484d] flex items-center gap-1">
+   735→                            <QrCode className="w-3.5 h-3.5" /> Tap to view QR
+   736→                          </span>
+   737→                        </div>
+   738→                      </CardContent>
+   739→                    </Card>
+   740→                  </motion.div>
+   741→                ))}
+   742→              </div>
+   743→            </div>
+   744→          )}
+   745→
+   746→          {completedOrders.length > 0 && (
+   747→            <div>
+   748→              <h2 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+   749→                <CheckCircle className="w-4 h-4 text-[#34D399]" /> Completed
+   750→              </h2>
+   751→              <div className="space-y-3">
+   752→                {completedOrders.map((order) => (
+   753→                  <Card key={order.id} className="border-0 shadow-card rounded-2xl">
+   754→                    <CardContent className="p-4">
+   755→                      <div className="flex justify-between items-start">
+   756→                        <div>
+   757→                          <p className="font-bold text-[#0d1c2d]">{order.deal?.title || 'Deal'}</p>
+   758→                          <p className="text-xs text-[#40484d] mt-0.5">#{order.orderNumber}</p>
+   759→                        </div>
+   760→                        <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg font-bold">
+   761→                          Completed
+   762→                        </Badge>
+   763→                      </div>
+   764→                      <p className="text-sm font-bold text-[#0d6683] mt-2">RM{order.totalPrice.toFixed(2)}</p>
+   765→                    </CardContent>
+   766→                  </Card>
+   767→                ))}
+   768→              </div>
+   769→            </div>
+   770→          )}
+   771→        </>
+   772→      )}
+   773→
+   774→      {/* QR Code Dialog */}
+   775→      <Dialog open={!!selectedOrder} onOpenChange={() => setSelectedOrder(null)}>
+   776→        <DialogContent className="rounded-2xl max-w-sm">
+   777→          <DialogHeader>
+   778→            <DialogTitle className="text-center">Pickup QR Code</DialogTitle>
+   779→            <DialogDescription className="text-center">Show this code to the vendor</DialogDescription>
+   780→          </DialogHeader>
+   781→          {selectedOrder && (
+   782→            <div className="text-center py-4">
+   783→              <div className="bg-[#eef4ff] rounded-2xl p-6 inline-block">
+   784→                <QrCode className="w-40 h-40 text-[#0d6683]" />
+   785→              </div>
+   786→              <p className="mt-4 font-bold text-[#0d1c2d]">Order #{selectedOrder.orderNumber}</p>
+   787→              <p className="text-sm text-[#40484d] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
+   788→              <p className="text-xs text-[#70787d] mt-2">
+   789→                Pickup before: {new Date(selectedOrder.pickupDeadline).toLocaleTimeString()}
+   790→              </p>
+   791→            </div>
+   792→          )}
+   793→        </DialogContent>
+   794→      </Dialog>
+   795→    </div>
+   796→  )
+   797→}
+   798→
+   799→// ============================================
+   800→// FOODIE: PROFILE VIEW
+   801→// ============================================
+   802→function FoodieProfileView() {
+   803→  const { user, updateActiveRole, logout } = useAuthStore()
+   804→  const { setActiveRole, navigate } = useAppStore()
+   805→  const roles = user?.roles || []
+   806→
+   807→  const handleRoleSwitch = (role: AppRole) => {
+   808→    if (roles.includes(role)) {
+   809→      updateActiveRole(role)
+   810→      setActiveRole(role)
+   811→    }
+   812→  }
+   813→
+   814→  const handleLogout = async () => {
+   815→    await apiFetch('/api/auth/logout', { method: 'POST' })
+   816→    logout()
+   817→  }
+   818→
+   819→  return (
+   820→    <div className="pb-28 px-5 pt-2">
+   821→      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">Profile</h1>
+   822→
+   823→      {/* User Card */}
+   824→      <Card className="border-0 shadow-card rounded-2xl mb-4">
+   825→        <CardContent className="p-4">
+   826→          <div className="flex items-center gap-3">
+   827→            <Avatar className="w-14 h-14 border-2 border-[#89cff0]">
+   828→              <AvatarFallback className="bg-[#0d6683] text-white text-lg font-bold">
+   829→                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+   830→              </AvatarFallback>
+   831→            </Avatar>
+   832→            <div className="flex-1 min-w-0">
+   833→              <h2 className="font-bold text-[#0d1c2d] text-base truncate">{user?.name}</h2>
+   834→              <p className="text-xs text-[#40484d] truncate">{user?.email}</p>
+   835→              <Badge className="mt-1 bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg text-[10px]">
+   836→                {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
+   837→              </Badge>
+   838→            </div>
+   839→          </div>
+   840→        </CardContent>
+   841→      </Card>
+   842→
+   843→      {/* Role Switching */}
+   844→      <h3 className="font-bold text-[#0d1c2d] text-sm mb-2">Switch Mode</h3>
+   845→      <div className="grid grid-cols-3 gap-2 mb-4">
+   846→        {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
+   847→          const isAvailable = roles.includes(role)
+   848→          const isActive = user?.activeRole === role
+   849→          const icons = { foodie: Utensils, vendor: Store, admin: Shield }
+   850→          const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
+   851→          const Icon = icons[role]
+   852→          return (
+   853→            <button
+   854→              key={role}
+   855→              onClick={() => handleRoleSwitch(role)}
+   856→              disabled={!isAvailable}
+   857→              className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
+   858→                isActive ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
+   859→              } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+   860→            >
+   861→              <Icon className="w-5 h-5" />
+   862→              <span className="text-[11px] font-bold">{labels[role]}</span>
+   863→              {isActive && <Check className="w-3 h-3" />}
+   864→            </button>
+   865→          )
+   866→        })}
+   867→      </div>
+   868→
+   869→      {/* Quick Links */}
+   870→      <div className="space-y-2 mb-4">
+   871→        {roles.includes('vendor') && (
+   872→          <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+   873→            <CreditCard className="w-5 h-5 text-[#0d6683]" />
+   874→            <div className="text-left flex-1">
+   875→              <p className="font-bold text-sm text-[#0d1c2d]">Subscription Plan</p>
+   876→              <p className="text-[11px] text-[#40484d]">Manage your vendor subscription</p>
+   877→            </div>
+   878→            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+   879→          </button>
+   880→        )}
+   881→        {!roles.includes('vendor') && (
+   882→          <button onClick={() => navigate('home', {})} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#89cff0]/20 to-[#0d6683]/5 hover:from-[#89cff0]/30 hover:to-[#0d6683]/10 transition-colors">
+   883→            <Sparkles className="w-5 h-5 text-[#0d6683]" />
+   884→            <div className="text-left flex-1">
+   885→              <p className="font-bold text-sm text-[#0d1c2d]">Become a Vendor</p>
+   886→              <p className="text-[11px] text-[#40484d]">Turn unsold meals into revenue</p>
+   887→            </div>
+   888→            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+   889→          </button>
+   890→        )}
+   891→      </div>
+   892→
+   893→      {/* Sign Out */}
+   894→      <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 text-[#EF4444] hover:bg-red-100 transition-colors">
+   895→        <LogOut className="w-5 h-5" />
+   896→        <span className="font-bold text-sm">Sign Out</span>
+   897→      </button>
+   898→    </div>
+   899→  )
+   900→}
+   901→
+   902→// ============================================
+   903→// VENDOR: DASHBOARD VIEW
+   904→// ============================================
+   905→function VendorDashboardView() {
+   906→  const { navigate } = useAppStore()
+   907→  const { user } = useAuthStore()
+   908→  const [vendor, setVendor] = useState<Vendor | null>(null)
+   909→  const [deals, setDeals] = useState<Deal[]>([])
+   910→  const [loading, setLoading] = useState(true)
+   911→  const [orders, setOrders] = useState<Order[]>([])
+   912→
+   913→  useEffect(() => {
+   914→    setLoading(true)
+   915→    Promise.all([
+   916→      apiFetch<{ vendors: Vendor[]; total: number }>('/api/vendors?my=true'),
+   917→      apiFetch<{ deals: Deal[]; total: number }>('/api/deals?status=active&pageSize=50'),
+   918→      apiFetch<{ orders: Order[] }>('/api/orders'),
+   919→    ]).then(([vRes, dRes, oRes]) => {
+   920→      if (vRes.success && vRes.data) {
+   921→        const vData = vRes.data.vendors?.[0] || null
+   922→        if (vData) setVendor(vData)
+   923→      }
+   924→      if (dRes.success && dRes.data) {
+   925→        const d = dRes.data.deals || []
+   926→        setDeals(Array.isArray(d) ? d : [])
+   927→      }
+   928→      if (oRes.success && oRes.data) {
+   929→        const o = (oRes.data as { orders?: Order[] }).orders || oRes.data
+   930→        setOrders(Array.isArray(o) ? o : [])
+   931→      }
+   932→    }).finally(() => setLoading(false))
+   933→  }, [])
+   934→
+   935→  const vendorDeals = deals.filter(d => d.vendorId === vendor?.id)
+   936→  const activeDeals = vendorDeals.filter(d => d.status === 'active')
+   937→  const pendingOrders = orders.filter(o => o.status === 'pending_pickup' && vendorDeals.some(d => d.id === o.dealId))
+   938→  const todayRevenue = orders
+   939→    .filter(o => o.vendorId === vendor?.id && o.status === 'completed')
+   940→    .reduce((sum, o) => sum + o.totalPrice, 0)
+   941→
+   942→  return (
+   943→    <div className="pb-28 px-5 pt-2">
+   944→      <div className="flex items-center justify-between mb-5">
+   945→        <div>
+   946→          <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Dashboard</h1>
+   947→          <p className="text-sm text-[#40484d]">{vendor?.businessName || 'Your Store'}</p>
+   948→        </div>
+   949→        <div className="flex items-center gap-2">
+   950→          <NotificationBell />
+   951→          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
+   952→            <User className="w-5 h-5 text-[#0d6683]" />
+   953→          </button>
+   954→        </div>
+   955→      </div>
+   956→
+   957→      {loading ? (
+   958→        <div className="grid grid-cols-2 gap-3 mb-6">
+   959→          {Array.from({ length: 4 }).map((_, i) => (
+   960→            <Skeleton key={i} className="h-24 rounded-xl" />
+   961→          ))}
+   962→        </div>
+   963→      ) : (
+   964→        <>
+   965→          {/* Stats Cards */}
+   966→          <div className="grid grid-cols-2 gap-3 mb-6">
+   967→            <Card className="border-0 shadow-card rounded-2xl">
+   968→              <CardContent className="p-4 text-center">
+   969→                <DollarSign className="w-6 h-6 text-[#0d6683] mx-auto mb-1" />
+   970→                <p className="text-xs text-[#40484d]">Revenue</p>
+   971→                <p className="text-lg font-extrabold text-[#0d1c2d]">RM{todayRevenue.toFixed(0)}</p>
+   972→              </CardContent>
+   973→            </Card>
+   974→            <Card className="border-0 shadow-card rounded-2xl">
+   975→              <CardContent className="p-4 text-center">
+   976→                <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
+   977→                <p className="text-xs text-[#40484d]">Active Deals</p>
+   978→                <p className="text-lg font-extrabold text-[#0d1c2d]">{activeDeals.length}</p>
+   979→              </CardContent>
+   980→            </Card>
+   981→            <Card className="border-0 shadow-card rounded-2xl">
+   982→              <CardContent className="p-4 text-center">
+   983→                <ShoppingBag className="w-6 h-6 text-[#34D399] mx-auto mb-1" />
+   984→                <p className="text-xs text-[#40484d]">Pending Pickup</p>
+   985→                <p className="text-lg font-extrabold text-[#0d1c2d]">{pendingOrders.length}</p>
+   986→              </CardContent>
+   987→            </Card>
+   988→            <Card className="border-0 shadow-card rounded-2xl">
+   989→              <CardContent className="p-4 text-center">
+   990→                <Package className="w-6 h-6 text-[#4e6073] mx-auto mb-1" />
+   991→                <p className="text-xs text-[#40484d]">Total Sold</p>
+   992→                <p className="text-lg font-extrabold text-[#0d1c2d]">{vendor?.totalSales || 0}</p>
+   993→              </CardContent>
+   994→            </Card>
+   995→          </div>
+   996→
+   997→          {/* Quick Actions */}
+   998→          <h3 className="font-bold text-[#0d1c2d] mb-3">Quick Actions</h3>
+   999→          <div className="grid grid-cols-2 gap-3 mb-6">
+  1000→            <motion.button
+  1001→              whileTap={{ scale: 0.95 }}
+  1002→              onClick={() => navigate('create-deal')}
+  1003→              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#89cff0]/20 to-[#0d6683]/10 rounded-2xl shadow-chip"
+  1004→            >
+  1005→              <div className="w-10 h-10 rounded-xl bg-[#0d6683] flex items-center justify-center">
+  1006→                <PlusCircle className="w-5 h-5 text-white" />
+  1007→              </div>
+  1008→              <span className="text-xs font-bold text-[#0d1c2d]">Create Deal</span>
+  1009→            </motion.button>
+  1010→            <motion.button
+  1011→              whileTap={{ scale: 0.95 }}
+  1012→              onClick={() => navigate('inventory')}
+  1013→              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#34D399]/20 to-[#059669]/10 rounded-2xl shadow-chip"
+  1014→            >
+  1015→              <div className="w-10 h-10 rounded-xl bg-[#059669] flex items-center justify-center">
+  1016→                <Package className="w-5 h-5 text-white" />
+  1017→              </div>
+  1018→              <span className="text-xs font-bold text-[#0d1c2d]">Inventory</span>
+  1019→            </motion.button>
+  1020→            <motion.button
+  1021→              whileTap={{ scale: 0.95 }}
+  1022→              onClick={() => navigate('fulfillment')}
+  1023→              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#FB923C]/20 to-[#F97316]/10 rounded-2xl shadow-chip"
+  1024→            >
+  1025→              <div className="w-10 h-10 rounded-xl bg-[#FB923C] flex items-center justify-center">
+  1026→                <CheckCircle className="w-5 h-5 text-white" />
+  1027→              </div>
+  1028→              <span className="text-xs font-bold text-[#0d1c2d]">Fulfillment</span>
+  1029→            </motion.button>
+  1030→            <motion.button
+  1031→              whileTap={{ scale: 0.95 }}
+  1032→              onClick={() => navigate('subscription')}
+  1033→              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#cfe2f9]/40 to-[#4e6073]/10 rounded-2xl shadow-chip"
+  1034→            >
+  1035→              <div className="w-10 h-10 rounded-xl bg-[#4e6073] flex items-center justify-center">
+  1036→                <Crown className="w-5 h-5 text-white" />
+  1037→              </div>
+  1038→              <span className="text-xs font-bold text-[#0d1c2d]">Subscription</span>
+  1039→            </motion.button>
+  1040→          </div>
+  1041→
+  1042→          {/* Active Deals List */}
+  1043→          <h3 className="font-bold text-[#0d1c2d] mb-3">Your Active Deals</h3>
+  1044→          {activeDeals.length === 0 ? (
+  1045→            <Card className="border-0 shadow-card rounded-2xl">
+  1046→              <CardContent className="p-6 text-center">
+  1047→                <Flame className="w-10 h-10 text-[#bfc8cd] mx-auto mb-2" />
+  1048→                <p className="text-sm text-[#40484d]">No active deals. Create one now!</p>
+  1049→              </CardContent>
+  1050→            </Card>
+  1051→          ) : (
+  1052→            <div className="space-y-3">
+  1053→              {activeDeals.map((deal) => (
+  1054→                <Card key={deal.id} className="border-0 shadow-card rounded-2xl">
+  1055→                  <CardContent className="p-4">
+  1056→                    <div className="flex justify-between items-start">
+  1057→                      <div>
+  1058→                        <p className="font-bold text-[#0d1c2d]">{deal.title}</p>
+  1059→                        <p className="text-xs text-[#40484d] mt-0.5">RM{deal.dealPrice.toFixed(2)} • {deal.availableQuantity} left</p>
+  1060→                      </div>
+  1061→                      <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg text-xs">Active</Badge>
+  1062→                    </div>
+  1063→                    <div className="mt-2">
+  1064→                      <Progress value={(deal.soldQuantity / deal.totalQuantity) * 100} className="h-2" />
+  1065→                      <p className="text-xs text-[#70787d] mt-1">{deal.soldQuantity}/{deal.totalQuantity} sold</p>
+  1066→                    </div>
+  1067→                  </CardContent>
+  1068→                </Card>
+  1069→              ))}
+  1070→            </div>
+  1071→          )}
+  1072→        </>
+  1073→      )}
+  1074→    </div>
+  1075→  )
+  1076→}
+  1077→
+  1078→// ============================================
+  1079→// VENDOR: CREATE DEAL VIEW
+  1080→// ============================================
+  1081→function VendorCreateDealView() {
+  1082→  const { goBack } = useAppStore()
+  1083→  const [step, setStep] = useState(1)
+  1084→  const [loading, setLoading] = useState(false)
+  1085→  const [form, setForm] = useState({
+  1086→    title: '', description: '', category: 'Malay',
+  1087→    originalPrice: '', dealPrice: '', totalQuantity: '',
+  1088→    expiresAt: '', pickupInstructions: '',
+  1089→  })
+  1090→
+  1091→  const discountPercent = form.originalPrice && form.dealPrice
+  1092→    ? Math.round(((parseFloat(form.originalPrice) - parseFloat(form.dealPrice)) / parseFloat(form.originalPrice)) * 100)
+  1093→    : 0
+  1094→
+  1095→  const handleSubmit = async () => {
+  1096→    if (!form.title || !form.description || !form.originalPrice || !form.dealPrice || !form.totalQuantity || !form.expiresAt) {
+  1097→      toast.error('Please fill in all required fields')
+  1098→      return
+  1099→    }
+  1100→    setLoading(true)
+  1101→    try {
+  1102→      const res = await apiFetch<Deal>('/api/deals', {
+  1103→        method: 'POST',
+  1104→        body: JSON.stringify({
+  1105→          ...form,
+  1106→          originalPrice: parseFloat(form.originalPrice),
+  1107→          dealPrice: parseFloat(form.dealPrice),
+  1108→          totalQuantity: parseInt(form.totalQuantity),
+  1109→          maxClaimsPerUser: 1,
+  1110→        }),
+  1111→      })
+  1112→      if (res.success) {
+  1113→        toast.success('Deal created successfully!')
+  1114→        goBack()
+  1115→      } else {
+  1116→        toast.error(res.error || 'Failed to create deal')
+  1117→      }
+  1118→    } finally {
+  1119→      setLoading(false)
+  1120→    }
+  1121→  }
+  1122→
+  1123→  return (
+  1124→    <div className="pb-28 px-5 pt-2">
+  1125→      <div className="flex items-center gap-3 mb-5">
+  1126→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+  1127→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1128→        </button>
+  1129→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Create Flash Deal</h1>
+  1130→      </div>
+  1131→
+  1132→      {/* Steps indicator */}
+  1133→      <div className="flex items-center gap-2 mb-6">
+  1134→        {[1, 2, 3].map((s) => (
+  1135→          <div key={s} className="flex items-center gap-2 flex-1">
+  1136→            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+  1137→              s <= step ? 'bg-[#0d6683] text-white' : 'bg-[#e5efff] text-[#70787d]'
+  1138→            }`}>
+  1139→              {s < step ? <Check className="w-4 h-4" /> : s}
+  1140→            </div>
+  1141→            {s < 3 && <div className={`flex-1 h-0.5 rounded ${s < step ? 'bg-[#0d6683]' : 'bg-[#e5efff]'}`} />}
+  1142→          </div>
+  1143→        ))}
+  1144→      </div>
+  1145→
+  1146→      {/* Step 1: Food Info */}
+  1147→      {step === 1 && (
+  1148→        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+  1149→          <div>
+  1150→            <Label className="font-semibold text-[#0d1c2d]">Food Name *</Label>
+  1151→            <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} placeholder="e.g. Nasi Lemak Bunga Telang" className="mt-1.5 h-12 rounded-xl" />
+  1152→          </div>
+  1153→          <div>
+  1154→            <Label className="font-semibold text-[#0d1c2d]">Description *</Label>
+  1155→            <Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Describe your meal..." className="mt-1.5 rounded-xl min-h-[100px]" />
+  1156→          </div>
+  1157→          <div>
+  1158→            <Label className="font-semibold text-[#0d1c2d]">Category *</Label>
+  1159→            <Select value={form.category} onValueChange={(v) => setForm({...form, category: v})}>
+  1160→              <SelectTrigger className="h-12 rounded-xl mt-1.5"><SelectValue /></SelectTrigger>
+  1161→              <SelectContent>
+  1162→                {['Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage', 'Other'].map(c => (
+  1163→                  <SelectItem key={c} value={c}>{c}</SelectItem>
+  1164→                ))}
+  1165→              </SelectContent>
+  1166→            </Select>
+  1167→          </div>
+  1168→          <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+  1169→            Next: Pricing <ChevronRight className="w-4 h-4 ml-1" />
+  1170→          </Button>
+  1171→        </motion.div>
+  1172→      )}
+  1173→
+  1174→      {/* Step 2: Pricing & Inventory */}
+  1175→      {step === 2 && (
+  1176→        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+  1177→          <div className="grid grid-cols-2 gap-3">
+  1178→            <div>
+  1179→              <Label className="font-semibold text-[#0d1c2d]">Original Price (RM) *</Label>
+  1180→              <Input type="number" value={form.originalPrice} onChange={(e) => setForm({...form, originalPrice: e.target.value})} placeholder="15.00" className="mt-1.5 h-12 rounded-xl" />
+  1181→            </div>
+  1182→            <div>
+  1183→              <Label className="font-semibold text-[#0d1c2d]">Deal Price (RM) *</Label>
+  1184→              <Input type="number" value={form.dealPrice} onChange={(e) => setForm({...form, dealPrice: e.target.value})} placeholder="8.00" className="mt-1.5 h-12 rounded-xl" />
+  1185→            </div>
+  1186→          </div>
+  1187→          {discountPercent > 0 && (
+  1188→            <div className="bg-[#ecfdf5] rounded-xl p-3 text-center">
+  1189→              <p className="text-sm text-[#059669] font-bold">🔥 {discountPercent}% Discount</p>
+  1190→            </div>
+  1191→          )}
+  1192→          <div>
+  1193→            <Label className="font-semibold text-[#0d1c2d]">Available Quantity *</Label>
+  1194→            <Input type="number" value={form.totalQuantity} onChange={(e) => setForm({...form, totalQuantity: e.target.value})} placeholder="20" className="mt-1.5 h-12 rounded-xl" />
+  1195→          </div>
+  1196→          <div>
+  1197→            <Label className="font-semibold text-[#0d1c2d]">Deal Expires At *</Label>
+  1198→            <Input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({...form, expiresAt: e.target.value})} className="mt-1.5 h-12 rounded-xl" />
+  1199→          </div>
+  1200→          <div className="flex gap-3">
+  1201→            <Button onClick={() => setStep(1)} variant="outline" className="flex-1 h-12 rounded-xl font-bold">Back</Button>
+  1202→            <Button onClick={() => setStep(3)} className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+  1203→              Next: Review <ChevronRight className="w-4 h-4 ml-1" />
+  1204→            </Button>
+  1205→          </div>
+  1206→        </motion.div>
+  1207→      )}
+  1208→
+  1209→      {/* Step 3: Review & Publish */}
+  1210→      {step === 3 && (
+  1211→        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+  1212→          <Card className="border-0 shadow-card rounded-2xl">
+  1213→            <CardContent className="p-5 space-y-3">
+  1214→              <h3 className="font-bold text-lg text-[#0d1c2d]">{form.title || 'Untitled Deal'}</h3>
+  1215→              <p className="text-sm text-[#40484d]">{form.description}</p>
+  1216→              <div className="flex items-center gap-2">
+  1217→                <Badge className="bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg">{form.category}</Badge>
+  1218→                <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg">-{discountPercent}%</Badge>
+  1219→              </div>
+  1220→              <Separator className="bg-[#d4e4fa]" />
+  1221→              <div className="grid grid-cols-2 gap-3 text-sm">
+  1222→                <div>
+  1223→                  <p className="text-[#70787d]">Original</p>
+  1224→                  <p className="font-bold text-[#0d1c2d] line-through">RM{form.originalPrice}</p>
+  1225→                </div>
+  1226→                <div>
+  1227→                  <p className="text-[#70787d]">Deal Price</p>
+  1228→                  <p className="font-bold text-[#0d6683] text-lg">RM{form.dealPrice}</p>
+  1229→                </div>
+  1230→                <div>
+  1231→                  <p className="text-[#70787d]">Quantity</p>
+  1232→                  <p className="font-bold text-[#0d1c2d]">{form.totalQuantity}</p>
+  1233→                </div>
+  1234→                <div>
+  1235→                  <p className="text-[#70787d]">Pickup</p>
+  1236→                  <p className="font-bold text-[#0d1c2d]">Only</p>
+  1237→                </div>
+  1238→              </div>
+  1239→            </CardContent>
+  1240→          </Card>
+  1241→          <div className="flex gap-3">
+  1242→            <Button onClick={() => setStep(2)} variant="outline" className="flex-1 h-12 rounded-xl font-bold">Back</Button>
+  1243→            <Button
+  1244→              onClick={handleSubmit}
+  1245→              disabled={loading}
+  1246→              className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white active:scale-95 transition-transform"
+  1247→            >
+  1248→              {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <>
+  1249→                <Zap className="w-5 h-5 mr-1" /> Publish Deal
+  1250→              </>}
+  1251→            </Button>
+  1252→          </div>
+  1253→        </motion.div>
+  1254→      )}
+  1255→    </div>
+  1256→  )
+  1257→}
+  1258→
+  1259→// ============================================
+  1260→// VENDOR: INVENTORY VIEW
+  1261→// ============================================
+  1262→function VendorInventoryView() {
+  1263→  const { goBack } = useAppStore()
+  1264→  const [deals, setDeals] = useState<Deal[]>([])
+  1265→  const [loading, setLoading] = useState(true)
+  1266→
+  1267→  useEffect(() => {
+  1268→    setLoading(true)
+  1269→    apiFetch<{ deals: Deal[] }>('/api/deals?status=active&pageSize=50').then((res) => {
+  1270→      if (res.success && res.data) {
+  1271→        setDeals(res.data.deals || [])
+  1272→      }
+  1273→    }).finally(() => setLoading(false))
+  1274→  }, [])
+  1275→
+  1276→  return (
+  1277→    <div className="pb-28 px-5 pt-2">
+  1278→      <div className="flex items-center gap-3 mb-5">
+  1279→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+  1280→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1281→        </button>
+  1282→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Inventory</h1>
+  1283→      </div>
+  1284→
+  1285→      {loading ? (
+  1286→        Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl mb-3" />)
+  1287→      ) : deals.length === 0 ? (
+  1288→        <div className="text-center py-16">
+  1289→          <Package className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
+  1290→          <h3 className="text-lg font-bold text-[#0d1c2d]">No active inventory</h3>
+  1291→        </div>
+  1292→      ) : (
+  1293→        <div className="space-y-3">
+  1294→          {deals.map((deal) => (
+  1295→            <Card key={deal.id} className="border-0 shadow-card rounded-2xl">
+  1296→              <CardContent className="p-4">
+  1297→                <div className="flex justify-between items-start mb-3">
+  1298→                  <div>
+  1299→                    <p className="font-bold text-[#0d1c2d]">{deal.title}</p>
+  1300→                    <p className="text-xs text-[#40484d]">RM{deal.dealPrice.toFixed(2)} per meal</p>
+  1301→                  </div>
+  1302→                  <Badge className={`border-0 rounded-lg text-xs ${
+  1303→                    deal.status === 'active' ? 'bg-[#34D399]/10 text-[#059669]' : 'bg-[#70787d]/10 text-[#70787d]'
+  1304→                  }`}>
+  1305→                    {deal.status}
+  1306→                  </Badge>
+  1307→                </div>
+  1308→                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+  1309→                  <div className="bg-[#eef4ff] rounded-lg p-2">
+  1310→                    <p className="text-[#70787d]">Total</p>
+  1311→                    <p className="font-bold text-[#0d1c2d]">{deal.totalQuantity}</p>
+  1312→                  </div>
+  1313→                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+  1314→                    <p className="text-[#70787d]">Reserved</p>
+  1315→                    <p className="font-bold text-[#FB923C]">{deal.reservedQuantity}</p>
+  1316→                  </div>
+  1317→                  <div className="bg-[#34D399]/10 rounded-lg p-2">
+  1318→                    <p className="text-[#70787d]">Sold</p>
+  1319→                    <p className="font-bold text-[#059669]">{deal.soldQuantity}</p>
+  1320→                  </div>
+  1321→                  <div className="bg-[#0d6683]/10 rounded-lg p-2">
+  1322→                    <p className="text-[#70787d]">Available</p>
+  1323→                    <p className="font-bold text-[#0d6683]">{deal.availableQuantity}</p>
+  1324→                  </div>
+  1325→                </div>
+  1326→              </CardContent>
+  1327→            </Card>
+  1328→          ))}
+  1329→        </div>
+  1330→      )}
+  1331→    </div>
+  1332→  )
+  1333→}
+  1334→
+  1335→// ============================================
+  1336→// VENDOR: FULFILLMENT VIEW
+  1337→// ============================================
+  1338→function VendorFulfillmentView() {
+  1339→  const { goBack } = useAppStore()
+  1340→  const [orders, setOrders] = useState<Order[]>([])
+  1341→  const [loading, setLoading] = useState(true)
+  1342→  const [verifying, setVerifying] = useState(false)
+  1343→  const [qrInput, setQrInput] = useState('')
+  1344→
+  1345→  useEffect(() => {
+  1346→    setLoading(true)
+  1347→    apiFetch<{ orders: Order[] }>('/api/orders').then((res) => {
+  1348→      if (res.success && res.data) setOrders(res.data.orders || [])
+  1349→    }).finally(() => setLoading(false))
+  1350→  }, [])
+  1351→
+  1352→  const pendingPickup = orders.filter(o => o.status === 'pending_pickup')
+  1353→  const completed = orders.filter(o => o.status === 'completed')
+  1354→
+  1355→  const handleVerify = async () => {
+  1356→    if (!qrInput.trim()) return
+  1357→    setVerifying(true)
+  1358→    // Find order by QR code
+  1359→    const order = orders.find(o => o.qrCode === qrInput.trim())
+  1360→    if (!order) {
+  1361→      toast.error('Order not found for this QR code')
+  1362→      setVerifying(false)
+  1363→      return
+  1364→    }
+  1365→    const res = await apiFetch(`/api/orders/${order.id}/verify`, {
+  1366→      method: 'POST',
+  1367→      body: JSON.stringify({ qrCode: qrInput.trim() }),
+  1368→    })
+  1369→    if (res.success) {
+  1370→      toast.success('Pickup verified successfully!')
+  1371→      setQrInput('')
+  1372→      // Refresh orders
+  1373→      apiFetch<{ orders: Order[] }>('/api/orders').then((r) => {
+  1374→        if (r.success && r.data) setOrders(r.data.orders || [])
+  1375→      })
+  1376→    } else {
+  1377→      toast.error(res.error || 'Verification failed')
+  1378→    }
+  1379→    setVerifying(false)
+  1380→  }
+  1381→
+  1382→  return (
+  1383→    <div className="pb-28 px-5 pt-2">
+  1384→      <div className="flex items-center gap-3 mb-5">
+  1385→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+  1386→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1387→        </button>
+  1388→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Fulfillment</h1>
+  1389→      </div>
+  1390→
+  1391→      {/* QR Verify */}
+  1392→      <Card className="border-0 shadow-card rounded-2xl mb-5">
+  1393→        <CardContent className="p-5">
+  1394→          <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+  1395→            <QrCode className="w-5 h-5 text-[#0d6683]" /> Verify Pickup
+  1396→          </h3>
+  1397→          <div className="flex gap-2">
+  1398→            <Input
+  1399→              value={qrInput}
+  1400→              onChange={(e) => setQrInput(e.target.value)}
+  1401→              placeholder="Enter QR code or scan..."
+  1402→              className="h-12 rounded-xl flex-1"
+  1403→            />
+  1404→            <Button
+  1405→              onClick={handleVerify}
+  1406→              disabled={verifying || !qrInput.trim()}
+  1407→              className="h-12 px-5 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white"
+  1408→            >
+  1409→              {verifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify'}
+  1410→            </Button>
+  1411→          </div>
+  1412→        </CardContent>
+  1413→      </Card>
+  1414→
+  1415→      {/* Pending */}
+  1416→      <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+  1417→        <Clock className="w-4 h-4 text-[#FB923C]" /> Pending Pickup ({pendingPickup.length})
+  1418→      </h3>
+  1419→      {pendingPickup.length === 0 ? (
+  1420→        <p className="text-sm text-[#70787d] mb-6">No pending pickups</p>
+  1421→      ) : (
+  1422→        <div className="space-y-2 mb-6">
+  1423→          {pendingPickup.map((order) => (
+  1424→            <Card key={order.id} className="border-0 shadow-card rounded-2xl">
+  1425→              <CardContent className="p-4 flex justify-between items-center">
+  1426→                <div>
+  1427→                  <p className="font-bold text-sm text-[#0d1c2d]">#{order.orderNumber}</p>
+  1428→                  <p className="text-xs text-[#40484d]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
+  1429→                </div>
+  1430→                <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
+  1431→              </CardContent>
+  1432→            </Card>
+  1433→          ))}
+  1434→        </div>
+  1435→      )}
+  1436→
+  1437→      {/* Completed */}
+  1438→      <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+  1439→        <CheckCircle className="w-4 h-4 text-[#34D399]" /> Completed ({completed.length})
+  1440→      </h3>
+  1441→      {completed.length === 0 ? (
+  1442→        <p className="text-sm text-[#70787d]">No completed orders yet</p>
+  1443→      ) : (
+  1444→        <div className="space-y-2">
+  1445→          {completed.map((order) => (
+  1446→            <Card key={order.id} className="border-0 shadow-card rounded-2xl">
+  1447→              <CardContent className="p-4 flex justify-between items-center">
+  1448→                <div>
+  1449→                  <p className="font-bold text-sm text-[#0d1c2d]">#{order.orderNumber}</p>
+  1450→                  <p className="text-xs text-[#40484d]">RM{order.totalPrice.toFixed(2)}</p>
+  1451→                </div>
+  1452→                <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg text-xs">Done</Badge>
+  1453→              </CardContent>
+  1454→            </Card>
+  1455→          ))}
+  1456→        </div>
+  1457→      )}
+  1458→    </div>
+  1459→  )
+  1460→}
+  1461→
+  1462→// ============================================
+  1463→// VENDOR: SUBSCRIPTION VIEW
+  1464→// ============================================
+  1465→function VendorSubscriptionView() {
+  1466→  const { goBack } = useAppStore()
+  1467→  const [vendor, setVendor] = useState<Vendor | null>(null)
+  1468→  const [activating, setActivating] = useState(false)
+  1469→
+  1470→  useEffect(() => {
+  1471→    apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true').then((res) => {
+  1472→      if (res.success && res.data) {
+  1473→        const v = res.data.vendors?.[0] || null
+  1474→        if (v) setVendor(v)
+  1475→      }
+  1476→    })
+  1477→  }, [])
+  1478→
+  1479→  const handleActivate = async (plan: string) => {
+  1480→    setActivating(true)
+  1481→    // Simulated payment - in real app would redirect to Stripe/Billplz
+  1482→    await new Promise(resolve => setTimeout(resolve, 1500))
+  1483→    toast.success(`${plan === 'vendor_basic' ? 'Basic' : 'Premium'} plan activated! (Simulated)`)
+  1484→    setActivating(false)
+  1485→  }
+  1486→
+  1487→  return (
+  1488→    <div className="pb-28 px-5 pt-2">
+  1489→      <div className="flex items-center gap-3 mb-5">
+  1490→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+  1491→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1492→        </button>
+  1493→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Subscription</h1>
+  1494→      </div>
+  1495→
+  1496→      {/* Current Plan */}
+  1497→      {vendor && vendor.subscriptionPlan !== 'none' && (
+  1498→        <Card className="border-0 shadow-card rounded-2xl mb-5 bg-gradient-to-br from-[#0d6683] to-[#005974]">
+  1499→          <CardContent className="p-5 text-white">
+  1500→            <div className="flex items-center gap-2 mb-2">
+  1501→              <Crown className="w-5 h-5" />
+  1502→              <span className="font-bold">Current Plan: {vendor.subscriptionPlan === 'vendor_basic' ? 'Basic' : 'Premium'}</span>
+  1503→            </div>
+  1504→            <p className="text-sm text-white/70">Status: {vendor.subscriptionStatus}</p>
+  1505→          </CardContent>
+  1506→        </Card>
+  1507→      )}
+  1508→
+  1509→      {/* Plans */}
+  1510→      <div className="space-y-4">
+  1511→        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_basic' ? 'ring-2 ring-[#0d6683]' : ''}`}>
+  1512→          <CardContent className="p-5">
+  1513→            <div className="flex justify-between items-start mb-3">
+  1514→              <div>
+  1515→                <h3 className="font-bold text-lg text-[#0d1c2d]">Basic</h3>
+  1516→                <p className="text-2xl font-extrabold text-[#0d6683]">RM99<span className="text-sm font-normal text-[#70787d]">/month</span></p>
+  1517→              </div>
+  1518→              {vendor?.subscriptionPlan === 'vendor_basic' && (
+  1519→                <Badge className="bg-[#0d6683] text-white border-0 rounded-lg">Active</Badge>
+  1520→              )}
+  1521→            </div>
+  1522→            <ul className="space-y-1.5 text-sm text-[#40484d]">
+  1523→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Unlimited flash deals</li>
+  1524→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Inventory management</li>
+  1525→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> QR fulfillment</li>
+  1526→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Basic statistics</li>
+  1527→            </ul>
+  1528→            {vendor?.subscriptionPlan !== 'vendor_basic' && (
+  1529→              <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+  1530→                {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Basic'}
+  1531→              </Button>
+  1532→            )}
+  1533→          </CardContent>
+  1534→        </Card>
+  1535→
+  1536→        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_premium' ? 'ring-2 ring-[#0d6683]' : ''}`}>
+  1537→          <CardContent className="p-5">
+  1538→            <div className="flex justify-between items-start mb-3">
+  1539→              <div>
+  1540→                <div className="flex items-center gap-2">
+  1541→                  <h3 className="font-bold text-lg text-[#0d1c2d]">Premium</h3>
+  1542→                  <Sparkles className="w-4 h-4 text-[#FB923C]" />
+  1543→                </div>
+  1544→                <p className="text-2xl font-extrabold text-[#0d6683]">RM199<span className="text-sm font-normal text-[#70787d]">/month</span></p>
+  1545→              </div>
+  1546→              {vendor?.subscriptionPlan === 'vendor_premium' && (
+  1547→                <Badge className="bg-[#0d6683] text-white border-0 rounded-lg">Active</Badge>
+  1548→              )}
+  1549→            </div>
+  1550→            <ul className="space-y-1.5 text-sm text-[#40484d]">
+  1551→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Everything in Basic</li>
+  1552→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Advanced analytics</li>
+  1553→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Priority ranking</li>
+  1554→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Marketing tools</li>
+  1555→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#70787d]" /> Siren Push (coming)</li>
+  1556→              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#70787d]" /> Auto-Drop (coming)</li>
+  1557→            </ul>
+  1558→            {vendor?.subscriptionPlan !== 'vendor_premium' && (
+  1559→              <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#FB923C] to-[#F97316] text-white">
+  1560→                {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Premium'}
+  1561→              </Button>
+  1562→            )}
+  1563→          </CardContent>
+  1564→        </Card>
+  1565→      </div>
+  1566→    </div>
+  1567→  )
+  1568→}
+  1569→
+  1570→// ============================================
+  1571→// ADMIN: DASHBOARD VIEW
+  1572→// ============================================
+  1573→function AdminDashboardView() {
+  1574→  const { navigate } = useAppStore()
+  1575→  const [analytics, setAnalytics] = useState<{ overview: Record<string, number>; dealsByStatus: Record<string, number>; ordersByStatus: Record<string, number> } | null>(null)
+  1576→  const [loading, setLoading] = useState(true)
+  1577→
+  1578→  useEffect(() => {
+  1579→    setLoading(true)
+  1580→    apiFetch<Record<string, unknown>>('/api/admin/analytics').then((res) => {
+  1581→      if (res.success && res.data) setAnalytics(res.data)
+  1582→    }).finally(() => setLoading(false))
+  1583→  }, [])
+  1584→
+  1585→  return (
+  1586→    <div className="pb-28 px-5 pt-2">
+  1587→      <div className="flex items-center justify-between mb-5">
+  1588→        <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Admin Dashboard</h1>
+  1589→        <div className="flex items-center gap-2">
+  1590→          <NotificationBell />
+  1591→          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
+  1592→            <User className="w-5 h-5 text-[#0d6683]" />
+  1593→          </button>
+  1594→        </div>
+  1595→      </div>
+  1596→
+  1597→      {loading ? (
+  1598→        <div className="grid grid-cols-2 gap-3">
+  1599→          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+  1600→        </div>
+  1601→      ) : (
+  1602→        <>
+  1603→          <div className="grid grid-cols-2 gap-3 mb-6">
+  1604→            <Card className="border-0 shadow-card rounded-2xl">
+  1605→              <CardContent className="p-4 text-center">
+  1606→                <Users className="w-6 h-6 text-[#0d6683] mx-auto mb-1" />
+  1607→                <p className="text-xs text-[#40484d]">Total Users</p>
+  1608→                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalUsers as number) || 0}</p>
+  1609→              </CardContent>
+  1610→            </Card>
+  1611→            <Card className="border-0 shadow-card rounded-2xl">
+  1612→              <CardContent className="p-4 text-center">
+  1613→                <Store className="w-6 h-6 text-[#34D399] mx-auto mb-1" />
+  1614→                <p className="text-xs text-[#40484d]">Vendors</p>
+  1615→                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalVendors as number) || 0}</p>
+  1616→              </CardContent>
+  1617→            </Card>
+  1618→            <Card className="border-0 shadow-card rounded-2xl">
+  1619→              <CardContent className="p-4 text-center">
+  1620→                <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
+  1621→                <p className="text-xs text-[#40484d]">Active Deals</p>
+  1622→                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.dealsByStatus as Record<string, number>)?.active || 0}</p>
+  1623→              </CardContent>
+  1624→            </Card>
+  1625→            <Card className="border-0 shadow-card rounded-2xl">
+  1626→              <CardContent className="p-4 text-center">
+  1627→                <ShoppingBag className="w-6 h-6 text-[#4e6073] mx-auto mb-1" />
+  1628→                <p className="text-xs text-[#40484d]">Total Orders</p>
+  1629→                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalOrders as number) || 0}</p>
+  1630→              </CardContent>
+  1631→            </Card>
+  1632→          </div>
+  1633→
+  1634→          {/* Quick Nav */}
+  1635→          <div className="space-y-2">
+  1636→            {[
+  1637→              { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#34D399]' },
+  1638→              { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#0d6683]' },
+  1639→              { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#FB923C]' },
+  1640→            ].map((item) => (
+  1641→              <motion.button
+  1642→                key={item.view}
+  1643→                whileTap={{ scale: 0.98 }}
+  1644→                onClick={() => navigate(item.view)}
+  1645→                className="w-full flex items-center gap-3 p-4 bg-white shadow-card rounded-2xl"
+  1646→              >
+  1647→                <item.icon className={`w-5 h-5 ${item.color}`} />
+  1648→                <span className="font-bold text-sm text-[#0d1c2d]">{item.label}</span>
+  1649→                <ChevronRight className="w-4 h-4 text-[#70787d] ml-auto" />
+  1650→              </motion.button>
+  1651→            ))}
+  1652→          </div>
+  1653→        </>
+  1654→      )}
+  1655→    </div>
+  1656→  )
+  1657→}
+  1658→
+  1659→// ============================================
+  1660→// ADMIN: VENDOR MANAGEMENT VIEW
+  1661→// ============================================
+  1662→function AdminVendorsView() {
+  1663→  const { goBack } = useAppStore()
+  1664→  const [vendors, setVendors] = useState<Vendor[]>([])
+  1665→  const [loading, setLoading] = useState(true)
+  1666→  const [filter, setFilter] = useState('all')
+  1667→
+  1668→  useEffect(() => {
+  1669→    setLoading(true)
+  1670→    apiFetch<{ vendors: Vendor[] }>('/api/admin/vendors').then((res) => {
+  1671→      if (res.success && res.data) setVendors(res.data.vendors || [])
+  1672→    }).finally(() => setLoading(false))
+  1673→  }, [])
+  1674→
+  1675→  const filtered = filter === 'all' ? vendors : vendors.filter(v => v.verificationStatus === filter)
+  1676→
+  1677→  const handleAction = async (vendorId: string, action: string, reason?: string) => {
+  1678→    const res = await apiFetch(`/api/admin/vendors/${vendorId}/action`, {
+  1679→      method: 'POST',
+  1680→      body: JSON.stringify({ action, reason }),
+  1681→    })
+  1682→    if (res.success) {
+  1683→      toast.success(`Vendor ${action} successful`)
+  1684→      // Refresh
+  1685→      apiFetch<{ vendors: Vendor[] }>('/api/admin/vendors').then((r) => {
+  1686→        if (r.success && r.data) setVendors(r.data.vendors || [])
+  1687→      })
+  1688→    } else {
+  1689→      toast.error(res.error || 'Action failed')
+  1690→    }
+  1691→  }
+  1692→
+  1693→  return (
+  1694→    <div className="pb-28 px-5 pt-2">
+  1695→      <div className="flex items-center gap-3 mb-5">
+  1696→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
+  1697→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1698→        </button>
+  1699→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Vendor Management</h1>
+  1700→      </div>
+  1701→
+  1702→      {/* Filter Tabs */}
+  1703→      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+  1704→        {['all', 'pending', 'approved', 'rejected', 'suspended'].map((f) => (
+  1705→          <button
+  1706→            key={f}
+  1707→            onClick={() => setFilter(f)}
+  1708→            className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize flex-shrink-0 transition-all ${
+  1709→              filter === f ? 'bg-[#0d6683] text-white' : 'bg-[#e5efff] text-[#40484d]'
+  1710→            }`}
+  1711→          >
+  1712→            {f}
+  1713→          </button>
+  1714→        ))}
+  1715→      </div>
+  1716→
+  1717→      {loading ? (
+  1718→        Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl mb-3" />)
+  1719→      ) : filtered.length === 0 ? (
+  1720→        <p className="text-sm text-[#70787d] text-center py-8">No vendors found</p>
+  1721→      ) : (
+  1722→        <div className="space-y-3">
+  1723→          {filtered.map((v) => (
+  1724→            <Card key={v.id} className="border-0 shadow-card rounded-2xl">
+  1725→              <CardContent className="p-4">
+  1726→                <div className="flex justify-between items-start">
+  1727→                  <div>
+  1728→                    <p className="font-bold text-[#0d1c2d]">{v.businessName}</p>
+  1729→                    <p className="text-xs text-[#40484d]">{v.address}</p>
+  1730→                    <p className="text-xs text-[#70787d] mt-1">{v.contactEmail}</p>
+  1731→                  </div>
+  1732→                  <Badge className={`border-0 rounded-lg text-xs ${
+  1733→                    v.verificationStatus === 'approved' ? 'bg-[#34D399]/10 text-[#059669]' :
+  1734→                    v.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
+  1735→                    v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+  1736→                    'bg-[#70787d]/10 text-[#70787d]'
+  1737→                  }`}>
+  1738→                    {v.verificationStatus}
+  1739→                  </Badge>
+  1740→                </div>
+  1741→                {v.verificationStatus === 'pending' && (
+  1742→                  <div className="flex gap-2 mt-3">
+  1743→                    <Button size="sm" onClick={() => handleAction(v.id, 'approve')} className="flex-1 h-9 rounded-xl bg-[#34D399] hover:bg-[#059669] text-white text-xs font-bold">
+  1744→                      Approve
+  1745→                    </Button>
+  1746→                    <Button size="sm" onClick={() => handleAction(v.id, 'reject', 'Does not meet requirements')} variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold text-[#EF4444] border-[#EF4444]/30">
+  1747→                      Reject
+  1748→                    </Button>
+  1749→                  </div>
+  1750→                )}
+  1751→                {v.verificationStatus === 'approved' && (
+  1752→                  <Button size="sm" onClick={() => handleAction(v.id, 'suspend', 'Policy violation')} variant="outline" className="mt-3 h-9 rounded-xl text-xs font-bold text-[#EF4444] border-[#EF4444]/30">
+  1753→                    <Ban className="w-3 h-3 mr-1" /> Suspend
+  1754→                  </Button>
+  1755→                )}
+  1756→                {v.verificationStatus === 'suspended' && (
+  1757→                  <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="mt-3 h-9 rounded-xl text-xs font-bold bg-[#0d6683] text-white">
+  1758→                    <RefreshCw className="w-3 h-3 mr-1" /> Restore
+  1759→                  </Button>
+  1760→                )}
+  1761→              </CardContent>
+  1762→            </Card>
+  1763→          ))}
+  1764→        </div>
+  1765→      )}
+  1766→    </div>
+  1767→  )
+  1768→}
+  1769→
+  1770→// ============================================
+  1771→// ADMIN: USERS VIEW
+  1772→// ============================================
+  1773→function AdminUsersView() {
+  1774→  const { goBack } = useAppStore()
+  1775→  const [users, setUsers] = useState<AuthUser[]>([])
+  1776→  const [loading, setLoading] = useState(true)
+  1777→  const [search, setSearch] = useState('')
+  1778→
+  1779→  useEffect(() => {
+  1780→    setLoading(true)
+  1781→    apiFetch<{ users: AuthUser[] }>('/api/admin/users').then((res) => {
+  1782→      if (res.success && res.data) setUsers(res.data.users || [])
+  1783→    }).finally(() => setLoading(false))
+  1784→  }, [])
+  1785→
+  1786→  const filtered = search ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users
+  1787→
+  1788→  return (
+  1789→    <div className="pb-28 px-5 pt-2">
+  1790→      <div className="flex items-center gap-3 mb-5">
+  1791→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
+  1792→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1793→        </button>
+  1794→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">User Management</h1>
+  1795→      </div>
+  1796→
+  1797→      <div className="relative mb-4">
+  1798→        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#70787d]" />
+  1799→        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9 h-10 rounded-xl" />
+  1800→      </div>
+  1801→
+  1802→      {loading ? (
+  1803→        Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl mb-2" />)
+  1804→      ) : (
+  1805→        <div className="space-y-2">
+  1806→          {filtered.map((u) => (
+  1807→            <Card key={u.id} className="border-0 shadow-card rounded-2xl">
+  1808→              <CardContent className="p-4 flex items-center gap-3">
+  1809→                <Avatar className="w-10 h-10">
+  1810→                  <AvatarFallback className="bg-[#0d6683] text-white text-sm font-bold">
+  1811→                    {u.name.charAt(0).toUpperCase()}
+  1812→                  </AvatarFallback>
+  1813→                </Avatar>
+  1814→                <div className="flex-1 min-w-0">
+  1815→                  <p className="font-bold text-sm text-[#0d1c2d] truncate">{u.name}</p>
+  1816→                  <p className="text-xs text-[#40484d] truncate">{u.email}</p>
+  1817→                </div>
+  1818→                <div className="flex gap-1 flex-shrink-0">
+  1819→                  {u.roles.map((r) => (
+  1820→                    <Badge key={r} className="bg-[#e5efff] text-[#0d6683] border-0 rounded-md text-[10px] px-1.5">
+  1821→                      {r}
+  1822→                    </Badge>
+  1823→                  ))}
+  1824→                </div>
+  1825→              </CardContent>
+  1826→            </Card>
+  1827→          ))}
+  1828→        </div>
+  1829→      )}
+  1830→    </div>
+  1831→  )
+  1832→}
+  1833→
+  1834→// ============================================
+  1835→// ADMIN: ANALYTICS VIEW
+  1836→// ============================================
+  1837→function AdminAnalyticsView() {
+  1838→  const { goBack } = useAppStore()
+  1839→  const [analytics, setAnalytics] = useState<{ overview: Record<string, number>; dealsByStatus: Record<string, number>; ordersByStatus: Record<string, number> } | null>(null)
+  1840→  const [loading, setLoading] = useState(true)
+  1841→
+  1842→  useEffect(() => {
+  1843→    setLoading(true)
+  1844→    apiFetch<Record<string, unknown>>('/api/admin/analytics').then((res) => {
+  1845→      if (res.success && res.data) setAnalytics(res.data)
+  1846→    }).finally(() => setLoading(false))
+  1847→  }, [])
+  1848→
+  1849→  return (
+  1850→    <div className="pb-28 px-5 pt-2">
+  1851→      <div className="flex items-center gap-3 mb-5">
+  1852→        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
+  1853→          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+  1854→        </button>
+  1855→        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Analytics</h1>
+  1856→      </div>
+  1857→
+  1858→      {loading ? (
+  1859→        <div className="space-y-4">
+  1860→          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+  1861→        </div>
+  1862→      ) : (
+  1863→        <div className="space-y-4">
+  1864→          {[
+  1865→            { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#0d6683]' },
+  1866→            { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#34D399]' },
+  1867→            { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#FB923C]' },
+  1868→            { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4e6073]' },
+  1869→            { label: 'Pending Vendors', value: (analytics?.dealsByStatus as Record<string, number>)?.pending || 0, icon: Clock, color: 'text-[#FB923C]' },
+  1870→            { label: 'Meals Saved from Waste', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#34D399]' },
+  1871→          ].map((item) => (
+  1872→            <Card key={item.label} className="border-0 shadow-card rounded-2xl">
+  1873→              <CardContent className="p-4 flex items-center gap-4">
+  1874→                <div className={`w-12 h-12 rounded-xl bg-[#eef4ff] flex items-center justify-center ${item.color}`}>
+  1875→                  <item.icon className="w-6 h-6" />
+  1876→                </div>
+  1877→                <div>
+  1878→                  <p className="text-sm text-[#40484d]">{item.label}</p>
+  1879→                  <p className="text-2xl font-extrabold text-[#0d1c2d]">{String(item.value)}</p>
+  1880→                </div>
+  1881→              </CardContent>
+  1882→            </Card>
+  1883→          ))}
+  1884→        </div>
+  1885→      )}
+  1886→    </div>
+  1887→  )
+  1888→}
+  1889→
+  1890→// ============================================
+  1891→// NOTIFICATION BELL
+  1892→// ============================================
+  1893→function NotificationBell() {
+  1894→  const { unreadCount } = useNotificationStore()
+  1895→  const { navigate } = useAppStore()
+  1896→
+  1897→  return (
+  1898→    <button
+  1899→      onClick={() => navigate('orders')}
+  1900→      className="relative p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors"
+  1901→    >
+  1902→      <Bell className="w-5 h-5 text-[#0d6683]" />
+  1903→      {unreadCount > 0 && (
+  1904→        <motion.span
+  1905→          initial={{ scale: 0 }}
+  1906→          animate={{ scale: 1 }}
+  1907→          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center"
+  1908→        >
+  1909→          {unreadCount > 9 ? '9+' : unreadCount}
+  1910→        </motion.span>
+  1911→      )}
+  1912→    </button>
+  1913→  )
+  1914→}
+  1915→
+  1916→// ============================================
+  1917→// BOTTOM NAVIGATION - FOODIE
+  1918→// ============================================
+  1919→function FoodieBottomNav() {
+  1920→  const { currentView, navigate } = useAppStore()
+  1921→
+  1922→  const tabs = [
+  1923→    { view: 'home' as AppView, icon: Home, label: 'Home' },
+  1924→    { view: 'explore' as AppView, icon: Compass, label: 'Explore' },
+  1925→    { view: 'orders' as AppView, icon: ShoppingBag, label: 'Orders' },
+  1926→    { view: 'profile' as AppView, icon: User, label: 'Profile' },
+  1927→  ]
+  1928→
+  1929→  return (
+  1930→    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-50 safe-area-inset-bottom">
+  1931→      <div className="flex items-center justify-around max-w-lg mx-auto h-16">
+  1932→        {tabs.map((tab) => {
+  1933→          const isActive = currentView === tab.view || (tab.view === 'home' && currentView === 'deal-detail')
+  1934→          return (
+  1935→            <button
+  1936→              key={tab.view}
+  1937→              onClick={() => navigate(tab.view)}
+  1938→              className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-[64px] ${
+  1939→                isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
+  1940→              }`}
+  1941→            >
+  1942→              <tab.icon className={`w-5 h-5 ${isActive ? 'text-[#0d6683]' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+  1943→              <span className={`text-[10px] font-bold ${isActive ? 'text-[#0d6683]' : ''}`}>{tab.label}</span>
+  1944→            </button>
+  1945→          )
+  1946→        })}
+  1947→      </div>
+  1948→    </nav>
+  1949→  )
+  1950→}
+  1951→
+  1952→// ============================================
+  1953→// BOTTOM NAVIGATION - VENDOR
+  1954→// ============================================
+  1955→function VendorBottomNav() {
+  1956→  const { currentView, navigate } = useAppStore()
+  1957→
+  1958→  const tabs = [
+  1959→    { view: 'dashboard' as AppView, icon: LayoutDashboard, label: 'Dashboard' },
+  1960→    { view: 'create-deal' as AppView, icon: PlusCircle, label: 'Create' },
+  1961→    { view: 'inventory' as AppView, icon: Package, label: 'Inventory' },
+  1962→    { view: 'fulfillment' as AppView, icon: CheckCircle, label: 'Fulfill' },
+  1963→    { view: 'profile' as AppView, icon: User, label: 'More' },
+  1964→  ]
+  1965→
+  1966→  return (
+  1967→    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-50 safe-area-inset-bottom">
+  1968→      <div className="flex items-center justify-around max-w-lg mx-auto h-16">
+  1969→        {tabs.map((tab) => {
+  1970→          const isActive = currentView === tab.view
+  1971→          return (
+  1972→            <button
+  1973→              key={tab.view}
+  1974→              onClick={() => navigate(tab.view)}
+  1975→              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all min-w-[56px] ${
+  1976→                isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
+  1977→              }`}
+  1978→            >
+  1979→              <tab.icon className={`w-5 h-5 ${isActive ? 'text-[#0d6683]' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
+  1980→              <span className={`text-[10px] font-bold ${isActive ? 'text-[#0d6683]' : ''}`}>{tab.label}</span>
+  1981→            </button>
+  1982→          )
+  1983→        })}
+  1984→      </div>
+  1985→    </nav>
+  1986→  )
+  1987→}
+  1988→
+  1989→// ============================================
+  1990→// BOTTOM NAVIGATION - ADMIN
+  1991→// ============================================
+  1992→function AdminBottomNav() {
+  1993→  const { currentView, navigate } = useAppStore()
+  1994→
+  1995→  const tabs = [
+  1996→    { view: 'dashboard' as AppView, icon: LayoutDashboard, label: 'Dashboard' },
+  1997→    { view: 'vendors' as AppView, icon: Store, label: 'Vendors' },
+  1998→    { view: 'users' as AppView, icon: Users, label: 'Users' },
+  1999→    { view: 'analytics' as AppView, icon: BarChart3, label: 'Analytics' },
+  2000→    { view: 'profile' as AppView, icon: User, label: 'More' },
+
+[showing lines 1-2000 of 2166; use offset=2001 with limit to continue reading]

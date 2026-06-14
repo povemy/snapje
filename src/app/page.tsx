@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, memo } from 'react'
+import Image from 'next/image'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppStore } from '@/stores/app-store'
 import { useNotificationStore } from '@/stores/notification-store'
@@ -224,9 +225,14 @@ function AuthScreen() {
 }
 
 // ============================================
+// CONSTANTS
+// ============================================
+const FOOD_CATEGORIES_LIST = ['All', 'Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage']
+
+// ============================================
 // COUNTDOWN TIMER COMPONENT
 // ============================================
-function CountdownTimer({ expiresAt, compact = false }: { expiresAt: string; compact?: boolean }) {
+const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false }: { expiresAt: string; compact?: boolean }) {
   const [timeLeft, setTimeLeft] = useState('')
 
   useEffect(() => {
@@ -263,12 +269,12 @@ function CountdownTimer({ expiresAt, compact = false }: { expiresAt: string; com
       {timeLeft}
     </span>
   )
-}
+})
 
 // ============================================
 // DEAL CARD COMPONENT
 // ============================================
-function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; onSelect: () => void }) {
+const DealCard = memo(function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; onSelect: () => void }) {
   const isLowStock = deal.availableQuantity <= 5 && deal.availableQuantity > 0
   const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
 
@@ -283,10 +289,12 @@ function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor
         {/* Image */}
         <div className="relative aspect-[4/3] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff] overflow-hidden">
           {deal.imageUrl ? (
-            <img
+            <Image
               src={deal.imageUrl}
               alt={deal.title}
               className="w-full h-full object-cover"
+              fill
+              sizes="(max-width: 640px) 100vw, 400px"
               loading="lazy"
             />
           ) : (
@@ -341,23 +349,30 @@ function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor
       </Card>
     </motion.div>
   )
-}
+})
 
 // ============================================
 // FOODIE: HOME VIEW
 // ============================================
 function FoodieHomeView() {
-  const { navigate } = useAppStore()
+  const { navigate, setShowAuthModal } = useAppStore()
   const { selectedCategory, setSelectedCategory, searchQuery, setSearchQuery } = useAppStore()
+  const { isAuthenticated } = useAuthStore()
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
-  const categories = ['All', 'Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage']
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
+
+  // Debounce search input by 300ms to avoid excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   const fetchDeals = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({ status: 'active' })
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
-    if (searchQuery) params.set('search', searchQuery)
+    if (debouncedSearch) params.set('search', debouncedSearch)
     // Use default KL location
     params.set('lat', '3.1390')
     params.set('lng', '101.6869')
@@ -368,7 +383,7 @@ function FoodieHomeView() {
       setDeals(res.data.deals)
     }
     setLoading(false)
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, debouncedSearch])
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
@@ -385,7 +400,16 @@ function FoodieHomeView() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <NotificationBell />
+            {isAuthenticated ? (
+              <NotificationBell />
+            ) : (
+              <Button
+                onClick={() => setShowAuthModal(true)}
+                className="h-9 px-4 rounded-xl text-sm font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
+              >
+                Sign In
+              </Button>
+            )}
           </div>
         </div>
         {/* Search */}
@@ -400,7 +424,7 @@ function FoodieHomeView() {
         </div>
         {/* Categories */}
         <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
-          {categories.map((cat) => (
+          {FOOD_CATEGORIES_LIST.map((cat) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat === 'All' ? null : cat)}
@@ -457,13 +481,13 @@ function FoodieHomeView() {
 // FOODIE: DEAL DETAIL VIEW
 // ============================================
 function DealDetailView() {
-  const { viewParams, goBack } = useAppStore()
+  const { viewParams, goBack, setShowAuthModal } = useAppStore()
   const [deal, setDeal] = useState<Deal | null>(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
-  const { user } = useAuthStore()
+  const { user, isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     if (!viewParams.id) return
@@ -474,7 +498,11 @@ function DealDetailView() {
   }, [viewParams.id])
 
   const handleClaim = async () => {
-    if (!deal || !user) return
+    if (!deal) return
+    if (!isAuthenticated || !user) {
+      setShowAuthModal(true)
+      return
+    }
     setClaiming(true)
     try {
       // Step 1: Claim (create reservation)
@@ -543,7 +571,7 @@ function DealDetailView() {
       {/* Hero Image */}
       <div className="relative aspect-[16/10] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff]">
         {deal.imageUrl ? (
-          <img src={deal.imageUrl} alt={deal.title} className="w-full h-full object-cover" />
+          <Image src={deal.imageUrl} alt={deal.title} className="w-full h-full object-cover" fill sizes="(max-width: 640px) 100vw, 400px" priority />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Utensils className="w-20 h-20 text-[#89cff0]" />
@@ -632,8 +660,8 @@ function DealDetailView() {
         )}
       </div>
 
-      {/* Sticky Bottom Action */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] px-5 py-3 z-40">
+      {/* Sticky Bottom Action - Claim Deal Now */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] px-5 py-3 z-50">
         <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
           <div>
             <p className="text-xs text-[#40484d]">Flash Deal Price</p>
@@ -641,23 +669,27 @@ function DealDetailView() {
           </div>
           <Button
             onClick={handleClaim}
-            disabled={claiming || isSoldOut || claimed}
+            disabled={claiming || (isSoldOut && isAuthenticated) || (claimed && isAuthenticated)}
             className={`h-12 px-8 rounded-xl font-bold text-base transition-all active:scale-95 ${
-              claimed
+              claimed && isAuthenticated
                 ? 'bg-[#34D399] hover:bg-[#34D399] text-white'
-                : isSoldOut
+                : isSoldOut && isAuthenticated
                 ? 'bg-[#70787d] text-white cursor-not-allowed'
                 : 'bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90'
             }`}
           >
             {claiming ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
-            ) : claimed ? (
+            ) : claimed && isAuthenticated ? (
               <>
                 <Check className="w-5 h-5 mr-1" /> Claimed
               </>
-            ) : isSoldOut ? (
+            ) : isSoldOut && isAuthenticated ? (
               'Sold Out'
+            ) : !isAuthenticated ? (
+              <>
+                <Zap className="w-5 h-5 mr-1" /> Claim Deal Now
+              </>
             ) : (
               <>
                 <Zap className="w-5 h-5 mr-1" /> Claim Deal
@@ -678,13 +710,31 @@ function FoodieOrdersView() {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const { navigate } = useAppStore()
+  const { isAuthenticated, user } = useAuthStore()
 
   useEffect(() => {
+    if (!isAuthenticated) { setLoading(false); return }
     setLoading(true)
     apiFetch<{ orders: Order[] }>('/api/orders').then((res) => {
       if (res.success && res.data) setOrders(res.data.orders || [])
     }).finally(() => setLoading(false))
-  }, [])
+  }, [isAuthenticated])
+
+  if (!isAuthenticated) {
+    return (
+      <div className="pb-28 px-5 pt-2">
+        <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">My Orders</h1>
+        <div className="text-center py-16">
+          <ShoppingBag className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#0d1c2d]">Sign in to view orders</h3>
+          <p className="text-sm text-[#40484d] mt-1">You need an account to track your orders</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   const activeOrders = orders.filter(o => o.status === 'pending_pickup')
   const completedOrders = orders.filter(o => o.status === 'completed')
@@ -800,8 +850,25 @@ function FoodieOrdersView() {
 // FOODIE: PROFILE VIEW
 // ============================================
 function FoodieProfileView() {
-  const { user, updateActiveRole, logout } = useAuthStore()
+  const { user, updateActiveRole, logout, isAuthenticated } = useAuthStore()
   const { setActiveRole, navigate } = useAppStore()
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="pb-28 px-5 pt-2">
+        <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">Profile</h1>
+        <div className="text-center py-16">
+          <User className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#0d1c2d]">Sign in to your profile</h3>
+          <p className="text-sm text-[#40484d] mt-1">Access your account settings and more</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   const roles = user?.roles || []
 
   const handleRoleSwitch = (role: AppRole) => {
@@ -1890,7 +1957,7 @@ function AdminAnalyticsView() {
 // ============================================
 // NOTIFICATION BELL
 // ============================================
-function NotificationBell() {
+const NotificationBell = memo(function NotificationBell() {
   const { unreadCount } = useNotificationStore()
   const { navigate } = useAppStore()
 
@@ -1911,13 +1978,17 @@ function NotificationBell() {
       )}
     </button>
   )
-}
+})
 
 // ============================================
 // BOTTOM NAVIGATION - FOODIE
 // ============================================
 function FoodieBottomNav() {
-  const { currentView, navigate } = useAppStore()
+  const { currentView, navigate, setShowAuthModal } = useAppStore()
+  const { isAuthenticated } = useAuthStore()
+
+  // Protected views that require authentication
+  const protectedViews: AppView[] = ['orders', 'profile', 'subscriptions']
 
   const tabs = [
     { view: 'home' as AppView, icon: Home, label: 'Home' },
@@ -1927,14 +1998,20 @@ function FoodieBottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-50 safe-area-inset-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-40 safe-area-inset-bottom">
       <div className="flex items-center justify-around max-w-lg mx-auto h-16">
         {tabs.map((tab) => {
           const isActive = currentView === tab.view || (tab.view === 'home' && currentView === 'deal-detail')
           return (
             <button
               key={tab.view}
-              onClick={() => navigate(tab.view)}
+              onClick={() => {
+                if (!isAuthenticated && protectedViews.includes(tab.view)) {
+                  setShowAuthModal(true)
+                } else {
+                  navigate(tab.view)
+                }
+              }}
               className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-[64px] ${
                 isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
               }`}
@@ -2079,6 +2156,8 @@ function ViewRouter() {
   }
 
   const renderBottomNav = () => {
+    // Don't show bottom nav on deal-detail view (has its own sticky action bar)
+    if (currentView === 'deal-detail') return null
     switch (activeRole) {
       case 'foodie': return <FoodieBottomNav />
       case 'vendor': return <VendorBottomNav />
@@ -2109,6 +2188,172 @@ function ViewRouter() {
 }
 
 // ============================================
+// AUTH MODAL (Login/Register Dialog)
+// ============================================
+function AuthModal() {
+  const { showAuthModal, setShowAuthModal } = useAppStore()
+  const { login } = useAuthStore()
+  const [isLogin, setIsLogin] = useState(true)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  // Reset form when modal opens/closes
+  useEffect(() => {
+    if (!showAuthModal) {
+      setEmail('')
+      setPassword('')
+      setName('')
+      setPhone('')
+    }
+  }, [showAuthModal])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
+      const body = isLogin
+        ? { email, password }
+        : { email, password, name, phone }
+
+      const res = await apiFetch<AuthUser>(endpoint, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+
+      if (res.success && res.data) {
+        login(res.data)
+        setShowAuthModal(false)
+        toast.success(isLogin ? 'Welcome back!' : 'Account created!')
+      } else {
+        toast.error(res.error || 'Authentication failed')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+      <DialogContent className="rounded-2xl max-w-sm p-0 overflow-hidden">
+        {/* Header gradient */}
+        <div className="bg-gradient-to-br from-[#89cff0]/20 to-[#0d6683]/10 px-6 pt-6 pb-2">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-extrabold text-[#0d1c2d]">
+              {isLogin ? 'Welcome Back' : 'Join FlashBite'}
+            </DialogTitle>
+            <DialogDescription className="text-[#40484d]">
+              {isLogin ? 'Sign in to claim deals and track orders' : 'Create an account to start saving on food'}
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+
+        <div className="px-6 pb-6">
+          {/* Toggle */}
+          <div className="flex bg-[#e5efff] rounded-xl p-1 mb-5">
+            <button
+              onClick={() => setIsLogin(true)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setIsLogin(false)}
+              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
+                !isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {!isLogin && (
+              <div>
+                <Label htmlFor="modal-name" className="text-sm font-semibold text-[#0d1c2d]">Full Name</Label>
+                <Input
+                  id="modal-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Your name"
+                  className="mt-1 h-11 rounded-xl"
+                  required={!isLogin}
+                />
+              </div>
+            )}
+            <div>
+              <Label htmlFor="modal-email" className="text-sm font-semibold text-[#0d1c2d]">Email</Label>
+              <Input
+                id="modal-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="mt-1 h-11 rounded-xl"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="modal-password" className="text-sm font-semibold text-[#0d1c2d]">Password</Label>
+              <Input
+                id="modal-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="mt-1 h-11 rounded-xl"
+                required
+                minLength={6}
+              />
+            </div>
+            {!isLogin && (
+              <div>
+                <Label htmlFor="modal-phone" className="text-sm font-semibold text-[#0d1c2d]">Phone (optional)</Label>
+                <Input
+                  id="modal-phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+60 12 345 6789"
+                  className="mt-1 h-11 rounded-xl"
+                />
+              </div>
+            )}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full h-11 rounded-xl text-base font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
+            >
+              {loading ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : isLogin ? (
+                'Sign In'
+              ) : (
+                'Create Account'
+              )}
+            </Button>
+          </form>
+
+          {/* Demo hint */}
+          <div className="mt-4 p-3 bg-[#eef4ff] rounded-xl text-center">
+            <p className="text-xs text-[#40484d]">
+              🎯 Demo: <span className="font-semibold">foodie@test.com</span> / <span className="font-semibold">vendor@test.com</span> / <span className="font-semibold">admin@test.com</span>
+            </p>
+            <p className="text-xs text-[#70787d] mt-0.5">Password: <span className="font-semibold">password123</span></p>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ============================================
 // MAIN APP
 // ============================================
 export default function FlashBiteApp() {
@@ -2127,16 +2372,18 @@ export default function FlashBiteApp() {
     }).finally(() => setLoading(false))
   }, [login, setLoading])
 
-  // Fetch notifications
+  // Fetch notifications (only as fallback - socket.io handles real-time)
   useEffect(() => {
     if (!isAuthenticated) return
-    const fetchNotifications = () => {
-      apiFetch<AppNotification[]>('/api/notifications?unreadOnly=true').then(() => {
-        // Handled by socket mainly
-      })
+    const fetchNotifications = async () => {
+      const res = await apiFetch<{ notifications: AppNotification[]; unreadCount: number }>('/api/notifications?unReadOnly=true')
+      if (res.success && res.data) {
+        const count = res.data.unreadCount ?? res.data.notifications?.length ?? 0
+        useAppStore.getState().setUnreadCount(count)
+      }
     }
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 60000)
+    const interval = setInterval(fetchNotifications, 120000) // Reduced from 60s to 120s - socket handles real-time
     return () => clearInterval(interval)
   }, [isAuthenticated])
 
@@ -2157,9 +2404,11 @@ export default function FlashBiteApp() {
     )
   }
 
-  if (!isAuthenticated) {
-    return <AuthScreen />
-  }
-
-  return <ViewRouter />
+  // Always render ViewRouter (public access to homepage), with AuthModal for protected features
+  return (
+    <>
+      <ViewRouter />
+      <AuthModal />
+    </>
+  )
 }

@@ -244,3 +244,121 @@ Stage Summary:
 - Top padding added to all views (safe-area-aware for notched phones)
 - Profile view compact enough to show Sign Out without scrolling
 - Browser verified all views working correctly
+
+---
+Task ID: 4
+Agent: Performance Analyzer
+Task: Codebase performance analysis
+
+Work Log:
+- Read worklog.md to understand previous work (Tasks 0, 1-10, 11, 12)
+- Analyzed page.tsx (2399 lines) - all 15+ components in single monolith file
+- Analyzed all 22 API route files for N+1 patterns, missing caching, query efficiency
+- Analyzed prisma/schema.prisma for missing indexes and schema design issues
+- Analyzed 3 Zustand stores (auth-store, app-store, notification-store) for re-render issues
+- Analyzed 4 hooks (use-socket, use-fetch, use-toast, use-mobile) for memory leaks and inefficiencies
+- Analyzed mini-services/realtime-service for websocket bottlenecks
+- Analyzed package.json for heavy/unused dependencies
+- Analyzed globals.css and layout.tsx for CSS/font optimization
+- Identified specific line numbers and concrete fix recommendations for each issue
+
+Stage Summary:
+- Found 8 HIGH impact issues
+- Found 14 MEDIUM impact issues
+- Found 10 LOW impact issues
+- Key recommendations:
+  1. Split page.tsx into lazy-loaded route components for code splitting (saves ~60% initial bundle)
+  2. Remove 15+ unused npm dependencies (~5-10MB bundle reduction)
+  3. Fix useSocket reconnection bug - depends on user object reference instead of user?.id
+  4. Add missing database indexes for (dealId, userId, status) on Reservation and (vendorId, status) on Deal
+  5. Fix Zustand selector usage to prevent unnecessary re-renders across all components
+  6. Replace framer-motion page transitions with CSS transitions for smaller bundle
+  7. Debounce search input and consolidate CountdownTimer intervals
+  8. Use Next.js Image component instead of raw <img> tags
+  9. Fix wasted notification polling that discards API response
+  10. Split AppStore into focused stores to prevent cross-concern re-renders
+
+---
+Task ID: 6a
+Agent: Browser Tester
+Task: Test public access, auth modal, and claim deal flow
+
+Work Log:
+- Tested public (unauthenticated) access to homepage at localhost:3000
+- Verified 10 deal cards are visible without login (Teh Tarik, Roti Canai, Satay Kajang, etc.)
+- Verified "Sign In" button present in header area (not full auth screen)
+- Clicked deal card (Hainanese Chicken Rice Plate) → deal detail page loaded
+- Verified "Claim Deal Now" button visible at bottom of deal detail page
+- Verified bottom navigation is NOT showing on deal-detail page (Claim button accessible)
+- Clicked "Claim Deal Now" while unauthenticated → auth modal appeared with login/register form
+- Verified auth modal has: "Welcome Back" heading, Sign In/Sign Up toggle, Email/Password fields, Close button
+- Closed auth modal, navigated back to homepage, clicked "Orders" tab → auth modal appeared again
+- Clicked "Profile" tab while unauthenticated → auth modal appeared (consistent protected route behavior)
+- Logged in via modal with foodie@test.com / password123
+- Verified login successful: "Sign In" button replaced by notification bell icon (lucide-bell SVG)
+- Verified modal closes and homepage deals remain visible after login
+- Navigated to deal detail as authenticated user → "Claim Deal" button visible
+- Clicked "Claim Deal" → deal successfully claimed, button changed to "Claimed" (disabled)
+- Verified order appears in Orders page (Hainanese Chicken Rice Plate, #FB-1781449188964-9L2Z, Pending Pickup, RM5.90)
+- Navigated to Profile page → "Ali Foodie" shown, "Sign Out" button visible
+- Clicked "Sign Out" → successfully signed out
+- Took 10 screenshots documenting all test scenarios
+
+Stage Summary:
+- Test 1: Public homepage access → PASS (deals visible without login, Sign In button in header)
+- Test 2: Deal detail page → PASS (Claim Deal Now visible, bottom nav hidden)
+- Test 3: Auth modal on Claim Deal → PASS (login/register modal appears for unauthenticated users)
+- Test 4: Auth modal on protected tabs → PASS (Orders and Profile tabs trigger auth modal)
+- Test 5: Login via modal → PASS (foodie@test.com / password123 works, Sign In replaced by bell icon)
+- Test 6: Claim deal as authenticated user → PASS (deal claimed, button changes to "Claimed" disabled state, order created)
+- Test 7: Profile with Sign Out → PASS (Sign Out button visible and functional)
+
+Minor observations (not bugs):
+- Deal detail page button text differs: "Claim Deal Now" (unauthenticated) vs "Claim Deal" (authenticated) — consistent with different UX states
+- After sign out, Profile tab correctly shows auth modal on SPA navigation; on page reload, the same behavior observed
+- Next.js Dev Tools overlay occasionally blocks bottom nav clicks during testing — dev-only issue, not a user-facing bug
+- All 10 screenshots saved to /home/z/my-project/test-screenshots/
+
+---
+Task ID: 13
+Agent: Main Orchestrator
+Task: Public access, Claim Deal Now fix, and comprehensive performance optimization
+
+Work Log:
+- Made homepage accessible to unregistered public users:
+  - Removed hard auth gate (`!isAuthenticated → <AuthScreen />`) from FlashBiteApp
+  - Added `showAuthModal`/`setShowAuthModal` to app-store for auth modal control
+  - Created `AuthModal` component (Dialog-based login/register form)
+  - Added "Sign In" button in FoodieHomeView header for unauthenticated users
+  - Protected tabs (Orders, Profile) now trigger auth modal when clicked by unauthenticated users
+  - FoodieOrdersView and FoodieProfileView show "Sign in to view" prompts when unauthenticated
+- Fixed missing "Claim Deal Now" button on deal detail page:
+  - Root cause: bottom nav (z-50) was overlapping the sticky action bar (z-40)
+  - Fixed by hiding bottom nav on deal-detail view via `renderBottomNav()` check
+  - Raised action bar z-index to z-50 for proper layering
+  - Changed button text to "Claim Deal Now" for unauthenticated users
+  - Button triggers auth modal when clicked by unauthenticated users
+- Performance optimization - P0 fixes:
+  - Fixed useSocket dependency bug: changed `user` to `user?.id` to prevent reconnection on role switch
+  - Fixed wasted notification polling: now processes response and updates unreadCount; reduced interval from 60s to 120s
+  - Fixed auth loading flash: added `onRehydrateStorage` to skip loading screen when user data exists in localStorage
+  - Added search input debounce (300ms) to prevent excessive API calls on keystroke
+  - Moved categories array to module-level constant (`FOOD_CATEGORIES_LIST`) to avoid recreation every render
+- Performance optimization - Backend fixes:
+  - Added missing DB indexes: `Reservation(dealId, userId, status)`, `Deal(vendorId, status)`, `Order(vendorId, status)`
+  - Fixed admin vendors N+1: replaced `deals` include with `_count` aggregation
+  - Parallelized claim route queries: `findFirst` and `count` now run via `Promise.all()`
+- Performance optimization - Bundle reduction:
+  - Removed 16 unused npm packages (~5-10MB): @mdxeditor/editor, react-syntax-highlighter, @dnd-kit/*, @tanstack/react-table, next-auth, next-intl, react-markdown, react-resizable-panels, recharts, embla-carousel-react, react-day-picker, input-otp, cmdk, sharp
+  - Added `memo` wrapper to CountdownTimer, DealCard, and NotificationBell components
+  - Replaced `<img>` with Next.js `<Image>` component for automatic optimization
+  - Configured `next.config.ts` for remote image patterns
+  - Ran `bun run db:push` to apply schema index changes
+- All 26 end-to-end browser tests PASSED (public access, auth modal, claim deal, login, orders, profile, sign out, responsive)
+
+Stage Summary:
+- Homepage now publicly accessible without login
+- Auth modal appears when unauthenticated users try protected actions (claim deal, orders, profile)
+- "Claim Deal Now" button fully visible on deal detail page
+- Performance improvements: socket reconnection fix, notification polling fix, auth flash fix, search debounce, DB indexes, parallel queries, N+1 fix, 16 unused deps removed, React.memo on key components, Next.js Image optimization
+- All 26 browser tests pass across all flows

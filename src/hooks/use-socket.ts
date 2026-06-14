@@ -52,7 +52,8 @@ export function useSocket() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [isAuthenticated, user, addNotification])
+  // Use user?.id instead of user to avoid reconnection on role switch
+  }, [isAuthenticated, user?.id, addNotification])
 
   // Methods to emit events - use callbacks to access ref lazily
   const emitStockUpdate = useCallback((dealId: string, available: number, reserved: number) => {

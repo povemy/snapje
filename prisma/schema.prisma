@@ -124,6 +124,7 @@ model Deal {
   orders       Order[]
 
   @@index([vendorId])
+  @@index([vendorId, status])
   @@index([status])
   @@index([expiresAt])
   @@index([category])
@@ -146,6 +147,7 @@ model Reservation {
   updatedAt   DateTime @updatedAt
 
   @@index([dealId, status])
+  @@index([dealId, userId, status])
   @@index([userId])
   @@index([expiresAt])
 }
@@ -176,6 +178,7 @@ model Order {
 
   @@index([userId])
   @@index([vendorId])
+  @@index([vendorId, status])
   @@index([status])
   @@index([qrCode])
 }

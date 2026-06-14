@@ -46,10 +46,11 @@ export async function GET(request: Request) {
               createdAt: true,
             },
           },
-          deals: {
+          _count: {
             select: {
-              id: true,
-              status: true,
+              deals: {
+                where: { status: 'active' },
+              },
             },
           },
         },

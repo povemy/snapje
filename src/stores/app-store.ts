@@ -22,6 +22,10 @@ interface AppStore {
   toggleSidebar: () => void
   setSidebarOpen: (open: boolean) => void
   
+  // Auth Modal
+  showAuthModal: boolean
+  setShowAuthModal: (show: boolean) => void
+  
   // Notifications
   unreadCount: number
   setUnreadCount: (count: number) => void
@@ -68,6 +72,9 @@ export const useAppStore = create<AppStore>()((set, get) => ({
   sidebarOpen: false,
   toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  
+  showAuthModal: false,
+  setShowAuthModal: (show) => set({ showAuthModal: show }),
   
   unreadCount: 0,
   setUnreadCount: (count) => set({ unreadCount: count }),

@@ -76,15 +76,26 @@ export async function POST(
       )
     }
 
-    // Check if user already has a pending reservation for this deal
-    const existingReservation = await db.reservation.findFirst({
-      where: {
-        dealId: id,
-        userId: authUser.userId,
-        status: 'pending',
-        expiresAt: { gt: new Date() },
-      },
-    })
+    // Run these checks in parallel to reduce latency
+    const [existingReservation, userClaimsCount] = await Promise.all([
+      // Check if user already has a pending reservation for this deal
+      db.reservation.findFirst({
+        where: {
+          dealId: id,
+          userId: authUser.userId,
+          status: 'pending',
+          expiresAt: { gt: new Date() },
+        },
+      }),
+      // Check user's total claims for this deal
+      db.reservation.count({
+        where: {
+          dealId: id,
+          userId: authUser.userId,
+          status: { in: ['pending', 'confirmed'] },
+        },
+      }),
+    ])
 
     if (existingReservation) {
       return NextResponse.json(
@@ -92,15 +103,6 @@ export async function POST(
         { status: 409 }
       )
     }
-
-    // Check user's total claims for this deal
-    const userClaimsCount = await db.reservation.count({
-      where: {
-        dealId: id,
-        userId: authUser.userId,
-        status: { in: ['pending', 'confirmed'] },
-      },
-    })
 
     if (userClaimsCount >= deal.maxClaimsPerUser) {
       return NextResponse.json(

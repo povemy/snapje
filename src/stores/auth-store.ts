@@ -34,6 +34,12 @@ export const useAuthStore = create<AuthStore>()(
         user: state.user,
         isAuthenticated: state.isAuthenticated,
       }),
+      // When rehydrating from localStorage, if user exists, skip loading state
+      onRehydrateStorage: () => (state) => {
+        if (state?.isAuthenticated && state?.user) {
+          state.isLoading = false
+        }
+      },
     }
   )
 )
