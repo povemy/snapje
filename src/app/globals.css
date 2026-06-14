@@ -100,17 +100,17 @@
   --shadow-card-hover: 0px 8px 24px rgba(44, 62, 80, 0.18);
   --shadow-modal: 0px 8px 24px rgba(44, 62, 80, 0.16);
   --shadow-chip: 0px 2px 4px rgba(44, 62, 80, 0.08);
-
-  /* Spacing - FlashBite Design System */
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-container: 20px;
 }
 
 :root {
+  /* FlashBite Design System - Spacing Tokens (not in @theme to avoid Tailwind conflicts) */
+  --fb-spacing-xs: 4px;
+  --fb-spacing-sm: 8px;
+  --fb-spacing-md: 16px;
+  --fb-spacing-lg: 24px;
+  --fb-spacing-xl: 32px;
+  --fb-spacing-container: 20px;
+
   --radius: 1rem;
   --background: #f8f9ff;
   --foreground: #0d1c2d;

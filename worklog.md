@@ -186,3 +186,27 @@ Stage Summary:
 - Demo data seeded: 11 users, 7 vendors, 12 deals, 3 orders
 - Design system matches DESIGN.md specification (Nunito Sans, Soft Baby Blue, custom shadows/animations)
 - Browser verified: Login, deal browsing, role switching, vendor dashboard, admin panel all working
+
+---
+Task ID: 11
+Agent: Main Orchestrator
+Task: Fix broken UI caused by Tailwind v4 theme conflicts and role sync issues
+
+Work Log:
+- Identified root cause: custom `--spacing-*` variables in `@theme inline` block (globals.css) were overriding Tailwind v4's default spacing scale
+- `max-w-lg` resolved to 24px (should be 32rem/512px), `max-w-sm` resolved to 8px (should be 24rem/384px)
+- This caused the entire app layout to collapse - all deal cards had 0 width, auth form was 8px wide
+- Removed conflicting `--spacing-xs/sm/md/lg/xl/container` from `@theme inline` block
+- Preserved custom spacing values as `--fb-spacing-*` in `:root` for documentation
+- Verified compiled CSS now correctly generates `max-w-lg: 32rem` and `max-w-sm: 24rem`
+- Fixed second bug: `ViewRouter` component's `activeRole` was always defaulting to 'foodie' because it read from `useAppStore()` which initializes as 'foodie', not from the auth store's `user.activeRole`
+- Added `useEffect` in `ViewRouter` to sync `activeRole` from auth store to app store
+- Verified all views render correctly: Auth, Foodie (Home/Deal Detail/Orders/Profile), Vendor (Dashboard), Admin (Dashboard)
+- Lint passes clean with no errors
+
+Stage Summary:
+- Two critical bugs fixed:
+  1. CSS theme conflict: `--spacing-lg: 24px` in `@theme inline` broke `max-w-lg` utility (was 24px, now 32rem)
+  2. Role sync: `activeRole` from auth store was not synced to app store, causing admin/vendor users to always see foodie view
+- All views now render correctly with proper widths and content visibility
+- Browser verified: Auth, Foodie Home/Detail/Orders/Profile, Vendor Dashboard, Admin Dashboard all working

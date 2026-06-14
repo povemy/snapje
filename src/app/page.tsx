@@ -2034,7 +2034,15 @@ function AdminBottomNav() {
 // VIEW ROUTER
 // ============================================
 function ViewRouter() {
-  const { activeRole, currentView } = useAppStore()
+  const { activeRole, currentView, setActiveRole } = useAppStore()
+  const { user } = useAuthStore()
+
+  // Sync activeRole from auth store to app store
+  useEffect(() => {
+    if (user?.activeRole && user.activeRole !== activeRole) {
+      setActiveRole(user.activeRole)
+    }
+  }, [user?.activeRole, activeRole, setActiveRole])
 
   const renderView = () => {
     // Foodie views
