@@ -210,3 +210,37 @@ Stage Summary:
   2. Role sync: `activeRole` from auth store was not synced to app store, causing admin/vendor users to always see foodie view
 - All views now render correctly with proper widths and content visibility
 - Browser verified: Auth, Foodie Home/Detail/Orders/Profile, Vendor Dashboard, Admin Dashboard all working
+
+---
+Task ID: 12
+Agent: Main Orchestrator
+Task: Fix missing Profile route, Sign Out accessibility, and top padding issues
+
+Work Log:
+- Identified that Profile/Sign Out was inaccessible for Vendor and Admin users (no profile tab in bottom nav)
+- Identified that Sign Out button was below the viewport for Foodie users (profile content too tall)
+- Identified that all views lacked top safe-area padding, making content flush with viewport edge
+- Added `env(safe-area-inset-top)` to the sticky header on the Foodie home view
+- Changed all view containers from `pb-24` to `pb-28` (112px bottom padding to clear bottom nav)
+- Added `pt-2` top padding to all non-header views (Profile, Orders, Vendor Dashboard, Admin Dashboard, etc.)
+- Redesigned Profile view to be compact:
+  - Smaller user card (p-4 instead of p-5, smaller avatar)
+  - Grid-based role switching (3 columns instead of vertical stack) — saves ~150px
+  - Compact quick links with chevron icons
+  - All content now fits within viewport without scrolling
+- Added "More" tab to Vendor bottom nav (replaces "Plan" tab) — links to Profile view
+- Added "More" tab to Admin bottom nav — links to Profile view
+- Added Account button (User icon) in Vendor Dashboard and Admin Dashboard headers
+- Added `profile` route case to both Vendor and Admin view routers
+- Added Subscription Plan link in Profile view for vendor users
+- Added "Become a Vendor" as a compact link (not a full card) for non-vendor users
+- Lint passes clean
+
+Stage Summary:
+- Profile/Sign Out now accessible from all roles:
+  - Foodie: Profile tab in bottom nav → Profile view with Sign Out
+  - Vendor: More tab in bottom nav OR Account button in header → Profile view with Sign Out
+  - Admin: More tab in bottom nav OR Account button in header → Profile view with Sign Out
+- Top padding added to all views (safe-area-aware for notched phones)
+- Profile view compact enough to show Sign Out without scrolling
+- Browser verified all views working correctly

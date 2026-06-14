@@ -373,9 +373,9 @@ function FoodieHomeView() {
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
   return (
-    <div className="pb-24">
+    <div className="pb-28">
       {/* Header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-5 pt-4 pb-3">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-5 pt-4 pb-3" style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}>
         <div className="flex items-center justify-between mb-3">
           <div>
             <h1 className="text-2xl font-extrabold text-[#0d1c2d]">FlashBite</h1>
@@ -690,7 +690,7 @@ function FoodieOrdersView() {
   const completedOrders = orders.filter(o => o.status === 'completed')
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">My Orders</h1>
 
       {loading ? (
@@ -801,7 +801,7 @@ function FoodieOrdersView() {
 // ============================================
 function FoodieProfileView() {
   const { user, updateActiveRole, logout } = useAuthStore()
-  const { setActiveRole } = useAppStore()
+  const { setActiveRole, navigate } = useAppStore()
   const roles = user?.roles || []
 
   const handleRoleSwitch = (role: AppRole) => {
@@ -817,22 +817,22 @@ function FoodieProfileView() {
   }
 
   return (
-    <div className="pb-24 px-5">
-      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-6">Profile</h1>
+    <div className="pb-28 px-5 pt-2">
+      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">Profile</h1>
 
       {/* User Card */}
-      <Card className="border-0 shadow-card rounded-2xl mb-6">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border-2 border-[#89cff0]">
-              <AvatarFallback className="bg-[#0d6683] text-white text-xl font-bold">
+      <Card className="border-0 shadow-card rounded-2xl mb-4">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-14 h-14 border-2 border-[#89cff0]">
+              <AvatarFallback className="bg-[#0d6683] text-white text-lg font-bold">
                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h2 className="font-bold text-[#0d1c2d] text-lg">{user?.name}</h2>
-              <p className="text-sm text-[#40484d]">{user?.email}</p>
-              <Badge className="mt-1 bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg text-xs">
+            <div className="flex-1 min-w-0">
+              <h2 className="font-bold text-[#0d1c2d] text-base truncate">{user?.name}</h2>
+              <p className="text-xs text-[#40484d] truncate">{user?.email}</p>
+              <Badge className="mt-1 bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg text-[10px]">
                 {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
               </Badge>
             </div>
@@ -841,78 +841,60 @@ function FoodieProfileView() {
       </Card>
 
       {/* Role Switching */}
-      <h3 className="font-bold text-[#0d1c2d] mb-3">Switch Mode</h3>
-      <div className="space-y-2 mb-6">
-        <button
-          onClick={() => handleRoleSwitch('foodie')}
-          disabled={!roles.includes('foodie')}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
-            user?.activeRole === 'foodie' ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
-          } ${!roles.includes('foodie') ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <Utensils className="w-5 h-5" />
-          <div className="text-left">
-            <p className="font-bold text-sm">Foodie Mode</p>
-            <p className={`text-xs ${user?.activeRole === 'foodie' ? 'text-white/70' : 'text-[#40484d]'}`}>Discover & claim deals</p>
-          </div>
-          {user?.activeRole === 'foodie' && <Check className="w-5 h-5 ml-auto" />}
-        </button>
-
-        <button
-          onClick={() => handleRoleSwitch('vendor')}
-          disabled={!roles.includes('vendor')}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
-            user?.activeRole === 'vendor' ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
-          } ${!roles.includes('vendor') ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <Store className="w-5 h-5" />
-          <div className="text-left">
-            <p className="font-bold text-sm">Vendor Command Center</p>
-            <p className={`text-xs ${user?.activeRole === 'vendor' ? 'text-white/70' : 'text-[#40484d]'}`}>Manage your deals</p>
-          </div>
-          {user?.activeRole === 'vendor' && <Check className="w-5 h-5 ml-auto" />}
-        </button>
-
-        <button
-          onClick={() => handleRoleSwitch('admin')}
-          disabled={!roles.includes('admin')}
-          className={`w-full flex items-center gap-3 p-4 rounded-xl transition-all ${
-            user?.activeRole === 'admin' ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
-          } ${!roles.includes('admin') ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <Shield className="w-5 h-5" />
-          <div className="text-left">
-            <p className="font-bold text-sm">Admin Control Center</p>
-            <p className={`text-xs ${user?.activeRole === 'admin' ? 'text-white/70' : 'text-[#40484d]'}`}>Platform management</p>
-          </div>
-          {user?.activeRole === 'admin' && <Check className="w-5 h-5 ml-auto" />}
-        </button>
+      <h3 className="font-bold text-[#0d1c2d] text-sm mb-2">Switch Mode</h3>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
+          const isAvailable = roles.includes(role)
+          const isActive = user?.activeRole === role
+          const icons = { foodie: Utensils, vendor: Store, admin: Shield }
+          const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
+          const Icon = icons[role]
+          return (
+            <button
+              key={role}
+              onClick={() => handleRoleSwitch(role)}
+              disabled={!isAvailable}
+              className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
+                isActive ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
+              } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-[11px] font-bold">{labels[role]}</span>
+              {isActive && <Check className="w-3 h-3" />}
+            </button>
+          )
+        })}
       </div>
 
-      {/* Become a Vendor */}
-      {!roles.includes('vendor') && (
-        <Card className="border-0 shadow-card rounded-2xl mb-6 bg-gradient-to-br from-[#89cff0]/20 to-[#0d6683]/5">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <Sparkles className="w-5 h-5 text-[#0d6683]" />
-              <h3 className="font-bold text-[#0d1c2d]">Become a Vendor</h3>
+      {/* Quick Links */}
+      <div className="space-y-2 mb-4">
+        {roles.includes('vendor') && (
+          <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
+            <CreditCard className="w-5 h-5 text-[#0d6683]" />
+            <div className="text-left flex-1">
+              <p className="font-bold text-sm text-[#0d1c2d]">Subscription Plan</p>
+              <p className="text-[11px] text-[#40484d]">Manage your vendor subscription</p>
             </div>
-            <p className="text-sm text-[#40484d] mb-3">Turn your unsold meals into revenue. Start selling on FlashBite today.</p>
-            <Button className="bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl font-bold"
-              onClick={() => navigate('home', {})}>
-              Register Now
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Actions */}
-      <div className="space-y-2">
-        <button onClick={handleLogout} className="w-full flex items-center gap-3 p-4 rounded-xl bg-red-50 text-[#EF4444] hover:bg-red-100 transition-colors">
-          <LogOut className="w-5 h-5" />
-          <span className="font-bold text-sm">Sign Out</span>
-        </button>
+            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+          </button>
+        )}
+        {!roles.includes('vendor') && (
+          <button onClick={() => navigate('home', {})} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#89cff0]/20 to-[#0d6683]/5 hover:from-[#89cff0]/30 hover:to-[#0d6683]/10 transition-colors">
+            <Sparkles className="w-5 h-5 text-[#0d6683]" />
+            <div className="text-left flex-1">
+              <p className="font-bold text-sm text-[#0d1c2d]">Become a Vendor</p>
+              <p className="text-[11px] text-[#40484d]">Turn unsold meals into revenue</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+          </button>
+        )}
       </div>
+
+      {/* Sign Out */}
+      <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 text-[#EF4444] hover:bg-red-100 transition-colors">
+        <LogOut className="w-5 h-5" />
+        <span className="font-bold text-sm">Sign Out</span>
+      </button>
     </div>
   )
 }
@@ -958,13 +940,18 @@ function VendorDashboardView() {
     .reduce((sum, o) => sum + o.totalPrice, 0)
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center justify-between mb-5">
         <div>
           <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Dashboard</h1>
           <p className="text-sm text-[#40484d]">{vendor?.businessName || 'Your Store'}</p>
         </div>
-        <NotificationBell />
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
+            <User className="w-5 h-5 text-[#0d6683]" />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1134,7 +1121,7 @@ function VendorCreateDealView() {
   }
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1287,7 +1274,7 @@ function VendorInventoryView() {
   }, [])
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1393,7 +1380,7 @@ function VendorFulfillmentView() {
   }
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1498,7 +1485,7 @@ function VendorSubscriptionView() {
   }
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1596,10 +1583,15 @@ function AdminDashboardView() {
   }, [])
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center justify-between mb-5">
         <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Admin Dashboard</h1>
-        <NotificationBell />
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
+            <User className="w-5 h-5 text-[#0d6683]" />
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1699,7 +1691,7 @@ function AdminVendorsView() {
   }
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1794,7 +1786,7 @@ function AdminUsersView() {
   const filtered = search ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1855,7 +1847,7 @@ function AdminAnalyticsView() {
   }, [])
 
   return (
-    <div className="pb-24 px-5">
+    <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
           <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
@@ -1968,7 +1960,7 @@ function VendorBottomNav() {
     { view: 'create-deal' as AppView, icon: PlusCircle, label: 'Create' },
     { view: 'inventory' as AppView, icon: Package, label: 'Inventory' },
     { view: 'fulfillment' as AppView, icon: CheckCircle, label: 'Fulfill' },
-    { view: 'subscription' as AppView, icon: CreditCard, label: 'Plan' },
+    { view: 'profile' as AppView, icon: User, label: 'More' },
   ]
 
   return (
@@ -2005,6 +1997,7 @@ function AdminBottomNav() {
     { view: 'vendors' as AppView, icon: Store, label: 'Vendors' },
     { view: 'users' as AppView, icon: Users, label: 'Users' },
     { view: 'analytics' as AppView, icon: BarChart3, label: 'Analytics' },
+    { view: 'profile' as AppView, icon: User, label: 'More' },
   ]
 
   return (
@@ -2065,6 +2058,7 @@ function ViewRouter() {
         case 'inventory': return <VendorInventoryView />
         case 'fulfillment': return <VendorFulfillmentView />
         case 'subscription': return <VendorSubscriptionView />
+        case 'profile': return <FoodieProfileView />
         default: return <VendorDashboardView />
       }
     }
@@ -2076,6 +2070,7 @@ function ViewRouter() {
         case 'vendors': return <AdminVendorsView />
         case 'users': return <AdminUsersView />
         case 'analytics': return <AdminAnalyticsView />
+        case 'profile': return <FoodieProfileView />
         default: return <AdminDashboardView />
       }
     }
