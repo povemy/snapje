@@ -1,0 +1,904 @@
+     1→     1→PROJECT BRIEF: "FLASHBITE" - HYPER-LOCAL FOOD FLASH DEAL APP (FOUNDER MVP → SCALE ROADMAP)
+     2→     2→OBJECTIVE: Build a hyper-local, time-sensitive food flash deal ecosystem that connects hungry consumers (especially office workers and urban professionals) with nearby food vendors who need to liquidate unsold inventory or pre-sell upcoming meal batches.
+     3→     3→The business model is designed around predictable recurring revenue (MRR), not transaction commissions.
+     4→     4→PRIMARY REVENUE STREAMS:
+     5→     5→        •       Vendor SaaS Subscription:
+     6→     6→        ◦       Basic Tier: RM99/month.
+     7→     7→        ◦       Premium Tier: RM199/month.
+     8→     8→        •       Consumer Premium Membership:
+     9→     9→        ◦       "First Dibs Pass" subscription providing early access to high-demand flash deals.
+    10→    10→        •       Future B2B Corporate Subscription:
+    11→    11→        ◦       Office Pods and workplace group ordering solutions.
+    12→    12→CORE BUSINESS THESIS: A vendor losing 20 unsold meals experiences a 100% loss.
+    13→    13→Selling those meals at a 40–60% discount still creates incremental revenue, reduces food waste, and introduces the vendor to new customers.
+    14→    14→FLASHBITE is not competing directly as another food delivery marketplace. The long-term strategic moat is becoming the workplace lunch discovery and coordination network.
+    15→    15→PRODUCT DEVELOPMENT PHILOSOPHY:
+    16→    16→Phase 0 - Concierge Validation (No-Code):
+    17→    17→        •       Validate market demand before large engineering investment.
+    18→    18→        •       Recruit 10–20 food vendors.
+    19→    19→        •       Recruit 50–100 office workers.
+    20→    20→        •       Test:
+    21→    21→        ◦       What discount percentages convert best.
+    22→    22→        ◦       Which meal categories have highest demand.
+    23→    23→        ◦       Which time windows produce the highest engagement.
+    24→    24→        ◦       Whether vendors are willing to pay a monthly subscription.
+    25→    25→Phase 1 - Core Revenue MVP: Build only the minimum system required to validate the SaaS business.
+    26→    26→User:
+    27→    27→        •       Discover nearby deals.
+    28→    28→        •       View food details.
+    29→    29→        •       Claim deals.
+    30→    30→        •       Receive QR pickup code.
+    31→    31→Vendor:
+    32→    32→        •       Complete onboarding.
+    33→    33→        •       Submit business information.
+    34→    34→        •       Subscribe to a vendor plan.
+    35→    35→        •       Create flash deals.
+    36→    36→        •       Manage available stock.
+    37→    37→        •       Verify customer pickup via QR scanning.
+    38→    38→Admin:
+    39→    39→        •       Review vendor applications.
+    40→    40→        •       Perform KYC verification.
+    41→    41→        •       Approve or suspend vendors.
+    42→    42→        •       Manage subscriptions.
+    43→    43→Phase 2 - Growth Features:
+    44→    44→        •       First Dibs Pass.
+    45→    45→        •       Personalized recommendations.
+    46→    46→        •       Vendor analytics dashboard.
+    47→    47→        •       Basic marketing tools.
+    48→    48→        •       Improved geolocation ranking.
+    49→    49→Phase 3 - Network Effects & Platform Expansion:
+    50→    50→        •       Office Pods.
+    51→    51→        •       Corporate subscriptions.
+    52→    52→        •       Siren Push hyper-local marketing.
+    53→    53→        •       Auto-Drop liquidation engine.
+    54→    54→        •       Rider ecosystem (only if delivery economics justify it).
+    55→    55→ONE APP, ONE ACCOUNT, MULTIPLE ROLES: The system uses dynamic Role-Based Access Control (RBAC).
+    56→    56→A single user identity can possess multiple roles:
+    57→    57→        •       Customer.
+    58→    58→        •       Vendor.
+    59→    59→        •       Office Pod Leader.
+    60→    60→        •       Rider (future).
+    61→    61→        •       Administrator.
+    62→    62→The interface dynamically transforms based on the currently selected role.
+    63→    63→=========================================================================
+    64→    64→        1       TECH STACK & PERFORMANCE MANDATES =========================================================================
+    65→    65→ARCHITECTURE PHILOSOPHY: Start as a clean modular monolithic application with clear domain boundaries.
+    66→    66→Microservices will only be introduced after proven scale and operational necessity.
+    67→    67→Frontend:
+    68→    68→        •       Next.js App Router with React.
+    69→    69→        •       Must behave like a native-quality Single Page Application (SPA).
+    70→    70→        •       Route prefetching enabled.
+    71→    71→        •       Server Components used where beneficial for performance.
+    72→    72→Mobile:
+    73→    73→        •       React Native with Expo.
+    74→    74→        •       Share business logic, API clients, validation schemas, and utility libraries with the web application where practical.
+    75→    75→Styling:
+    76→    76→        •       Tailwind CSS.
+    77→    77→        •       Framer Motion.
+    78→    78→        •       60 FPS animations as a minimum standard.
+    79→    79→Backend:
+    80→    80→        •       Node.js.
+    81→    81→        •       NestJS modular monolith architecture.
+    82→    82→        •       Domain modules:
+    83→    83→        ◦       Authentication Module.
+    84→    84→        ◦       User Module.
+    85→    85→        ◦       Vendor Module.
+    86→    86→        ◦       Deal Module.
+    87→    87→        ◦       Inventory Module.
+    88→    88→        ◦       Reservation Module.
+    89→    89→        ◦       Payment Module.
+    90→    90→        ◦       Notification Module.
+    91→    91→        ◦       Analytics Module.
+    92→    92→Database:
+    93→    93→        •       PostgreSQL as the primary database.
+    94→    94→        •       PostGIS extension for geospatial searches.
+    95→    95→        •       Database indexing optimized for:
+    96→    96→        ◦       Distance calculations.
+    97→    97→        ◦       Deal expiration queries.
+    98→    98→        ◦       Vendor discovery.
+    99→    99→        ◦       User activity.
+   100→   100→Redis:
+   101→   101→        •       Session caching.
+   102→   102→        •       Rate limiting.
+   103→   103→        •       Temporary reservation locks.
+   104→   104→        •       WebSocket scaling.
+   105→   105→        •       High-frequency counters.
+   106→   106→Real-Time Layer:
+   107→   107→        •       WebSockets using Socket.io.
+   108→   108→        •       Real-time stock updates.
+   109→   109→        •       Deal expiration events.
+   110→   110→        •       Future Siren Push event broadcasting.
+   111→   111→Payments:
+   112→   112→        •       Stripe.
+   113→   113→        •       Billplz (FPX).
+   114→   114→        •       DuitNow AutoDebit for recurring subscriptions.
+   115→   115→PERFORMANCE IS NON-NEGOTIABLE:
+   116→   116→Perceived performance is considered a core product feature.
+   117→   117→        •       Implement optimistic UI where appropriate.
+   118→   118→        •       All interactions should provide immediate visual feedback.
+   119→   119→        •       Route transitions must feel instant.
+   120→   120→        •       Use intelligent prefetching.
+   121→   121→        •       Zero unexpected layout shifts.
+   122→   122→        •       Skeleton loaders must perfectly match final component dimensions.
+   123→   123→        •       Images must reserve their aspect ratio before loading.
+   124→   124→        •       Target Time-To-Interactive (TTI):
+   125→   125→        ◦       Less than 1.5 seconds on typical 4G networks.
+   126→   126→        ◦       Less than 1 second on modern WiFi connections.
+   127→   127→
+   128→   128→========================================================================= 2. UI/UX DESIGN SYSTEM & THEME
+   129→   129→DESIGN PHILOSOPHY: FLASHBITE's visual identity should communicate three psychological feelings:
+   130→   130→        1       TRUST: Users are purchasing food from nearby vendors, often within a limited time window. The interface must feel hygienic, reliable, professional, and easy to understand.
+   131→   131→        2       TEMPTATION: Food is an emotional purchase. High-quality imagery, attractive pricing presentation, and satisfying interactions should create a "I want this now" feeling.
+   132→   132→        3       SPEED: Flash deals are urgent by nature. The user must be able to discover, evaluate, claim, and receive a pickup QR code within seconds.
+   133→   133→The design principle is: "Less friction. More craving."
+   134→   134→THEME: "Tempting Trust"
+   135→   135→Primary Color:
+   136→   136→        •       Soft Baby Blue (#89CFF0).
+   137→   137→Secondary Colors:
+   138→   138→        •       Fresh Mint Green (#34D399) for successful actions.
+   139→   139→        •       Warm Orange (#FB923C) for urgency, countdowns, and limited stock indicators.
+   140→   140→        •       Soft Red (#EF4444) for sold-out states, errors, and destructive actions.
+   141→   141→Background:
+   142→   142→        •       Pure White (#FFFFFF).
+   143→   143→Primary Text:
+   144→   144→        •       Dark Slate Grey (#2C3E50).
+   145→   145→Secondary Text:
+   146→   146→        •       Neutral Gray shades for supporting information.
+   147→   147→AESTHETICS:
+   148→   148→Overall Style:
+   149→   149→        •       Modern food marketplace appearance.
+   150→   150→        •       Inspired by premium e-commerce applications.
+   151→   151→        •       Clean, bright, and highly readable.
+   152→   152→        •       The food photography must always be the hero element.
+   153→   153→Components:
+   154→   154→Cards:
+   155→   155→        •       Border Radius: 16px.
+   156→   156→        •       Soft shadows (shadow-sm and shadow-md).
+   157→   157→        •       Generous whitespace.
+   158→   158→        •       Subtle elevation on hover or touch.
+   159→   159→Buttons:
+   160→   160→        •       Border Radius: 12px.
+   161→   161→        •       Slight glossy gradient finish.
+   162→   162→        •       Primary buttons use a gentle baby-blue gradient.
+   163→   163→        •       Success states transition to mint green.
+   164→   164→        •       Disabled states become neutral gray.
+   165→   165→Modals & Bottom Sheets:
+   166→   166→        •       Border Radius: 24px on top corners.
+   167→   167→        •       Slide upward from bottom.
+   168→   168→        •       Native mobile application feeling.
+   169→   169→Food Images:
+   170→   170→        •       Large.
+   171→   171→        •       High resolution.
+   172→   172→        •       Rounded corners.
+   173→   173→        •       Maintain consistent aspect ratios.
+   174→   174→        •       Loaded progressively with placeholders to avoid layout shifting.
+   175→   175→NO GLASSMORPHISM:
+   176→   176→        •       No frosted backgrounds.
+   177→   177→        •       No heavy blur effects.
+   178→   178→        •       No excessive transparency.
+   179→   179→        •       Maintain maximum readability and performance.
+   180→   180→TYPOGRAPHY:
+   181→   181→Fonts:
+   182→   182→        •       Preferred:
+   183→   183→        ◦       Nunito.
+   184→   184→        ◦       Poppins.
+   185→   185→        ◦       DM Sans.
+   186→   186→Personality:
+   187→   187→        •       Rounded.
+   188→   188→        •       Friendly.
+   189→   189→        •       Approachable.
+   190→   190→        •       Modern.
+   191→   191→        •       Soft enough to subconsciously evoke comfort food while remaining highly legible.
+   192→   192→Text Hierarchy:
+   193→   193→Deal Price:
+   194→   194→        •       Large.
+   195→   195→        •       Bold.
+   196→   196→        •       Highly prominent.
+   197→   197→Original Price:
+   198→   198→        •       Smaller.
+   199→   199→        •       Gray.
+   200→   200→        •       Strikethrough.
+   201→   201→Stock Indicators:
+   202→   202→        •       High contrast.
+   203→   203→        •       Animated when inventory is low.
+   204→   204→Countdown Timers:
+   205→   205→        •       Use warm urgency colors.
+   206→   206→        •       Animate subtly during the final countdown period.
+   207→   207→ANIMATIONS:
+   208→   208→Animation Philosophy: "Every movement must have a purpose."
+   209→   209→Framework:
+   210→   210→        •       Framer Motion.
+   211→   211→Standard Transitions:
+   212→   212→        •       Spring-based easing.
+   213→   213→        •       Smooth acceleration and deceleration.
+   214→   214→        •       No abrupt jumps.
+   215→   215→Page Changes:
+   216→   216→        •       Fast fade and slight slide transitions.
+   217→   217→Deal Cards:
+   218→   218→        •       Slight lift when tapped.
+   219→   219→        •       Subtle scaling feedback.
+   220→   220→Successful Actions: Examples:
+   221→   221→        •       Claim successful.
+   222→   222→        •       Subscription activated.
+   223→   223→        •       QR pickup verified.
+   224→   224→Should trigger:
+   225→   225→        •       Smooth color transition.
+   226→   226→        •       Small confirmation animation.
+   227→   227→        •       Gentle haptic feedback on supported devices.
+   228→   228→Loading States:
+   229→   229→        •       Animated pulse skeletons.
+   230→   230→        •       Exact dimensional matching.
+   231→   231→        •       No content jumping.
+   232→   232→========================================================================= 3. ROLE-BASED ACCESS CONTROL (RBAC) & "CHAMELEON" UI
+   233→   233→CORE PRINCIPLE:
+   234→   234→One App. One Identity. Multiple Roles.
+   235→   235→A user should never need separate applications for different responsibilities.
+   236→   236→Example: A restaurant owner can:
+   237→   237→        •       Buy lunch as a normal customer.
+   238→   238→        •       Switch to Vendor mode to manage their own deals.
+   239→   239→        •       Later become an Office Pod leader.
+   240→   240→The system dynamically loads the appropriate navigation, dashboard, permissions, and available features based on the active role.
+   241→   241→ROLE SWITCHING:
+   242→   242→Location:
+   243→   243→        •       User Profile.
+   244→   244→UI:
+   245→   245→        •       Role selector with a smooth animated transition.
+   246→   246→Example: "Switch To:
+   247→   247→        •       Foodie Mode.
+   248→   248→        •       Vendor Command Center.
+   249→   249→        •       Office Pod Leader Mode."
+   250→   250→Security:
+   251→   251→        •       Backend permissions always control access.
+   252→   252→        •       Frontend role changes only modify the presentation layer.
+   253→   253→        •       Every API endpoint validates authorization.
+   254→   254→
+   255→   255→A. USER (FOODIE)
+   256→   256→Availability:
+   257→   257→        •       Available from Phase 1.
+   258→   258→Purpose:
+   259→   259→        •       Discover and claim nearby food deals.
+   260→   260→Bottom Navigation:
+   261→   261→        1       Home:
+   262→   262→        •       Deal discovery feed.
+   263→   263→        •       Personalized recommendations.
+   264→   264→        2       Explore:
+   265→   265→        •       Map discovery.
+   266→   266→        •       Category filtering.
+   267→   267→        •       Search.
+   268→   268→        3       Orders:
+   269→   269→        •       Active claims.
+   270→   270→        •       Pickup QR codes.
+   271→   271→        •       Order history.
+   272→   272→        4       Profile:
+   273→   273→        •       Account management.
+   274→   274→        •       Subscription management.
+   275→   275→        •       Role switching.
+   276→   276→User Discovery Philosophy:
+   277→   277→Distance is the strongest ranking signal.
+   278→   278→The application should not treat every deal within 20km equally.
+   279→   279→Ranking Priority:
+   280→   280→Tier 1: 0–1 km. "Walk there now."
+   281→   281→Tier 2: 1–3 km. "Quick ride or short drive."
+   282→   282→Tier 3: 3–5 km. "Good deal worth travelling for."
+   283→   283→Tier 4: 5–20 km. Visible but lower priority.
+   284→   284→Filters:
+   285→   285→        •       Distance slider (1km–20km).
+   286→   286→        •       Food category.
+   287→   287→        •       Discount percentage.
+   288→   288→        •       Pickup availability.
+   289→   289→        •       Vegetarian/Halal/etc.
+   290→   290→        •       Price range.
+   291→   291→Premium Features (Phase 2): "First Dibs Pass"
+   292→   292→Benefits:
+   293→   293→        •       Early access to selected deals.
+   294→   294→        •       Priority discovery.
+   295→   295→        •       Exclusive flash offers.
+   296→   296→
+   297→   297→B. VENDOR (MERCHANT)
+   298→   298→Availability:
+   299→   299→        •       Available from Phase 1.
+   300→   300→Purpose: Transform unsold inventory into additional revenue.
+   301→   301→Vendor Journey:
+   302→   302→Step 1: Vendor Registration.
+   303→   303→Step 2: Business Information Submission.
+   304→   304→Required Information:
+   305→   305→        •       Business name.
+   306→   306→        •       Contact details.
+   307→   307→        •       Business address.
+   308→   308→        •       Operating hours.
+   309→   309→        •       Food categories.
+   310→   310→        •       Business verification documents.
+   311→   311→Step 3: Admin KYC Review.
+   312→   312→Status Indicators:
+   313→   313→        •       Pending Review.
+   314→   314→        •       Approved.
+   315→   315→        •       Rejected (with reason).
+   316→   316→Step 4: Subscription Selection.
+   317→   317→Plans:
+   318→   318→Basic: RM99/month.
+   319→   319→Features:
+   320→   320→        •       Create flash deals.
+   321→   321→        •       Manage inventory.
+   322→   322→        •       View customer claims.
+   323→   323→        •       QR pickup verification.
+   324→   324→Premium: RM199/month.
+   325→   325→Additional features (Phase 2 & 3):
+   326→   326→        •       Advanced analytics.
+   327→   327→        •       Priority placement.
+   328→   328→        •       Siren Push marketing.
+   329→   329→        •       Auto-Drop liquidation tools.
+   330→   330→After approval and payment, the Vendor Command Center becomes accessible.
+   331→   331→Vendor Navigation:
+   332→   332→        1       Dashboard.
+   333→   333→        2       Create Deal.
+   334→   334→        3       Inventory.
+   335→   335→        4       Fulfillment.
+   336→   336→        5       Subscription & Growth Tools.
+   337→   337→
+   338→   338→========================================================================= 4. SPA ROUTE ARCHITECTURE & DETAILED SPECIFICATIONS
+   339→   339→The application follows a native-quality SPA architecture. Page transitions should feel instant while maintaining clear separation between user roles.
+   340→   340→Every route must support:
+   341→   341→        •       Optimistic UI where appropriate.
+   342→   342→        •       Skeleton loading states.
+   343→   343→        •       Intelligent data prefetching.
+   344→   344→        •       Responsive mobile-first layouts.
+   345→   345→        •       Zero unnecessary full-page reloads.
+   346→   346→
+   347→   347→A. AUTHENTICATION LAYER
+   348→   348→Route: /auth
+   349→   349→Purpose: Provide a frictionless onboarding experience.
+   350→   350→UI:
+   351→   351→        •       Clean pure-white background.
+   352→   352→        •       Large FLASHBITE baby-blue logo.
+   353→   353→        •       Minimal distractions.
+   354→   354→        •       Login/Register toggle with smooth transitions.
+   355→   355→Authentication Methods:
+   356→   356→        •       OTP via SMS.
+   357→   357→        •       OTP via WhatsApp (where supported).
+   358→   358→Registration Flow:
+   359→   359→New User:
+   360→   360→        •       Enter phone number.
+   361→   361→        •       Receive OTP.
+   362→   362→        •       Verify identity.
+   363→   363→        •       Create profile.
+   364→   364→        •       Default role assigned:
+   365→   365→        ◦       Foodie.
+   366→   366→Additional roles may be attached later:
+   367→   367→        •       Vendor.
+   368→   368→        •       Office Pod Leader.
+   369→   369→        •       Rider.
+   370→   370→        •       Administrator.
+   371→   371→Session Management:
+   372→   372→        •       Secure JWT authentication.
+   373→   373→        •       Refresh token rotation.
+   374→   374→        •       Device session management.
+   375→   375→Post Login Logic:
+   376→   376→        •       Backend returns user roles.
+   377→   377→        •       Application loads the appropriate interface.
+   378→   378→        •       Previous active role is remembered for convenience.
+   379→   379→
+   380→   380→B. USER (FOODIE) INTERFACE
+   381→   381→Route: /user/home
+   382→   382→Purpose: Make discovering nearby food deals addictive, fast, and effortless.
+   383→   383→UI Layout:
+   384→   384→Top Navigation:
+   385→   385→        •       Current location indicator.
+   386→   386→        •       Location permission status.
+   387→   387→        •       Distance preference slider (1km–20km).
+   388→   388→        •       Filter button.
+   389→   389→        •       First Dibs badge for premium users.
+   390→   390→Main Discovery Feed:
+   391→   391→Display Modes:
+   392→   392→        1       Card Feed Mode:
+   393→   393→        •       Vertical scrolling feed.
+   394→   394→        •       Food-first visual design.
+   395→   395→        2       Grid Mode:
+   396→   396→        •       Compact discovery experience.
+   397→   397→Each Deal Card Displays:
+   398→   398→Visual:
+   399→   399→        •       High-resolution food image.
+   400→   400→        •       Vendor name.
+   401→   401→        •       Vendor rating (future feature).
+   402→   402→Location:
+   403→   403→        •       Distance in kilometers.
+   404→   404→        •       Estimated walking/driving time.
+   405→   405→Pricing:
+   406→   406→        •       Original price (gray, strikethrough).
+   407→   407→        •       Flash deal price (large and bold).
+   408→   408→        •       Discount percentage badge.
+   409→   409→Urgency:
+   410→   410→        •       Remaining stock counter: Example: "🔥 Only 7 left"
+   411→   411→        •       Time remaining: Example: "⏰ Ends in 24 minutes"
+   412→   412→Ranking Algorithm:
+   413→   413→Primary Weight:
+   414→   414→        •       Distance.
+   415→   415→Secondary Weight:
+   416→   416→        •       Deal attractiveness.
+   417→   417→        ◦       Discount percentage.
+   418→   418→        ◦       Remaining quantity.
+   419→   419→        ◦       Time sensitivity.
+   420→   420→Additional Future Signals:
+   421→   421→        •       User preferences.
+   422→   422→        •       Purchase history.
+   423→   423→        •       Favorite vendors.
+   424→   424→        •       Time-of-day eating patterns.
+   425→   425→The goal: The closest and most relevant deal should appear first.
+   426→   426→
+   427→   427→USER DEAL DETAIL PAGE
+   428→   428→Route: /user/deal/:id
+   429→   429→Purpose: Convert desire into a claim within seconds.
+   430→   430→UI:
+   431→   431→Hero Section:
+   432→   432→        •       Full-width high-resolution food image.
+   433→   433→        •       Gradient overlay for readability.
+   434→   434→        •       Deal title.
+   435→   435→        •       Vendor name.
+   436→   436→        •       Distance.
+   437→   437→Deal Information:
+   438→   438→        •       Original price.
+   439→   439→        •       Current price.
+   440→   440→        •       Percentage saved.
+   441→   441→        •       Remaining stock.
+   442→   442→        •       Deal expiry countdown.
+   443→   443→Vendor Information:
+   444→   444→        •       Vendor profile.
+   445→   445→        •       Address.
+   446→   446→        •       Map preview.
+   447→   447→        •       Operating hours.
+   448→   448→        •       Pickup instructions.
+   449→   449→Sticky Bottom Action Bar:
+   450→   450→Contains:
+   451→   451→        •       Final deal price.
+   452→   452→        •       Primary "Claim Deal" button.
+   453→   453→Claim Flow:
+   454→   454→Step 1: User presses "Claim Deal".
+   455→   455→Immediate Frontend Feedback:
+   456→   456→        •       Button animates.
+   457→   457→        •       Loading state appears.
+   458→   458→        •       User receives instant tactile confirmation.
+   459→   459→IMPORTANT:
+   460→   460→A deal is NOT immediately owned simply because a user pressed the button.
+   461→   461→The backend creates a temporary reservation.
+   462→   462→Reservation Engine:
+   463→   463→Example:
+   464→   464→Available Stock: 10 meals.
+   465→   465→User A claims:
+   466→   466→        •       Stock reserved: 1.
+   467→   467→        •       Reservation timer begins.
+   468→   468→Reservation Duration: Default: 5 minutes.
+   469→   469→During Reservation:
+   470→   470→        •       Stock is temporarily unavailable to other users.
+   471→   471→        •       User must complete confirmation and receive QR code.
+   472→   472→If User A completes the process:
+   473→   473→        •       Reservation converts into a confirmed order.
+   474→   474→        •       Inventory permanently decreases.
+   475→   475→If User A abandons:
+   476→   476→        •       Reservation expires.
+   477→   477→        •       Stock automatically returns to available inventory.
+   478→   478→Concurrency Protection:
+   479→   479→The backend must use:
+   480→   480→        •       Database transactions.
+   481→   481→        •       Row-level locking.
+   482→   482→        •       Atomic inventory operations.
+   483→   483→Prevent scenarios where: 5 users attempt to claim the final remaining meal and all receive false confirmation.
+   484→   484→Real-Time Updates:
+   485→   485→All viewers of the same deal receive live updates through WebSockets:
+   486→   486→Examples:
+   487→   487→Stock Change: "🔥 10 left" → "🔥 9 left"
+   488→   488→Low Inventory: The counter animates with urgency.
+   489→   489→Sold Out:
+   490→   490→        •       Claim button becomes disabled.
+   491→   491→        •       Button changes to gray.
+   492→   492→        •       Subtle shake animation indicates the deal has ended.
+   493→   493→
+   494→   494→USER ORDERS & PICKUP
+   495→   495→Route: /user/orders
+   496→   496→Purpose: Manage all active and previous claims.
+   497→   497→Sections:
+   498→   498→Active Orders:
+   499→   499→        •       Deal details.
+   500→   500→        •       Pickup location.
+   501→   501→        •       Pickup deadline.
+   502→   502→        •       QR pickup code.
+   503→   503→Completed Orders:
+   504→   504→        •       Purchase history.
+   505→   505→        •       Previous vendors.
+   506→   506→        •       Spending summary.
+   507→   507→QR Pickup Experience:
+   508→   508→The QR code contains:
+   509→   509→        •       Encrypted order identifier.
+   510→   510→        •       Expiration information.
+   511→   511→        •       Verification token.
+   512→   512→Upon vendor scanning:
+   513→   513→Status changes:
+   514→   514→"PENDING PICKUP" ↓ "VERIFIED" ↓ "COMPLETED"
+   515→   515→Success Animation:
+   516→   516→        •       Smooth green confirmation checkmark.
+   517→   517→        •       Confetti-style micro-animation.
+   518→   518→        •       Optional device vibration.
+   519→   519→
+   520→   520→USER SUBSCRIPTIONS (PHASE 2)
+   521→   521→Route: /user/subscriptions
+   522→   522→Product: First Dibs Pass.
+   523→   523→Price: RM19/month.
+   524→   524→Benefits:
+   525→   525→        •       Early access to selected flash deals.
+   526→   526→        •       Exclusive premium offers.
+   527→   527→        •       Priority placement in limited inventory events.
+   528→   528→Billing Features:
+   529→   529→        •       View active subscription.
+   530→   530→        •       View billing history.
+   531→   531→        •       Change payment method.
+   532→   532→        •       Cancel membership.
+   533→   533→Supported Payments:
+   534→   534→        •       FPX.
+   535→   535→        •       DuitNow AutoDebit.
+   536→   536→        •       Credit/Debit card.
+   537→   537→
+   538→   538→C. OFFICE POD LEADER (PHASE 3 - STRATEGIC MOAT)
+   539→   539→Purpose:
+   540→   540→Transform FLASHBITE from a simple deal marketplace into a workplace food coordination platform.
+   541→   541→Core Insight:
+   542→   542→A single office pod leader can influence 5–30 lunch purchases at once.
+   543→   543→This creates stronger network effects than acquiring individual users one-by-one.
+   544→   544→Route: /user/pod
+   545→   545→Capabilities:
+   546→   546→Create Pod:
+   547→   547→        •       Generate unique invite link.
+   548→   548→        •       Generate QR invitation code.
+   549→   549→        •       Set pod name.
+   550→   550→Example: "Level 12 Marketing Team"
+   551→   551→Members Can:
+   552→   552→        •       Join pod.
+   553→   553→        •       Browse selected deals.
+   554→   554→        •       Add meals to shared cart.
+   555→   555→Pod Dashboard Displays:
+   556→   556→        •       Member count.
+   557→   557→        •       Active participants.
+   558→   558→        •       Current shared cart.
+   559→   559→        •       Total order value.
+   560→   560→Group Incentives:
+   561→   561→Examples:
+   562→   562→"2 more orders required to unlock free delivery."
+   563→   563→"RM20 more to unlock corporate discount."
+   564→   564→Future Corporate Features:
+   565→   565→        •       Company-sponsored meal credits.
+   566→   566→        •       Scheduled recurring lunch days.
+   567→   567→        •       Department budgets.
+   568→   568→        •       Enterprise subscriptions.
+   569→   569→
+   570→   570→========================================================================= D. VENDOR (MERCHANT) COMMAND CENTER
+   571→   571→The Vendor Command Center is the operational heart of the vendor experience.
+   572→   572→The primary goal is simplicity: A busy food vendor should be able to create a flash deal in less than 60 seconds.
+   573→   573→Vendor interface prioritizes:
+   574→   574→        •       Large touch targets.
+   575→   575→        •       Minimal data entry.
+   576→   576→        •       Clear revenue visibility.
+   577→   577→        •       Real-time inventory awareness.
+   578→   578→        •       Fast actions during peak business hours.
+   579→   579→
+   580→   580→VENDOR DASHBOARD
+   581→   581→Route: /vendor/dashboard
+   582→   582→Purpose: Provide a real-time snapshot of business performance.
+   583→   583→Dashboard Cards:
+   584→   584→Today's Performance:
+   585→   585→        •       Revenue generated from FLASHBITE.
+   586→   586→        •       Number of meals sold.
+   587→   587→        •       Number of active deals.
+   588→   588→        •       Remaining unsold inventory.
+   589→   589→Current Deal Radar:
+   590→   590→        •       Active flash deals.
+   591→   591→        •       Remaining stock.
+   592→   592→        •       Time remaining before expiration.
+   593→   593→        •       Real-time claim activity.
+   594→   594→Customer Insights (Phase 2):
+   595→   595→        •       Peak purchase hours.
+   596→   596→        •       Returning customer percentage.
+   597→   597→        •       Most popular meal categories.
+   598→   598→Subscription Status:
+   599→   599→        •       Current plan:
+   600→   600→        ◦       Basic RM99/month.
+   601→   601→        ◦       Premium RM199/month.
+   602→   602→        •       Billing date.
+   603→   603→        •       Upgrade recommendations.
+   604→   604→
+   605→   605→CREATE FLASH DEAL
+   606→   606→Route: /vendor/create-deal
+   607→   607→Design Philosophy:
+   608→   608→Creating a deal should feel as easy as creating a social media post.
+   609→   609→Step-by-Step Wizard:
+   610→   610→Step 1: Food Information:
+   611→   611→        •       Food name.
+   612→   612→        •       Description.
+   613→   613→        •       Category.
+   614→   614→        •       High-resolution image upload.
+   615→   615→Step 2: Pricing:
+   616→   616→        •       Original selling price.
+   617→   617→        •       Flash deal price.
+   618→   618→        •       Automatic discount percentage calculation.
+   619→   619→Step 3: Inventory:
+   620→   620→        •       Available quantity.
+   621→   621→        •       Maximum claims allowed.
+   622→   622→        •       Deal expiration time.
+   623→   623→Step 4: Availability:
+   624→   624→        •       Pickup only (Phase 1).
+   625→   625→        •       Delivery support (Future phase if economics are validated).
+   626→   626→Step 5: Review & Publish:
+   627→   627→        •       Preview exactly how users will see the deal.
+   628→   628→        •       Confirm and activate.
+   629→   629→Advanced Premium Tools:
+   630→   630→Phase 2:
+   631→   631→        •       Featured placement.
+   632→   632→        •       Performance analytics.
+   633→   633→Phase 3:
+   634→   634→        •       Siren Push.
+   635→   635→        •       Auto-Drop liquidation controls.
+   636→   636→
+   637→   637→VENDOR INVENTORY MANAGEMENT
+   638→   638→Route: /vendor/inventory
+   639→   639→Purpose: Give vendors visibility into live stock.
+   640→   640→Displays:
+   641→   641→        •       Active items.
+   642→   642→        •       Reserved quantity.
+   643→   643→        •       Confirmed orders.
+   644→   644→        •       Remaining available inventory.
+   645→   645→Stock States:
+   646→   646→AVAILABLE: Meals can still be claimed.
+   647→   647→RESERVED: Meals temporarily held by customers.
+   648→   648→SOLD: Reservations successfully converted into orders.
+   649→   649→EXPIRED: Deal time ended and remaining inventory was not sold.
+   650→   650→Vendors may:
+   651→   651→        •       Increase inventory.
+   652→   652→        •       Reduce inventory.
+   653→   653→        •       Extend deal time.
+   654→   654→        •       End a deal early.
+   655→   655→All changes instantly synchronize to active users through WebSockets.
+   656→   656→
+   657→   657→VENDOR FULFILLMENT CENTER
+   658→   658→Route: /vendor/fulfillment
+   659→   659→Purpose: Verify customer pickup quickly.
+   660→   660→Queue Displays:
+   661→   661→Pending Pickup:
+   662→   662→        •       Customer identifier.
+   663→   663→        •       Meal details.
+   664→   664→        •       Quantity.
+   665→   665→        •       Pickup deadline.
+   666→   666→Completed Orders:
+   667→   667→        •       Historical fulfillment records.
+   668→   668→QR Verification Flow:
+   669→   669→Vendor presses: "Scan QR"
+   670→   670→System opens: Device camera.
+   671→   671→QR scanned:
+   672→   672→        •       Order token validated.
+   673→   673→        •       Order ownership verified.
+   674→   674→        •       Expiration checked.
+   675→   675→Successful Scan:
+   676→   676→Order Status:
+   677→   677→CONFIRMED ↓ PICKED UP ↓ COMPLETED
+   678→   678→UI Feedback:
+   679→   679→        •       Full-screen mint green confirmation.
+   680→   680→        •       Large checkmark animation.
+   681→   681→        •       Optional vibration feedback.
+   682→   682→
+   683→   683→VENDOR GROWTH & SUBSCRIPTIONS
+   684→   684→Route: /vendor/subscription
+   685→   685→Purpose: Convert successful vendors into long-term subscribers.
+   686→   686→Plans Comparison:
+   687→   687→Basic — RM99/month:
+   688→   688→Includes:
+   689→   689→        •       Unlimited flash deals.
+   690→   690→        •       Inventory management.
+   691→   691→        •       QR fulfillment.
+   692→   692→        •       Basic statistics.
+   693→   693→Premium — RM199/month:
+   694→   694→Includes:
+   695→   695→        •       Advanced analytics.
+   696→   696→        •       Priority discovery ranking.
+   697→   697→        •       Marketing tools.
+   698→   698→        •       Future Siren Push access.
+   699→   699→        •       Future Auto-Drop tools.
+   700→   700→Payment Methods:
+   701→   701→        •       FPX.
+   702→   702→        •       DuitNow AutoDebit.
+   703→   703→        •       Credit/Debit Cards.
+   704→   704→
+   705→   705→E. RIDER (FUTURE PHASE)
+   706→   706→Availability: Phase 4+ only.
+   707→   707→IMPORTANT: Rider infrastructure should not be built until pickup economics and demand justify the additional operational complexity.
+   708→   708→Future Rider Features:
+   709→   709→Route: /rider/dashboard
+   710→   710→Capabilities:
+   711→   711→        •       Delivery queue.
+   712→   712→        •       Optimized routes.
+   713→   713→        •       Navigation support.
+   714→   714→        •       QR verification.
+   715→   715→        •       Earnings tracking.
+   716→   716→========================================================================= F. ADMIN CONTROL CENTER
+   717→   717→Purpose: Provide complete operational visibility over the FLASHBITE ecosystem.
+   718→   718→Access: Web dashboard only.
+   719→   719→
+   720→   720→VENDOR MANAGEMENT
+   721→   721→Route: /admin/vendors
+   722→   722→Capabilities:
+   723→   723→Vendor Pipeline:
+   724→   724→        •       New applications.
+   725→   725→        •       Pending KYC.
+   726→   726→        •       Approved vendors.
+   727→   727→        •       Suspended vendors.
+   728→   728→Admin Actions:
+   729→   729→        •       Approve vendor.
+   730→   730→        •       Reject vendor with reason.
+   731→   731→        •       Suspend account.
+   732→   732→        •       Restore account.
+   733→   733→Vendor Profile Displays:
+   734→   734→        •       Business information.
+   735→   735→        •       Subscription status.
+   736→   736→        •       Deal performance.
+   737→   737→        •       Customer complaints.
+   738→   738→
+   739→   739→USER MANAGEMENT
+   740→   740→Route: /admin/users
+   741→   741→Capabilities:
+   742→   742→        •       View user profiles.
+   743→   743→        •       View subscription status.
+   744→   744→        •       Manage First Dibs memberships.
+   745→   745→        •       Investigate abuse.
+   746→   746→        •       Manage banned accounts.
+   747→   747→
+   748→   748→PLATFORM ANALYTICS
+   749→   749→Route: /admin/analytics
+   750→   750→Displays:
+   751→   751→        •       Daily active users.
+   752→   752→        •       New registrations.
+   753→   753→        •       Vendor growth.
+   754→   754→        •       Total meals saved from waste.
+   755→   755→        •       Monthly recurring revenue (MRR).
+   756→   756→        •       Subscription conversion rates.
+   757→   757→
+   758→   758→GEOGRAPHIC CONTROL
+   759→   759→Route: /admin/geography
+   760→   760→Capabilities:
+   761→   761→        •       View vendor distribution map.
+   762→   762→        •       Analyze high-demand zones.
+   763→   763→        •       Configure promotional regions.
+   764→   764→        •       Test future Siren Push campaigns.
+   765→   765→========================================================================= 5. CORE ENGINE LOGIC (THE SCALE FEATURES)
+   766→   766→
+   767→   767→        1       LIVE INVENTORY ENGINE
+   768→   768→
+   769→   769→Technology:
+   770→   770→        •       PostgreSQL transactional inventory.
+   771→   771→        •       Redis temporary reservation storage.
+   772→   772→        •       Socket.io real-time broadcasting.
+   773→   773→Flow:
+   774→   774→User claims meal ↓ Create reservation ↓ Lock quantity temporarily ↓ Broadcast updated availability ↓ User completes claim ↓ Generate QR order
+   775→   775→If reservation expires:
+   776→   776→Reservation timeout reached ↓ Release quantity ↓ Return stock to available inventory ↓ Broadcast new inventory count
+   777→   777→Benefits:
+   778→   778→        •       Prevents overselling.
+   779→   779→        •       Maintains fairness.
+   780→   780→        •       Preserves trust.
+   781→   781→
+   782→   782→        2       FIRST DIBS EARLY ACCESS ENGINE (PHASE 2)
+   783→   783→
+   784→   784→NO CRON JOBS.
+   785→   785→Every deal stores two visibility timestamps:
+   786→   786→Example:
+   787→   787→early_access_at: 11:45 AM
+   788→   788→public_access_at: 12:00 PM
+   789→   789→Access Logic:
+   790→   790→Premium User:
+   791→   791→Current time >= early_access_at
+   792→   792→Result: Deal visible.
+   793→   793→Free User:
+   794→   794→Current time >= public_access_at
+   795→   795→Result: Deal visible.
+   796→   796→UI Indicators:
+   797→   797→Before public release: "🔓 First Dibs Exclusive"
+   798→   798→After public release: Standard deal display.
+   799→   799→
+   800→   800→        3       SIREN PUSH HYPER-LOCAL MARKETING (PHASE 3)
+   801→   801→
+   802→   802→Purpose: Allow vendors to instantly liquidate urgent inventory.
+   803→   803→Vendor Action:
+   804→   804→Press: "Siren Push"
+   805→   805→Targeting Logic:
+   806→   806→Find users who satisfy:
+   807→   807→Distance: Highest priority: 0–1 km.
+   808→   808→Secondary: 1–3 km.
+   809→   809→Extended: 3–5 km.
+   810→   810→Only expand further when inventory remains high.
+   811→   811→Additional Signals:
+   812→   812→        •       Previous purchase categories.
+   813→   813→        •       Favorite vendors.
+   814→   814→        •       Typical meal times.
+   815→   815→Example Notification:
+   816→   816→🔥 Flash Drop! Uncle Bob's Chicken Rice 50% OFF. Only 10 packets left. 3 minutes walking distance.
+   817→   817→Deep Link:
+   818→   818→Notification tap: → /user/deal/:id
+   819→   819→
+   820→   820→        4       AUTO-DROP LIQUIDATION ENGINE (PHASE 3)
+   821→   821→
+   822→   822→Purpose: Help vendors clear remaining inventory before food becomes waste.
+   823→   823→Example:
+   824→   824→2:30 PM: 20 meals remain unsold.
+   825→   825→Vendor selects: "Extra 20% Discount"
+   826→   826→System instantly:
+   827→   827→        •       Updates deal pricing.
+   828→   828→        •       Recalculates discount badge.
+   829→   829→        •       Updates all active user feeds.
+   830→   830→        •       Sends targeted notifications.
+   831→   831→Future automation:
+   832→   832→Vendor can define rules:
+   833→   833→Example:
+   834→   834→IF: Remaining inventory > 15
+   835→   835→AND: Time before expiration < 60 minutes
+   836→   836→THEN: Automatically apply additional 20% discount.
+   837→   837→========================================================================= 6. SPA INTERACTION MICROSPECIFICATIONS (ZERO JITTER)
+   838→   838→The application must feel closer to a premium native app than a traditional website.
+   839→   839→
+   840→   840→PAGE TRANSITIONS
+   841→   841→Technology: Framer Motion AnimatePresence.
+   842→   842→Transition:
+   843→   843→Outgoing Page:
+   844→   844→        •       Fade opacity from 1 → 0.
+   845→   845→        •       Scale from 1.0 → 0.98.
+   846→   846→Incoming Page:
+   847→   847→        •       Fade opacity from 0 → 1.
+   848→   848→        •       Scale from 0.98 → 1.0.
+   849→   849→Duration: 200 milliseconds.
+   850→   850→Goal: Fast and elegant, never distracting.
+   851→   851→
+   852→   852→BUTTON INTERACTIONS
+   853→   853→Every interactive element must provide immediate response.
+   854→   854→Default Active State:
+   855→   855→        •       active:scale-95
+   856→   856→        •       active:opacity-80
+   857→   857→Primary actions:
+   858→   858→        •       Slight spring rebound after release.
+   859→   859→Never allow a button to feel unresponsive.
+   860→   860→
+   861→   861→MICRO ANIMATIONS
+   862→   862→Examples:
+   863→   863→Deal claimed:
+   864→   864→        •       Button transitions to success state.
+   865→   865→        •       Checkmark animation appears.
+   866→   866→QR verified:
+   867→   867→        •       Full-screen success confirmation.
+   868→   868→Subscription activated:
+   869→   869→        •       Premium badge unlock animation.
+   870→   870→Low inventory:
+   871→   871→        •       Subtle pulse animation.
+   872→   872→Sold out:
+   873→   873→        •       Gentle shake animation.
+   874→   874→
+   875→   875→LOADING EXPERIENCE
+   876→   876→Skeleton Rules:
+   877→   877→        •       Skeleton dimensions must exactly match final content.
+   878→   878→        •       Images reserve aspect ratio before loading.
+   879→   879→        •       Text blocks use realistic line lengths.
+   880→   880→        •       Use animated pulse effects.
+   881→   881→No layout shifting is acceptable.
+   882→   882→
+   883→   883→PERCEIVED PERFORMANCE STANDARD
+   884→   884→FLASHBITE must feel instantaneous.
+   885→   885→User expectations:
+   886→   886→Tap: "Something happened immediately."
+   887→   887→Claim: "I successfully reserved my meal."
+   888→   888→Scan: "My pickup was confirmed instantly."
+   889→   889→The interface should create confidence, urgency, and delight.
+   890→   890→========================================================================= END OF PRODUCT REQUIREMENTS DOCUMENT
+   891→   891→FINAL PRODUCT VISION:
+   892→   892→FLASHBITE begins as the simplest possible food surplus liquidation engine.
+   893→   893→The first mission is to prove:
+   894→   894→"Will vendors consistently pay a monthly subscription to sell excess food?"
+   895→   895→Only after this is validated should the platform expand into:
+   896→   896→        •       First Dibs premium memberships.
+   897→   897→        •       Vendor growth tools.
+   898→   898→        •       Hyper-local Siren marketing.
+   899→   899→        •       Office Pods.
+   900→   900→        •       Corporate subscriptions.
+   901→   901→        •       Delivery ecosystem.
+   902→   902→The ultimate strategic moat is not merely discounted food.
+   903→   903→It is becoming the workplace food discovery and coordination network.
+   904→   904→

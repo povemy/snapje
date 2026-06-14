@@ -1,0 +1,83 @@
+import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { generateAccessToken, generateRefreshToken, setAuthCookies, parseRoles } from '@/lib/auth'
+import { rateLimiter } from '@/lib/cache'
+import bcrypt from 'bcryptjs'
+
+export async function POST(request: Request) {
+  try {
+    // Rate limit check
+    const clientIp = request.headers.get('x-forwarded-for') || 'unknown'
+    if (!rateLimiter.check(`login:${clientIp}`, 10, 60_000)) {
+      return NextResponse.json(
+        { success: false, error: 'Too many login attempts. Please try again later.' },
+        { status: 429 }
+      )
+    }
+
+    const body = await request.json()
+    const { email, password } = body
+
+    if (!email || !password) {
+      return NextResponse.json(
+        { success: false, error: 'Email and password are required' },
+        { status: 400 }
+      )
+    }
+
+    // Find user
+    const user = await db.user.findUnique({ where: { email: email.toLowerCase() } })
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Check if banned
+    if (user.isBanned) {
+      return NextResponse.json(
+        { success: false, error: 'Account has been suspended' },
+        { status: 403 }
+      )
+    }
+
+    // Compare password
+    const isValid = await bcrypt.compare(password, user.passwordHash)
+    if (!isValid) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
+    // Generate tokens
+    const roles = parseRoles(user.roles)
+    const accessToken = await generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      roles,
+      activeRole: user.activeRole,
+    })
+    const refreshToken = await generateRefreshToken(user.id)
+
+    // Set cookies
+    await setAuthCookies(accessToken, refreshToken)
+
+    // Return user data
+    const { passwordHash: _, ...userWithoutPassword } = user
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...userWithoutPassword,
+        roles: parseRoles(user.roles),
+      },
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}

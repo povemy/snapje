@@ -1,0 +1,903 @@
+PROJECT BRIEF: "FLASHBITE" - HYPER-LOCAL FOOD FLASH DEAL APP (FOUNDER MVP → SCALE ROADMAP)
+OBJECTIVE: Build a hyper-local, time-sensitive food flash deal ecosystem that connects hungry consumers (especially office workers and urban professionals) with nearby food vendors who need to liquidate unsold inventory or pre-sell upcoming meal batches.
+The business model is designed around predictable recurring revenue (MRR), not transaction commissions.
+PRIMARY REVENUE STREAMS:
+	•	Vendor SaaS Subscription:
+	◦	Basic Tier: RM99/month.
+	◦	Premium Tier: RM199/month.
+	•	Consumer Premium Membership:
+	◦	"First Dibs Pass" subscription providing early access to high-demand flash deals.
+	•	Future B2B Corporate Subscription:
+	◦	Office Pods and workplace group ordering solutions.
+CORE BUSINESS THESIS: A vendor losing 20 unsold meals experiences a 100% loss.
+Selling those meals at a 40–60% discount still creates incremental revenue, reduces food waste, and introduces the vendor to new customers.
+FLASHBITE is not competing directly as another food delivery marketplace. The long-term strategic moat is becoming the workplace lunch discovery and coordination network.
+PRODUCT DEVELOPMENT PHILOSOPHY:
+Phase 0 - Concierge Validation (No-Code):
+	•	Validate market demand before large engineering investment.
+	•	Recruit 10–20 food vendors.
+	•	Recruit 50–100 office workers.
+	•	Test:
+	◦	What discount percentages convert best.
+	◦	Which meal categories have highest demand.
+	◦	Which time windows produce the highest engagement.
+	◦	Whether vendors are willing to pay a monthly subscription.
+Phase 1 - Core Revenue MVP: Build only the minimum system required to validate the SaaS business.
+User:
+	•	Discover nearby deals.
+	•	View food details.
+	•	Claim deals.
+	•	Receive QR pickup code.
+Vendor:
+	•	Complete onboarding.
+	•	Submit business information.
+	•	Subscribe to a vendor plan.
+	•	Create flash deals.
+	•	Manage available stock.
+	•	Verify customer pickup via QR scanning.
+Admin:
+	•	Review vendor applications.
+	•	Perform KYC verification.
+	•	Approve or suspend vendors.
+	•	Manage subscriptions.
+Phase 2 - Growth Features:
+	•	First Dibs Pass.
+	•	Personalized recommendations.
+	•	Vendor analytics dashboard.
+	•	Basic marketing tools.
+	•	Improved geolocation ranking.
+Phase 3 - Network Effects & Platform Expansion:
+	•	Office Pods.
+	•	Corporate subscriptions.
+	•	Siren Push hyper-local marketing.
+	•	Auto-Drop liquidation engine.
+	•	Rider ecosystem (only if delivery economics justify it).
+ONE APP, ONE ACCOUNT, MULTIPLE ROLES: The system uses dynamic Role-Based Access Control (RBAC).
+A single user identity can possess multiple roles:
+	•	Customer.
+	•	Vendor.
+	•	Office Pod Leader.
+	•	Rider (future).
+	•	Administrator.
+The interface dynamically transforms based on the currently selected role.
+=========================================================================
+	1	TECH STACK & PERFORMANCE MANDATES =========================================================================
+ARCHITECTURE PHILOSOPHY: Start as a clean modular monolithic application with clear domain boundaries.
+Microservices will only be introduced after proven scale and operational necessity.
+Frontend:
+	•	Next.js App Router with React.
+	•	Must behave like a native-quality Single Page Application (SPA).
+	•	Route prefetching enabled.
+	•	Server Components used where beneficial for performance.
+Mobile:
+	•	React Native with Expo.
+	•	Share business logic, API clients, validation schemas, and utility libraries with the web application where practical.
+Styling:
+	•	Tailwind CSS.
+	•	Framer Motion.
+	•	60 FPS animations as a minimum standard.
+Backend:
+	•	Node.js.
+	•	NestJS modular monolith architecture.
+	•	Domain modules:
+	◦	Authentication Module.
+	◦	User Module.
+	◦	Vendor Module.
+	◦	Deal Module.
+	◦	Inventory Module.
+	◦	Reservation Module.
+	◦	Payment Module.
+	◦	Notification Module.
+	◦	Analytics Module.
+Database:
+	•	PostgreSQL as the primary database.
+	•	PostGIS extension for geospatial searches.
+	•	Database indexing optimized for:
+	◦	Distance calculations.
+	◦	Deal expiration queries.
+	◦	Vendor discovery.
+	◦	User activity.
+Redis:
+	•	Session caching.
+	•	Rate limiting.
+	•	Temporary reservation locks.
+	•	WebSocket scaling.
+	•	High-frequency counters.
+Real-Time Layer:
+	•	WebSockets using Socket.io.
+	•	Real-time stock updates.
+	•	Deal expiration events.
+	•	Future Siren Push event broadcasting.
+Payments:
+	•	Stripe.
+	•	Billplz (FPX).
+	•	DuitNow AutoDebit for recurring subscriptions.
+PERFORMANCE IS NON-NEGOTIABLE:
+Perceived performance is considered a core product feature.
+	•	Implement optimistic UI where appropriate.
+	•	All interactions should provide immediate visual feedback.
+	•	Route transitions must feel instant.
+	•	Use intelligent prefetching.
+	•	Zero unexpected layout shifts.
+	•	Skeleton loaders must perfectly match final component dimensions.
+	•	Images must reserve their aspect ratio before loading.
+	•	Target Time-To-Interactive (TTI):
+	◦	Less than 1.5 seconds on typical 4G networks.
+	◦	Less than 1 second on modern WiFi connections.
+
+========================================================================= 2. UI/UX DESIGN SYSTEM & THEME
+DESIGN PHILOSOPHY: FLASHBITE's visual identity should communicate three psychological feelings:
+	1	TRUST: Users are purchasing food from nearby vendors, often within a limited time window. The interface must feel hygienic, reliable, professional, and easy to understand.
+	2	TEMPTATION: Food is an emotional purchase. High-quality imagery, attractive pricing presentation, and satisfying interactions should create a "I want this now" feeling.
+	3	SPEED: Flash deals are urgent by nature. The user must be able to discover, evaluate, claim, and receive a pickup QR code within seconds.
+The design principle is: "Less friction. More craving."
+THEME: "Tempting Trust"
+Primary Color:
+	•	Soft Baby Blue (#89CFF0).
+Secondary Colors:
+	•	Fresh Mint Green (#34D399) for successful actions.
+	•	Warm Orange (#FB923C) for urgency, countdowns, and limited stock indicators.
+	•	Soft Red (#EF4444) for sold-out states, errors, and destructive actions.
+Background:
+	•	Pure White (#FFFFFF).
+Primary Text:
+	•	Dark Slate Grey (#2C3E50).
+Secondary Text:
+	•	Neutral Gray shades for supporting information.
+AESTHETICS:
+Overall Style:
+	•	Modern food marketplace appearance.
+	•	Inspired by premium e-commerce applications.
+	•	Clean, bright, and highly readable.
+	•	The food photography must always be the hero element.
+Components:
+Cards:
+	•	Border Radius: 16px.
+	•	Soft shadows (shadow-sm and shadow-md).
+	•	Generous whitespace.
+	•	Subtle elevation on hover or touch.
+Buttons:
+	•	Border Radius: 12px.
+	•	Slight glossy gradient finish.
+	•	Primary buttons use a gentle baby-blue gradient.
+	•	Success states transition to mint green.
+	•	Disabled states become neutral gray.
+Modals & Bottom Sheets:
+	•	Border Radius: 24px on top corners.
+	•	Slide upward from bottom.
+	•	Native mobile application feeling.
+Food Images:
+	•	Large.
+	•	High resolution.
+	•	Rounded corners.
+	•	Maintain consistent aspect ratios.
+	•	Loaded progressively with placeholders to avoid layout shifting.
+NO GLASSMORPHISM:
+	•	No frosted backgrounds.
+	•	No heavy blur effects.
+	•	No excessive transparency.
+	•	Maintain maximum readability and performance.
+TYPOGRAPHY:
+Fonts:
+	•	Preferred:
+	◦	Nunito.
+	◦	Poppins.
+	◦	DM Sans.
+Personality:
+	•	Rounded.
+	•	Friendly.
+	•	Approachable.
+	•	Modern.
+	•	Soft enough to subconsciously evoke comfort food while remaining highly legible.
+Text Hierarchy:
+Deal Price:
+	•	Large.
+	•	Bold.
+	•	Highly prominent.
+Original Price:
+	•	Smaller.
+	•	Gray.
+	•	Strikethrough.
+Stock Indicators:
+	•	High contrast.
+	•	Animated when inventory is low.
+Countdown Timers:
+	•	Use warm urgency colors.
+	•	Animate subtly during the final countdown period.
+ANIMATIONS:
+Animation Philosophy: "Every movement must have a purpose."
+Framework:
+	•	Framer Motion.
+Standard Transitions:
+	•	Spring-based easing.
+	•	Smooth acceleration and deceleration.
+	•	No abrupt jumps.
+Page Changes:
+	•	Fast fade and slight slide transitions.
+Deal Cards:
+	•	Slight lift when tapped.
+	•	Subtle scaling feedback.
+Successful Actions: Examples:
+	•	Claim successful.
+	•	Subscription activated.
+	•	QR pickup verified.
+Should trigger:
+	•	Smooth color transition.
+	•	Small confirmation animation.
+	•	Gentle haptic feedback on supported devices.
+Loading States:
+	•	Animated pulse skeletons.
+	•	Exact dimensional matching.
+	•	No content jumping.
+========================================================================= 3. ROLE-BASED ACCESS CONTROL (RBAC) & "CHAMELEON" UI
+CORE PRINCIPLE:
+One App. One Identity. Multiple Roles.
+A user should never need separate applications for different responsibilities.
+Example: A restaurant owner can:
+	•	Buy lunch as a normal customer.
+	•	Switch to Vendor mode to manage their own deals.
+	•	Later become an Office Pod leader.
+The system dynamically loads the appropriate navigation, dashboard, permissions, and available features based on the active role.
+ROLE SWITCHING:
+Location:
+	•	User Profile.
+UI:
+	•	Role selector with a smooth animated transition.
+Example: "Switch To:
+	•	Foodie Mode.
+	•	Vendor Command Center.
+	•	Office Pod Leader Mode."
+Security:
+	•	Backend permissions always control access.
+	•	Frontend role changes only modify the presentation layer.
+	•	Every API endpoint validates authorization.
+
+A. USER (FOODIE)
+Availability:
+	•	Available from Phase 1.
+Purpose:
+	•	Discover and claim nearby food deals.
+Bottom Navigation:
+	1	Home:
+	•	Deal discovery feed.
+	•	Personalized recommendations.
+	2	Explore:
+	•	Map discovery.
+	•	Category filtering.
+	•	Search.
+	3	Orders:
+	•	Active claims.
+	•	Pickup QR codes.
+	•	Order history.
+	4	Profile:
+	•	Account management.
+	•	Subscription management.
+	•	Role switching.
+User Discovery Philosophy:
+Distance is the strongest ranking signal.
+The application should not treat every deal within 20km equally.
+Ranking Priority:
+Tier 1: 0–1 km. "Walk there now."
+Tier 2: 1–3 km. "Quick ride or short drive."
+Tier 3: 3–5 km. "Good deal worth travelling for."
+Tier 4: 5–20 km. Visible but lower priority.
+Filters:
+	•	Distance slider (1km–20km).
+	•	Food category.
+	•	Discount percentage.
+	•	Pickup availability.
+	•	Vegetarian/Halal/etc.
+	•	Price range.
+Premium Features (Phase 2): "First Dibs Pass"
+Benefits:
+	•	Early access to selected deals.
+	•	Priority discovery.
+	•	Exclusive flash offers.
+
+B. VENDOR (MERCHANT)
+Availability:
+	•	Available from Phase 1.
+Purpose: Transform unsold inventory into additional revenue.
+Vendor Journey:
+Step 1: Vendor Registration.
+Step 2: Business Information Submission.
+Required Information:
+	•	Business name.
+	•	Contact details.
+	•	Business address.
+	•	Operating hours.
+	•	Food categories.
+	•	Business verification documents.
+Step 3: Admin KYC Review.
+Status Indicators:
+	•	Pending Review.
+	•	Approved.
+	•	Rejected (with reason).
+Step 4: Subscription Selection.
+Plans:
+Basic: RM99/month.
+Features:
+	•	Create flash deals.
+	•	Manage inventory.
+	•	View customer claims.
+	•	QR pickup verification.
+Premium: RM199/month.
+Additional features (Phase 2 & 3):
+	•	Advanced analytics.
+	•	Priority placement.
+	•	Siren Push marketing.
+	•	Auto-Drop liquidation tools.
+After approval and payment, the Vendor Command Center becomes accessible.
+Vendor Navigation:
+	1	Dashboard.
+	2	Create Deal.
+	3	Inventory.
+	4	Fulfillment.
+	5	Subscription & Growth Tools.
+
+========================================================================= 4. SPA ROUTE ARCHITECTURE & DETAILED SPECIFICATIONS
+The application follows a native-quality SPA architecture. Page transitions should feel instant while maintaining clear separation between user roles.
+Every route must support:
+	•	Optimistic UI where appropriate.
+	•	Skeleton loading states.
+	•	Intelligent data prefetching.
+	•	Responsive mobile-first layouts.
+	•	Zero unnecessary full-page reloads.
+
+A. AUTHENTICATION LAYER
+Route: /auth
+Purpose: Provide a frictionless onboarding experience.
+UI:
+	•	Clean pure-white background.
+	•	Large FLASHBITE baby-blue logo.
+	•	Minimal distractions.
+	•	Login/Register toggle with smooth transitions.
+Authentication Methods:
+	•	OTP via SMS.
+	•	OTP via WhatsApp (where supported).
+Registration Flow:
+New User:
+	•	Enter phone number.
+	•	Receive OTP.
+	•	Verify identity.
+	•	Create profile.
+	•	Default role assigned:
+	◦	Foodie.
+Additional roles may be attached later:
+	•	Vendor.
+	•	Office Pod Leader.
+	•	Rider.
+	•	Administrator.
+Session Management:
+	•	Secure JWT authentication.
+	•	Refresh token rotation.
+	•	Device session management.
+Post Login Logic:
+	•	Backend returns user roles.
+	•	Application loads the appropriate interface.
+	•	Previous active role is remembered for convenience.
+
+B. USER (FOODIE) INTERFACE
+Route: /user/home
+Purpose: Make discovering nearby food deals addictive, fast, and effortless.
+UI Layout:
+Top Navigation:
+	•	Current location indicator.
+	•	Location permission status.
+	•	Distance preference slider (1km–20km).
+	•	Filter button.
+	•	First Dibs badge for premium users.
+Main Discovery Feed:
+Display Modes:
+	1	Card Feed Mode:
+	•	Vertical scrolling feed.
+	•	Food-first visual design.
+	2	Grid Mode:
+	•	Compact discovery experience.
+Each Deal Card Displays:
+Visual:
+	•	High-resolution food image.
+	•	Vendor name.
+	•	Vendor rating (future feature).
+Location:
+	•	Distance in kilometers.
+	•	Estimated walking/driving time.
+Pricing:
+	•	Original price (gray, strikethrough).
+	•	Flash deal price (large and bold).
+	•	Discount percentage badge.
+Urgency:
+	•	Remaining stock counter: Example: "🔥 Only 7 left"
+	•	Time remaining: Example: "⏰ Ends in 24 minutes"
+Ranking Algorithm:
+Primary Weight:
+	•	Distance.
+Secondary Weight:
+	•	Deal attractiveness.
+	◦	Discount percentage.
+	◦	Remaining quantity.
+	◦	Time sensitivity.
+Additional Future Signals:
+	•	User preferences.
+	•	Purchase history.
+	•	Favorite vendors.
+	•	Time-of-day eating patterns.
+The goal: The closest and most relevant deal should appear first.
+
+USER DEAL DETAIL PAGE
+Route: /user/deal/:id
+Purpose: Convert desire into a claim within seconds.
+UI:
+Hero Section:
+	•	Full-width high-resolution food image.
+	•	Gradient overlay for readability.
+	•	Deal title.
+	•	Vendor name.
+	•	Distance.
+Deal Information:
+	•	Original price.
+	•	Current price.
+	•	Percentage saved.
+	•	Remaining stock.
+	•	Deal expiry countdown.
+Vendor Information:
+	•	Vendor profile.
+	•	Address.
+	•	Map preview.
+	•	Operating hours.
+	•	Pickup instructions.
+Sticky Bottom Action Bar:
+Contains:
+	•	Final deal price.
+	•	Primary "Claim Deal" button.
+Claim Flow:
+Step 1: User presses "Claim Deal".
+Immediate Frontend Feedback:
+	•	Button animates.
+	•	Loading state appears.
+	•	User receives instant tactile confirmation.
+IMPORTANT:
+A deal is NOT immediately owned simply because a user pressed the button.
+The backend creates a temporary reservation.
+Reservation Engine:
+Example:
+Available Stock: 10 meals.
+User A claims:
+	•	Stock reserved: 1.
+	•	Reservation timer begins.
+Reservation Duration: Default: 5 minutes.
+During Reservation:
+	•	Stock is temporarily unavailable to other users.
+	•	User must complete confirmation and receive QR code.
+If User A completes the process:
+	•	Reservation converts into a confirmed order.
+	•	Inventory permanently decreases.
+If User A abandons:
+	•	Reservation expires.
+	•	Stock automatically returns to available inventory.
+Concurrency Protection:
+The backend must use:
+	•	Database transactions.
+	•	Row-level locking.
+	•	Atomic inventory operations.
+Prevent scenarios where: 5 users attempt to claim the final remaining meal and all receive false confirmation.
+Real-Time Updates:
+All viewers of the same deal receive live updates through WebSockets:
+Examples:
+Stock Change: "🔥 10 left" → "🔥 9 left"
+Low Inventory: The counter animates with urgency.
+Sold Out:
+	•	Claim button becomes disabled.
+	•	Button changes to gray.
+	•	Subtle shake animation indicates the deal has ended.
+
+USER ORDERS & PICKUP
+Route: /user/orders
+Purpose: Manage all active and previous claims.
+Sections:
+Active Orders:
+	•	Deal details.
+	•	Pickup location.
+	•	Pickup deadline.
+	•	QR pickup code.
+Completed Orders:
+	•	Purchase history.
+	•	Previous vendors.
+	•	Spending summary.
+QR Pickup Experience:
+The QR code contains:
+	•	Encrypted order identifier.
+	•	Expiration information.
+	•	Verification token.
+Upon vendor scanning:
+Status changes:
+"PENDING PICKUP" ↓ "VERIFIED" ↓ "COMPLETED"
+Success Animation:
+	•	Smooth green confirmation checkmark.
+	•	Confetti-style micro-animation.
+	•	Optional device vibration.
+
+USER SUBSCRIPTIONS (PHASE 2)
+Route: /user/subscriptions
+Product: First Dibs Pass.
+Price: RM19/month.
+Benefits:
+	•	Early access to selected flash deals.
+	•	Exclusive premium offers.
+	•	Priority placement in limited inventory events.
+Billing Features:
+	•	View active subscription.
+	•	View billing history.
+	•	Change payment method.
+	•	Cancel membership.
+Supported Payments:
+	•	FPX.
+	•	DuitNow AutoDebit.
+	•	Credit/Debit card.
+
+C. OFFICE POD LEADER (PHASE 3 - STRATEGIC MOAT)
+Purpose:
+Transform FLASHBITE from a simple deal marketplace into a workplace food coordination platform.
+Core Insight:
+A single office pod leader can influence 5–30 lunch purchases at once.
+This creates stronger network effects than acquiring individual users one-by-one.
+Route: /user/pod
+Capabilities:
+Create Pod:
+	•	Generate unique invite link.
+	•	Generate QR invitation code.
+	•	Set pod name.
+Example: "Level 12 Marketing Team"
+Members Can:
+	•	Join pod.
+	•	Browse selected deals.
+	•	Add meals to shared cart.
+Pod Dashboard Displays:
+	•	Member count.
+	•	Active participants.
+	•	Current shared cart.
+	•	Total order value.
+Group Incentives:
+Examples:
+"2 more orders required to unlock free delivery."
+"RM20 more to unlock corporate discount."
+Future Corporate Features:
+	•	Company-sponsored meal credits.
+	•	Scheduled recurring lunch days.
+	•	Department budgets.
+	•	Enterprise subscriptions.
+
+========================================================================= D. VENDOR (MERCHANT) COMMAND CENTER
+The Vendor Command Center is the operational heart of the vendor experience.
+The primary goal is simplicity: A busy food vendor should be able to create a flash deal in less than 60 seconds.
+Vendor interface prioritizes:
+	•	Large touch targets.
+	•	Minimal data entry.
+	•	Clear revenue visibility.
+	•	Real-time inventory awareness.
+	•	Fast actions during peak business hours.
+
+VENDOR DASHBOARD
+Route: /vendor/dashboard
+Purpose: Provide a real-time snapshot of business performance.
+Dashboard Cards:
+Today's Performance:
+	•	Revenue generated from FLASHBITE.
+	•	Number of meals sold.
+	•	Number of active deals.
+	•	Remaining unsold inventory.
+Current Deal Radar:
+	•	Active flash deals.
+	•	Remaining stock.
+	•	Time remaining before expiration.
+	•	Real-time claim activity.
+Customer Insights (Phase 2):
+	•	Peak purchase hours.
+	•	Returning customer percentage.
+	•	Most popular meal categories.
+Subscription Status:
+	•	Current plan:
+	◦	Basic RM99/month.
+	◦	Premium RM199/month.
+	•	Billing date.
+	•	Upgrade recommendations.
+
+CREATE FLASH DEAL
+Route: /vendor/create-deal
+Design Philosophy:
+Creating a deal should feel as easy as creating a social media post.
+Step-by-Step Wizard:
+Step 1: Food Information:
+	•	Food name.
+	•	Description.
+	•	Category.
+	•	High-resolution image upload.
+Step 2: Pricing:
+	•	Original selling price.
+	•	Flash deal price.
+	•	Automatic discount percentage calculation.
+Step 3: Inventory:
+	•	Available quantity.
+	•	Maximum claims allowed.
+	•	Deal expiration time.
+Step 4: Availability:
+	•	Pickup only (Phase 1).
+	•	Delivery support (Future phase if economics are validated).
+Step 5: Review & Publish:
+	•	Preview exactly how users will see the deal.
+	•	Confirm and activate.
+Advanced Premium Tools:
+Phase 2:
+	•	Featured placement.
+	•	Performance analytics.
+Phase 3:
+	•	Siren Push.
+	•	Auto-Drop liquidation controls.
+
+VENDOR INVENTORY MANAGEMENT
+Route: /vendor/inventory
+Purpose: Give vendors visibility into live stock.
+Displays:
+	•	Active items.
+	•	Reserved quantity.
+	•	Confirmed orders.
+	•	Remaining available inventory.
+Stock States:
+AVAILABLE: Meals can still be claimed.
+RESERVED: Meals temporarily held by customers.
+SOLD: Reservations successfully converted into orders.
+EXPIRED: Deal time ended and remaining inventory was not sold.
+Vendors may:
+	•	Increase inventory.
+	•	Reduce inventory.
+	•	Extend deal time.
+	•	End a deal early.
+All changes instantly synchronize to active users through WebSockets.
+
+VENDOR FULFILLMENT CENTER
+Route: /vendor/fulfillment
+Purpose: Verify customer pickup quickly.
+Queue Displays:
+Pending Pickup:
+	•	Customer identifier.
+	•	Meal details.
+	•	Quantity.
+	•	Pickup deadline.
+Completed Orders:
+	•	Historical fulfillment records.
+QR Verification Flow:
+Vendor presses: "Scan QR"
+System opens: Device camera.
+QR scanned:
+	•	Order token validated.
+	•	Order ownership verified.
+	•	Expiration checked.
+Successful Scan:
+Order Status:
+CONFIRMED ↓ PICKED UP ↓ COMPLETED
+UI Feedback:
+	•	Full-screen mint green confirmation.
+	•	Large checkmark animation.
+	•	Optional vibration feedback.
+
+VENDOR GROWTH & SUBSCRIPTIONS
+Route: /vendor/subscription
+Purpose: Convert successful vendors into long-term subscribers.
+Plans Comparison:
+Basic — RM99/month:
+Includes:
+	•	Unlimited flash deals.
+	•	Inventory management.
+	•	QR fulfillment.
+	•	Basic statistics.
+Premium — RM199/month:
+Includes:
+	•	Advanced analytics.
+	•	Priority discovery ranking.
+	•	Marketing tools.
+	•	Future Siren Push access.
+	•	Future Auto-Drop tools.
+Payment Methods:
+	•	FPX.
+	•	DuitNow AutoDebit.
+	•	Credit/Debit Cards.
+
+E. RIDER (FUTURE PHASE)
+Availability: Phase 4+ only.
+IMPORTANT: Rider infrastructure should not be built until pickup economics and demand justify the additional operational complexity.
+Future Rider Features:
+Route: /rider/dashboard
+Capabilities:
+	•	Delivery queue.
+	•	Optimized routes.
+	•	Navigation support.
+	•	QR verification.
+	•	Earnings tracking.
+========================================================================= F. ADMIN CONTROL CENTER
+Purpose: Provide complete operational visibility over the FLASHBITE ecosystem.
+Access: Web dashboard only.
+
+VENDOR MANAGEMENT
+Route: /admin/vendors
+Capabilities:
+Vendor Pipeline:
+	•	New applications.
+	•	Pending KYC.
+	•	Approved vendors.
+	•	Suspended vendors.
+Admin Actions:
+	•	Approve vendor.
+	•	Reject vendor with reason.
+	•	Suspend account.
+	•	Restore account.
+Vendor Profile Displays:
+	•	Business information.
+	•	Subscription status.
+	•	Deal performance.
+	•	Customer complaints.
+
+USER MANAGEMENT
+Route: /admin/users
+Capabilities:
+	•	View user profiles.
+	•	View subscription status.
+	•	Manage First Dibs memberships.
+	•	Investigate abuse.
+	•	Manage banned accounts.
+
+PLATFORM ANALYTICS
+Route: /admin/analytics
+Displays:
+	•	Daily active users.
+	•	New registrations.
+	•	Vendor growth.
+	•	Total meals saved from waste.
+	•	Monthly recurring revenue (MRR).
+	•	Subscription conversion rates.
+
+GEOGRAPHIC CONTROL
+Route: /admin/geography
+Capabilities:
+	•	View vendor distribution map.
+	•	Analyze high-demand zones.
+	•	Configure promotional regions.
+	•	Test future Siren Push campaigns.
+========================================================================= 5. CORE ENGINE LOGIC (THE SCALE FEATURES)
+
+	1	LIVE INVENTORY ENGINE
+
+Technology:
+	•	PostgreSQL transactional inventory.
+	•	Redis temporary reservation storage.
+	•	Socket.io real-time broadcasting.
+Flow:
+User claims meal ↓ Create reservation ↓ Lock quantity temporarily ↓ Broadcast updated availability ↓ User completes claim ↓ Generate QR order
+If reservation expires:
+Reservation timeout reached ↓ Release quantity ↓ Return stock to available inventory ↓ Broadcast new inventory count
+Benefits:
+	•	Prevents overselling.
+	•	Maintains fairness.
+	•	Preserves trust.
+
+	2	FIRST DIBS EARLY ACCESS ENGINE (PHASE 2)
+
+NO CRON JOBS.
+Every deal stores two visibility timestamps:
+Example:
+early_access_at: 11:45 AM
+public_access_at: 12:00 PM
+Access Logic:
+Premium User:
+Current time >= early_access_at
+Result: Deal visible.
+Free User:
+Current time >= public_access_at
+Result: Deal visible.
+UI Indicators:
+Before public release: "🔓 First Dibs Exclusive"
+After public release: Standard deal display.
+
+	3	SIREN PUSH HYPER-LOCAL MARKETING (PHASE 3)
+
+Purpose: Allow vendors to instantly liquidate urgent inventory.
+Vendor Action:
+Press: "Siren Push"
+Targeting Logic:
+Find users who satisfy:
+Distance: Highest priority: 0–1 km.
+Secondary: 1–3 km.
+Extended: 3–5 km.
+Only expand further when inventory remains high.
+Additional Signals:
+	•	Previous purchase categories.
+	•	Favorite vendors.
+	•	Typical meal times.
+Example Notification:
+🔥 Flash Drop! Uncle Bob's Chicken Rice 50% OFF. Only 10 packets left. 3 minutes walking distance.
+Deep Link:
+Notification tap: → /user/deal/:id
+
+	4	AUTO-DROP LIQUIDATION ENGINE (PHASE 3)
+
+Purpose: Help vendors clear remaining inventory before food becomes waste.
+Example:
+2:30 PM: 20 meals remain unsold.
+Vendor selects: "Extra 20% Discount"
+System instantly:
+	•	Updates deal pricing.
+	•	Recalculates discount badge.
+	•	Updates all active user feeds.
+	•	Sends targeted notifications.
+Future automation:
+Vendor can define rules:
+Example:
+IF: Remaining inventory > 15
+AND: Time before expiration < 60 minutes
+THEN: Automatically apply additional 20% discount.
+========================================================================= 6. SPA INTERACTION MICROSPECIFICATIONS (ZERO JITTER)
+The application must feel closer to a premium native app than a traditional website.
+
+PAGE TRANSITIONS
+Technology: Framer Motion AnimatePresence.
+Transition:
+Outgoing Page:
+	•	Fade opacity from 1 → 0.
+	•	Scale from 1.0 → 0.98.
+Incoming Page:
+	•	Fade opacity from 0 → 1.
+	•	Scale from 0.98 → 1.0.
+Duration: 200 milliseconds.
+Goal: Fast and elegant, never distracting.
+
+BUTTON INTERACTIONS
+Every interactive element must provide immediate response.
+Default Active State:
+	•	active:scale-95
+	•	active:opacity-80
+Primary actions:
+	•	Slight spring rebound after release.
+Never allow a button to feel unresponsive.
+
+MICRO ANIMATIONS
+Examples:
+Deal claimed:
+	•	Button transitions to success state.
+	•	Checkmark animation appears.
+QR verified:
+	•	Full-screen success confirmation.
+Subscription activated:
+	•	Premium badge unlock animation.
+Low inventory:
+	•	Subtle pulse animation.
+Sold out:
+	•	Gentle shake animation.
+
+LOADING EXPERIENCE
+Skeleton Rules:
+	•	Skeleton dimensions must exactly match final content.
+	•	Images reserve aspect ratio before loading.
+	•	Text blocks use realistic line lengths.
+	•	Use animated pulse effects.
+No layout shifting is acceptable.
+
+PERCEIVED PERFORMANCE STANDARD
+FLASHBITE must feel instantaneous.
+User expectations:
+Tap: "Something happened immediately."
+Claim: "I successfully reserved my meal."
+Scan: "My pickup was confirmed instantly."
+The interface should create confidence, urgency, and delight.
+========================================================================= END OF PRODUCT REQUIREMENTS DOCUMENT
+FINAL PRODUCT VISION:
+FLASHBITE begins as the simplest possible food surplus liquidation engine.
+The first mission is to prove:
+"Will vendors consistently pay a monthly subscription to sell excess food?"
+Only after this is validated should the platform expand into:
+	•	First Dibs premium memberships.
+	•	Vendor growth tools.
+	•	Hyper-local Siren marketing.
+	•	Office Pods.
+	•	Corporate subscriptions.
+	•	Delivery ecosystem.
+The ultimate strategic moat is not merely discounted food.
+It is becoming the workplace food discovery and coordination network.

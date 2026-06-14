@@ -1,0 +1,278 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Nunito Sans", sans-serif;
+  --font-mono: var(--font-geist-mono);
+  
+  /* FlashBite Design System - Surface Colors */
+  --color-surface: #f8f9ff;
+  --color-surface-dim: #ccdbf2;
+  --color-surface-bright: #f8f9ff;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #eef4ff;
+  --color-surface-container: #e5efff;
+  --color-surface-container-high: #dbe9ff;
+  --color-surface-container-highest: #d4e4fa;
+  --color-on-surface: #0d1c2d;
+  --color-on-surface-variant: #40484d;
+  --color-inverse-surface: #233143;
+  --color-inverse-on-surface: #e9f1ff;
+  --color-outline: #70787d;
+  --color-outline-variant: #bfc8cd;
+  --color-surface-tint: #0d6683;
+
+  /* FlashBite Primary */
+  --color-primary: #0d6683;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #89cff0;
+  --color-on-primary-container: #005974;
+  --color-inverse-primary: #8ad0f1;
+
+  /* FlashBite Secondary */
+  --color-secondary: #4e6073;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #cfe2f9;
+  --color-on-secondary-container: #526478;
+
+  /* FlashBite Tertiary */
+  --color-tertiary: #5a5f62;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #c2c6ca;
+  --color-on-tertiary-container: #4e5356;
+
+  /* FlashBite Error */
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+
+  /* Semantic Colors - Urgency Accents */
+  --color-urgency: #FB923C;
+  --color-urgency-high: #F97316;
+  --color-success: #34D399;
+  --color-success-dark: #059669;
+  --color-danger: #EF4444;
+
+  /* shadcn/ui compatibility */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+
+  /* Border Radius - FlashBite Design System */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+  --radius-full: 9999px;
+
+  /* Shadows - FlashBite Design System */
+  --shadow-card: 0px 4px 12px rgba(44, 62, 80, 0.12);
+  --shadow-card-hover: 0px 8px 24px rgba(44, 62, 80, 0.18);
+  --shadow-modal: 0px 8px 24px rgba(44, 62, 80, 0.16);
+  --shadow-chip: 0px 2px 4px rgba(44, 62, 80, 0.08);
+
+  /* Spacing - FlashBite Design System */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-container: 20px;
+}
+
+:root {
+  --radius: 1rem;
+  --background: #f8f9ff;
+  --foreground: #0d1c2d;
+  --card: #ffffff;
+  --card-foreground: #0d1c2d;
+  --popover: #ffffff;
+  --popover-foreground: #0d1c2d;
+  --primary: #0d6683;
+  --primary-foreground: #ffffff;
+  --secondary: #cfe2f9;
+  --secondary-foreground: #4e6073;
+  --muted: #e5efff;
+  --muted-foreground: #40484d;
+  --accent: #e5efff;
+  --accent-foreground: #0d1c2d;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --border: #d4e4fa;
+  --input: #f1f5f9;
+  --ring: #0d6683;
+  --chart-1: #0d6683;
+  --chart-2: #34D399;
+  --chart-3: #FB923C;
+  --chart-4: #4e6073;
+  --chart-5: #8ad0f1;
+  --sidebar: #eef4ff;
+  --sidebar-foreground: #0d1c2d;
+  --sidebar-primary: #0d6683;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dbe9ff;
+  --sidebar-accent-foreground: #0d1c2d;
+  --sidebar-border: #d4e4fa;
+  --sidebar-ring: #0d6683;
+}
+
+.dark {
+  --background: #0d1c2d;
+  --foreground: #e9f1ff;
+  --card: #162436;
+  --card-foreground: #e9f1ff;
+  --popover: #162436;
+  --popover-foreground: #e9f1ff;
+  --primary: #8ad0f1;
+  --primary-foreground: #003444;
+  --secondary: #36485b;
+  --secondary-foreground: #cfe2f9;
+  --muted: #1e3347;
+  --muted-foreground: #bfc8cd;
+  --accent: #1e3347;
+  --accent-foreground: #e9f1ff;
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+  --border: #2a4055;
+  --input: #1e3347;
+  --ring: #8ad0f1;
+  --chart-1: #8ad0f1;
+  --chart-2: #34D399;
+  --chart-3: #FB923C;
+  --chart-4: #bfc8cd;
+  --chart-5: #0d6683;
+  --sidebar: #162436;
+  --sidebar-foreground: #e9f1ff;
+  --sidebar-primary: #8ad0f1;
+  --sidebar-primary-foreground: #003444;
+  --sidebar-accent: #1e3347;
+  --sidebar-accent-foreground: #e9f1ff;
+  --sidebar-border: #2a4055;
+  --sidebar-ring: #8ad0f1;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Nunito Sans", sans-serif;
+  }
+}
+
+/* FlashBite Custom Scrollbar */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #bfc8cd;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #70787d;
+  }
+}
+
+/* FlashBite Animation Utilities */
+@layer utilities {
+  .animate-pulse-urgent {
+    animation: pulse-urgent 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+  .animate-bounce-in {
+    animation: bounce-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  .animate-success-pop {
+    animation: success-pop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  }
+  .shadow-card {
+    box-shadow: 0px 4px 12px rgba(44, 62, 80, 0.12);
+  }
+  .shadow-card-hover {
+    box-shadow: 0px 8px 24px rgba(44, 62, 80, 0.18);
+  }
+  .shadow-modal {
+    box-shadow: 0px 8px 24px rgba(44, 62, 80, 0.16);
+  }
+  .shadow-chip {
+    box-shadow: 0px 2px 4px rgba(44, 62, 80, 0.08);
+  }
+}
+
+@keyframes pulse-urgent {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes success-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Input field focus styles per DESIGN.md */
+@layer base {
+  input, textarea, select {
+    background-color: #f1f5f9;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    background-color: #ffffff;
+    border-color: #0d6683;
+    border-width: 2px;
+    box-shadow: 0 0 0 3px rgba(13, 102, 131, 0.1);
+    outline: none;
+  }
+}

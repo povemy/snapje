@@ -1,0 +1,220 @@
+// FlashBite - Hyper-Local Food Flash Deal App
+// Database Schema - Phase 1 MVP
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER & AUTHENTICATION
+// ============================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  name          String
+  phone         String?
+  avatarUrl     String?
+  roles         String   @default("foodie") // comma-separated: "foodie,vendor,admin"
+  activeRole    String   @default("foodie")
+  emailVerified Boolean  @default(false)
+  isBanned      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  vendor        Vendor?
+  orders        Order[]
+  notifications Notification[]
+  refreshTokens RefreshToken[]
+  subscriptions Subscription[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+// ============================================
+// VENDOR
+// ============================================
+
+model Vendor {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName      String
+  description       String?
+  contactEmail      String
+  contactPhone      String
+  address           String
+  latitude          Float
+  longitude         Float
+  operatingHours    String   @default("{}") // JSON: { mon: "9-18", tue: "9-18", ... }
+  foodCategories    String   @default("[]") // JSON array: ["Malay", "Chinese", "Indian"]
+  logoUrl           String?
+  coverImageUrl     String?
+  verificationDocs  String   @default("[]") // JSON array of doc URLs
+  verificationStatus String  @default("pending") // pending, approved, rejected, suspended
+  rejectionReason   String?
+  verifiedAt        DateTime?
+  subscriptionPlan  String   @default("none") // none, basic, premium
+  subscriptionStatus String  @default("inactive") // inactive, active, past_due, cancelled
+  subscriptionStart DateTime?
+  subscriptionEnd   DateTime?
+  rating            Float    @default(0)
+  totalSales        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  deals      Deal[]
+  orders     Order[]
+
+  @@index([verificationStatus])
+  @@index([latitude, longitude])
+}
+
+// ============================================
+// DEALS
+// ============================================
+
+model Deal {
+  id              String   @id @default(cuid())
+  vendorId        String
+  vendor          Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  title           String
+  description     String
+  category        String   // Malay, Chinese, Indian, Western, Japanese, Korean, Vegan, Dessert, Beverage, Other
+  imageUrl        String?
+  originalPrice   Float
+  dealPrice       Float
+  discountPercent Int      // auto-calculated
+  totalQuantity   Int
+  reservedQuantity Int     @default(0)
+  soldQuantity    Int      @default(0)
+  availableQuantity Int    // computed: total - reserved - sold
+  maxClaimsPerUser Int    @default(1)
+  status          String   @default("active") // draft, active, paused, sold_out, expired, cancelled
+  pickupOnly      Boolean  @default(true)
+  pickupInstructions String?
+  earlyAccessAt   DateTime? // Phase 2: First Dibs
+  publicAccessAt  DateTime  // when deal becomes visible to all
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  reservations Reservation[]
+  orders       Order[]
+
+  @@index([vendorId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([category])
+  @@index([publicAccessAt])
+}
+
+// ============================================
+// RESERVATIONS (Temporary claim locks)
+// ============================================
+
+model Reservation {
+  id          String   @id @default(cuid())
+  dealId      String
+  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  userId      String
+  quantity    Int      @default(1)
+  status      String   @default("pending") // pending, confirmed, expired, cancelled
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dealId, status])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ============================================
+// ORDERS
+// ============================================
+
+model Order {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorId        String
+  vendor          Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  dealId          String
+  deal            Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  quantity        Int      @default(1)
+  originalPrice   Float
+  dealPrice       Float
+  totalPrice      Float
+  status          String   @default("pending_pickup") // pending_pickup, picked_up, completed, cancelled, expired
+  qrCode          String   @unique
+  qrVerifiedAt    DateTime?
+  pickupDeadline  DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([qrCode])
+}
+
+// ============================================
+// NOTIFICATIONS
+// ============================================
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       String   // deal_sold_out, deal_expiring, claim_confirmed, pickup_reminder, vendor_approved, vendor_rejected, siren_push
+  title      String
+  message    String
+  data       String   @default("{}") // JSON: dealId, vendorId, etc.
+  read       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// SUBSCRIPTIONS (Phase 2 prep)
+// ============================================
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      String   // first_dibs, vendor_basic, vendor_premium
+  status    String   @default("active") // active, cancelled, expired
+  startDate DateTime @default(now())
+  endDate   DateTime
+  autoRenew Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
