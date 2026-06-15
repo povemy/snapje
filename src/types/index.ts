@@ -49,6 +49,7 @@ export type FoodieView =
   | 'order-detail'
   | 'profile'
   | 'subscriptions'
+  | 'register-vendor'
 
 export type VendorView =
   | 'dashboard'

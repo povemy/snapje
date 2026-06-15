@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, hasRole } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
@@ -14,22 +14,46 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
+    const vendorMode = searchParams.get('vendor') === 'true'
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
     const skip = (page - 1) * pageSize
 
     let query = supabase
       .from('Order')
-      .select('*, deal:Deal(id, title, imageUrl, category), vendor:Vendor(id, businessName, address, logoUrl, latitude, longitude)')
-      .eq('userId', authUser.userId)
+      .select('*, deal:Deal(id, title, imageUrl, category, pickupInstructions), vendor:Vendor(id, businessName, address, logoUrl, latitude, longitude, userId)')
       .order('createdAt', { ascending: false })
       .range(skip, skip + pageSize - 1)
 
-    // Build count query (same filters, no pagination)
     let countQuery = supabase
       .from('Order')
       .select('*', { count: 'exact', head: true })
-      .eq('userId', authUser.userId)
+
+    if (vendorMode && hasRole(authUser.roles.join(','), 'vendor')) {
+      // Vendor mode: show orders for this vendor's store
+      // First find the vendor profile
+      const vendorRes = await supabase
+        .from('Vendor')
+        .select('id')
+        .eq('userId', authUser.userId)
+        .limit(1)
+        .maybeSingle()
+
+      if (vendorRes.data) {
+        query = query.eq('vendorId', vendorRes.data.id)
+        countQuery = countQuery.eq('vendorId', vendorRes.data.id)
+      } else {
+        // No vendor profile — return empty
+        return NextResponse.json({
+          success: true,
+          data: { orders: [], total: 0, page, pageSize, totalPages: 0 },
+        })
+      }
+    } else {
+      // Default: show user's own orders (foodie mode)
+      query = query.eq('userId', authUser.userId)
+      countQuery = countQuery.eq('userId', authUser.userId)
+    }
 
     if (status) {
       query = query.eq('status', status)

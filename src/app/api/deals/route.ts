@@ -151,11 +151,22 @@ export async function POST(request: Request) {
       )
     }
 
-    // Find vendor profile
-    const vendor = unwrap(
-      await supabase.from('Vendor').select('*').eq('userId', authUser.userId).limit(1).single(),
-      'Find vendor profile'
-    )
+    // Find vendor profile (use maybeSingle to handle 0 or 1 results gracefully)
+    const vendorRes = await supabase.from('Vendor').select('*').eq('userId', authUser.userId).limit(1).maybeSingle()
+    if (!vendorRes.data) {
+      return NextResponse.json(
+        { success: false, error: 'Vendor profile not found. Please create a vendor profile first.' },
+        { status: 404 }
+      )
+    }
+    if (vendorRes.error) {
+      console.error('Find vendor profile error:', vendorRes.error.message)
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+    const vendor = vendorRes.data
 
     if (vendor.verificationStatus !== 'approved') {
       return NextResponse.json(

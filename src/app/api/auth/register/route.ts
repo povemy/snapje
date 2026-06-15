@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { email, password, name, phone } = body
+    const { email, password, name, phone, role } = body
 
     // Validation
     if (!email || !password || !name) {
@@ -25,6 +25,9 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+
+    // Validate role - must be 'foodie' or 'vendor'
+    const requestedRole = role === 'vendor' ? 'vendor' : 'foodie'
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
@@ -83,8 +86,8 @@ export async function POST(request: Request) {
           passwordHash,
           name: name.trim(),
           phone: phone?.trim() || null,
-          roles: 'foodie',
-          activeRole: 'foodie',
+          roles: requestedRole,
+          activeRole: requestedRole,
         })
         .select()
         .single(),

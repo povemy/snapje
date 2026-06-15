@@ -16,7 +16,7 @@ import {
   ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
   AlertTriangle, Ban, RefreshCw, DollarSign, ShoppingCart,
   Utensils, Bike, Building2, Crown, Sparkles, MoreVertical,
-  Pencil, Trash2, Timer, Save
+  Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,6 +74,7 @@ function AuthScreen() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [role, setRole] = useState<'foodie' | 'vendor'>('foodie')
   const [loading, setLoading] = useState(false)
   const { login } = useAuthStore()
 
@@ -85,7 +86,7 @@ function AuthScreen() {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
       const body = isLogin
         ? { email, password }
-        : { email, password, name, phone }
+        : { email, password, name, phone, role }
 
       const res = await apiFetch<AuthUser>(endpoint, {
         method: 'POST',
@@ -195,6 +196,43 @@ function AuthScreen() {
                 placeholder="+60 12 345 6789"
                 className="mt-1.5 h-12 rounded-xl"
               />
+            </div>
+          )}
+          {!isLogin && (
+            <div>
+              <Label className="text-sm font-semibold text-[#1a1c1e] mb-2 block">I want to...</Label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRole('foodie')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    role === 'foodie'
+                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+                      : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+                  }`}
+                >
+                  <Utensils className={`w-6 h-6 ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+                  <span className={`text-sm font-bold ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+                    Find Deals
+                  </span>
+                  <span className="text-[10px] text-[#717971]">Browse & claim food</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRole('vendor')}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    role === 'vendor'
+                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+                      : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+                  }`}
+                >
+                  <Store className={`w-6 h-6 ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+                  <span className={`text-sm font-bold ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+                    Sell Food
+                  </span>
+                  <span className="text-[10px] text-[#717971]">Post flash deals</span>
+                </button>
+              </div>
             </div>
           )}
           <Button
@@ -413,6 +451,53 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
     </span>
   )
 })
+
+// ============================================
+// QR CODE IMAGE COMPONENT (generates real QR from qrCode string)
+// ============================================
+function QRCodeImage({ qrCode }: { qrCode: string }) {
+  const [src, setSrc] = useState<string | null>(null)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    import('qrcode').then((QRCode) => {
+      if (cancelled) return
+      QRCode.toDataURL(qrCode, {
+        width: 220,
+        margin: 2,
+        color: { dark: '#1a1c1e', light: '#ffffff' },
+        errorCorrectionLevel: 'M',
+      }).then((url: string) => {
+        if (!cancelled) setSrc(url)
+      }).catch(() => {
+        if (!cancelled) setError(true)
+      })
+    }).catch(() => {
+      if (!cancelled) setError(true)
+    })
+    return () => { cancelled = true }
+  }, [qrCode])
+
+  if (error || !src) {
+    return (
+      <div className="w-[220px] h-[220px] flex items-center justify-center bg-[#f0f4f2] rounded-xl">
+        <QrCode className="w-20 h-20 text-[#6CB4EE]" />
+      </div>
+    )
+  }
+
+  return (
+    <Image
+      src={src}
+      alt="QR Code for order pickup"
+      width={220}
+      height={220}
+      className="rounded-lg"
+      unoptimized
+    />
+  )
+}
 
 // ============================================
 // CATEGORY ICON GRID - Foodpanda Style
@@ -992,14 +1077,19 @@ function FoodieOrdersView() {
           </DialogHeader>
           {selectedOrder && (
             <div className="text-center py-4">
-              <div className="bg-[#f0f4f2] rounded-2xl p-6 inline-block">
-                <QrCode className="w-40 h-40 text-[#6CB4EE]" />
+              <div className="bg-white rounded-2xl p-4 inline-block border-2 border-[#6CB4EE]/20 shadow-card">
+                <QRCodeImage qrCode={selectedOrder.qrCode} />
               </div>
               <p className="mt-4 font-bold text-[#1a1c1e]">Order #{selectedOrder.orderNumber}</p>
               <p className="text-sm text-[#414841] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
               <p className="text-xs text-[#717971] mt-2">
                 Pickup before: {new Date(selectedOrder.pickupDeadline).toLocaleTimeString()}
               </p>
+              {selectedOrder.status === 'completed' && (
+                <Badge className="mt-3 bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Completed
+                </Badge>
+              )}
             </div>
           )}
         </DialogContent>
@@ -1108,7 +1198,7 @@ function FoodieProfileView() {
           </button>
         )}
         {!roles.includes('vendor') && (
-          <button onClick={() => navigate('home', {})} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#8FC5E8]/20 to-[#6CB4EE]/5 hover:from-[#8FC5E8]/30 hover:to-[#6CB4EE]/10 transition-colors">
+          <button onClick={() => navigate('register-vendor')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#8FC5E8]/20 to-[#6CB4EE]/5 hover:from-[#8FC5E8]/30 hover:to-[#6CB4EE]/10 transition-colors">
             <Sparkles className="w-5 h-5 text-[#6CB4EE]" />
             <div className="text-left flex-1">
               <p className="font-bold text-sm text-[#1a1c1e]">Become a Vendor</p>
@@ -1903,17 +1993,38 @@ function VendorCreateDealView() {
 // ============================================
 function VendorInventoryView() {
   const { goBack } = useAppStore()
-  const [deals, setDeals] = useState<Deal[]>([])
+  const { user } = useAuthStore()
+  const [allDeals, setAllDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active')
 
   useEffect(() => {
     setLoading(true)
-    apiFetch<{ deals: Deal[] }>('/api/deals?status=active&pageSize=50').then((res) => {
-      if (res.success && res.data) {
-        setDeals(res.data.deals || [])
+    // Fetch vendor profile first, then their deals
+    apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true').then((vRes) => {
+      if (vRes.success && vRes.data) {
+        const vData = vRes.data.vendors?.[0]
+        if (vData) {
+          apiFetch<{ deals: Deal[] }>(`/api/deals?status=all&vendorId=${vData.id}&pageSize=100`).then((dRes) => {
+            if (dRes.success && dRes.data) {
+              setAllDeals(dRes.data.deals || [])
+            }
+          })
+        }
       }
     }).finally(() => setLoading(false))
   }, [])
+
+  // Classify deals into active and expired
+  const isActiveDeal = (d: Deal) => {
+    if (d.status === 'expired' || d.status === 'cancelled') return false
+    if (d.status === 'active' && new Date(d.expiresAt) <= new Date()) return false
+    return d.status === 'active' || d.status === 'paused'
+  }
+
+  const activeDeals = allDeals.filter(isActiveDeal)
+  const expiredDeals = allDeals.filter(d => !isActiveDeal(d))
+  const displayedDeals = activeTab === 'active' ? activeDeals : expiredDeals
 
   return (
     <div className="pb-28 px-5 pt-2">
@@ -1924,16 +2035,49 @@ function VendorInventoryView() {
         <h1 className="text-xl font-extrabold text-[#1a1c1e]">Inventory</h1>
       </div>
 
+      {/* Active / Expired Tabs */}
+      <div className="flex bg-[#e8edea] rounded-xl p-1 mb-4">
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'active' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+          }`}
+        >
+          <Flame className="w-4 h-4" />
+          Active
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            activeTab === 'active' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+          }`}>{activeDeals.length}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('expired')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'expired' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Expired
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+            activeTab === 'expired' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+          }`}>{expiredDeals.length}</span>
+        </button>
+      </div>
+
       {loading ? (
         Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl mb-3" />)
-      ) : deals.length === 0 ? (
+      ) : displayedDeals.length === 0 ? (
         <div className="text-center py-16">
           <Package className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-[#1a1c1e]">No active inventory</h3>
+          <h3 className="text-lg font-bold text-[#1a1c1e]">
+            {activeTab === 'active' ? 'No active inventory' : 'No expired deals'}
+          </h3>
+          {activeTab === 'active' && (
+            <p className="text-sm text-[#414841] mt-1">Create a deal from the dashboard!</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
-          {deals.map((deal) => (
+          {displayedDeals.map((deal) => (
             <Card key={deal.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-3">
@@ -1942,9 +2086,9 @@ function VendorInventoryView() {
                     <p className="text-xs text-[#414841]">RM{deal.dealPrice.toFixed(2)} per meal</p>
                   </div>
                   <Badge className={`border-0 rounded-lg text-xs ${
-                    deal.status === 'active' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' : 'bg-[#717971]/10 text-[#717971]'
+                    isActiveDeal(deal) ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' : 'bg-[#717971]/10 text-[#717971]'
                   }`}>
-                    {deal.status}
+                    {isActiveDeal(deal) ? 'Active' : deal.status}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center text-xs">
@@ -1965,6 +2109,11 @@ function VendorInventoryView() {
                     <p className="font-bold text-[#6CB4EE]">{deal.availableQuantity}</p>
                   </div>
                 </div>
+                {/* Progress bar */}
+                <div className="mt-3">
+                  <Progress value={(deal.soldQuantity / deal.totalQuantity) * 100} className="h-1.5" />
+                  <p className="text-[10px] text-[#717971] mt-1">{deal.soldQuantity}/{deal.totalQuantity} claimed</p>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -1981,44 +2130,89 @@ function VendorFulfillmentView() {
   const { goBack } = useAppStore()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
-  const [verifying, setVerifying] = useState(false)
   const [qrInput, setQrInput] = useState('')
+  const [scanning, setScanning] = useState(false)
+  const [completing, setCompleting] = useState(false)
 
-  useEffect(() => {
+  // Scan result modal
+  const [scanResult, setScanResult] = useState<{
+    order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
+    deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
+    vendor: { id: string; businessName: string; address: string } | null
+    canComplete: boolean
+  } | null>(null)
+
+  // Completed confirmation
+  const [completedOrder, setCompletedOrder] = useState<{
+    orderNumber: string; dealTitle?: string; totalPrice: number; completedAt: string
+  } | null>(null)
+
+  const fetchOrders = useCallback(() => {
     setLoading(true)
-    apiFetch<{ orders: Order[] }>('/api/orders').then((res) => {
+    apiFetch<{ orders: Order[] }>('/api/orders?vendor=true&pageSize=100').then((res) => {
       if (res.success && res.data) setOrders(res.data.orders || [])
     }).finally(() => setLoading(false))
   }, [])
 
+  useEffect(() => { fetchOrders() }, [fetchOrders])
+
   const pendingPickup = orders.filter(o => o.status === 'pending_pickup')
+  const pickedUp = orders.filter(o => o.status === 'picked_up')
   const completed = orders.filter(o => o.status === 'completed')
 
-  const handleVerify = async () => {
+  // Scan QR code — lookup order
+  const handleScan = async () => {
     if (!qrInput.trim()) return
-    setVerifying(true)
-    // Find order by QR code
-    const order = orders.find(o => o.qrCode === qrInput.trim())
-    if (!order) {
-      toast.error('Order not found for this QR code')
-      setVerifying(false)
-      return
-    }
-    const res = await apiFetch(`/api/orders/${order.id}/verify`, {
-      method: 'POST',
-      body: JSON.stringify({ qrCode: qrInput.trim() }),
-    })
-    if (res.success) {
-      toast.success('Pickup verified successfully!')
-      setQrInput('')
-      // Refresh orders
-      apiFetch<{ orders: Order[] }>('/api/orders').then((r) => {
-        if (r.success && r.data) setOrders(r.data.orders || [])
+    setScanning(true)
+    try {
+      const res = await apiFetch<{
+        order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
+        deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
+        vendor: { id: string; businessName: string; address: string } | null
+        canComplete: boolean
+      }>('/api/orders/scan', {
+        method: 'POST',
+        body: JSON.stringify({ qrCode: qrInput.trim() }),
       })
-    } else {
-      toast.error(res.error || 'Verification failed')
+      if (res.success && res.data) {
+        setScanResult(res.data)
+      } else {
+        toast.error(res.error || 'QR code lookup failed')
+      }
+    } finally {
+      setScanning(false)
     }
-    setVerifying(false)
+  }
+
+  // Complete order
+  const handleComplete = async () => {
+    if (!scanResult?.order.id) return
+    setCompleting(true)
+    try {
+      const res = await apiFetch<{
+        orderId: string; orderNumber: string; status: string; completedAt: string
+        dealTitle?: string; totalPrice: number
+      }>('/api/orders/complete', {
+        method: 'POST',
+        body: JSON.stringify({ orderId: scanResult.order.id }),
+      })
+      if (res.success && res.data) {
+        setCompletedOrder(res.data)
+        setScanResult(null)
+        setQrInput('')
+        toast.success('Order completed successfully! 🎉')
+        fetchOrders()
+      } else {
+        toast.error(res.error || 'Failed to complete order')
+      }
+    } finally {
+      setCompleting(false)
+    }
+  }
+
+  // Quick scan from pending order list
+  const quickScan = (order: Order) => {
+    setQrInput(order.qrCode)
   }
 
   return (
@@ -2030,31 +2224,35 @@ function VendorFulfillmentView() {
         <h1 className="text-xl font-extrabold text-[#1a1c1e]">Fulfillment</h1>
       </div>
 
-      {/* QR Verify */}
-      <Card className="border-0 shadow-card rounded-2xl mb-5">
-        <CardContent className="p-5">
-          <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-[#6CB4EE]" /> Verify Pickup
+      {/* QR Scanner Card */}
+      <Card className="border-0 shadow-card rounded-2xl mb-5 overflow-hidden">
+        <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+          <h3 className="font-bold text-[#1a1c1e] flex items-center gap-2">
+            <ScanLine className="w-5 h-5 text-[#6CB4EE]" /> Scan QR Code
           </h3>
+          <p className="text-xs text-[#414841] mt-0.5">Scan customer&apos;s QR to verify & complete pickup</p>
+        </div>
+        <CardContent className="p-5">
           <div className="flex gap-2">
             <Input
               value={qrInput}
               onChange={(e) => setQrInput(e.target.value)}
-              placeholder="Enter QR code or scan..."
-              className="h-12 rounded-xl flex-1"
+              placeholder="Enter QR code..."
+              className="h-12 rounded-xl flex-1 font-mono text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleScan()}
             />
             <Button
-              onClick={handleVerify}
-              disabled={verifying || !qrInput.trim()}
+              onClick={handleScan}
+              disabled={scanning || !qrInput.trim()}
               className="h-12 px-5 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
             >
-              {verifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify'}
+              {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Pending */}
+      {/* Pending Pickup */}
       <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
         <Clock className="w-4 h-4 text-[#FB923C]" /> Pending Pickup ({pendingPickup.length})
       </h3>
@@ -2065,11 +2263,23 @@ function VendorFulfillmentView() {
           {pendingPickup.map((order) => (
             <Card key={order.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-sm text-[#1a1c1e]">#{order.orderNumber}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm text-[#1a1c1e] truncate">#{order.orderNumber}</p>
                   <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
+                  <p className="text-[10px] text-[#717971] mt-0.5">
+                    Pickup by: {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </p>
                 </div>
-                <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
+                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
+                  <Button
+                    size="sm"
+                    onClick={() => quickScan(order)}
+                    className="h-8 px-3 rounded-lg text-xs font-bold bg-[#6CB4EE] text-white hover:bg-[#4A96D5]"
+                  >
+                    <QrCode className="w-3 h-3 mr-1" /> Scan
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -2084,7 +2294,7 @@ function VendorFulfillmentView() {
         <p className="text-sm text-[#717971]">No completed orders yet</p>
       ) : (
         <div className="space-y-2">
-          {completed.map((order) => (
+          {completed.slice(0, 10).map((order) => (
             <Card key={order.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex justify-between items-center">
                 <div>
@@ -2097,6 +2307,149 @@ function VendorFulfillmentView() {
           ))}
         </div>
       )}
+
+      {/* ===== Scan Result Modal ===== */}
+      <Dialog open={!!scanResult} onOpenChange={() => setScanResult(null)}>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
+          {scanResult && (
+            <>
+              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Order Found</DialogTitle>
+                  <DialogDescription className="text-[#414841] text-xs">
+                    Verify order details before completing
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="px-5 pb-5 space-y-4">
+                {/* Order Number & Status */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-[#717971]">Order</p>
+                    <p className="font-bold text-[#1a1c1e]">#{scanResult.order.orderNumber}</p>
+                  </div>
+                  <Badge className={`border-0 rounded-lg text-xs ${
+                    scanResult.order.status === 'pending_pickup'
+                      ? 'bg-[#FB923C]/10 text-[#FB923C]'
+                      : 'bg-[#7EC8E3]/10 text-[#3D8AC4]'
+                  }`}>
+                    {scanResult.order.status === 'pending_pickup' ? 'Pending Pickup' : scanResult.order.status}
+                  </Badge>
+                </div>
+
+                {/* Deal Info */}
+                {scanResult.deal && (
+                  <div className="bg-[#f0f4f2] rounded-xl p-3">
+                    <p className="font-bold text-sm text-[#1a1c1e]">{scanResult.deal.title}</p>
+                    {scanResult.deal.category && (
+                      <Badge className="mt-1 bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px]">
+                        {scanResult.deal.category}
+                      </Badge>
+                    )}
+                    {scanResult.deal.pickupInstructions && (
+                      <p className="text-xs text-[#414841] mt-2">
+                        <MapPin className="w-3 h-3 inline mr-1" />
+                        {scanResult.deal.pickupInstructions}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Pricing Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Original</p>
+                    <p className="font-bold text-[#1a1c1e] line-through">
+                      RM{(scanResult.deal?.originalPrice || 0).toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Deal Price</p>
+                    <p className="font-bold text-[#6CB4EE]">
+                      RM{(scanResult.deal?.dealPrice || 0).toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Order Details */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="bg-[#f0f4f2] rounded-lg p-2 text-center">
+                    <p className="text-[#717971]">Quantity</p>
+                    <p className="font-bold text-[#1a1c1e]">{scanResult.order.quantity}</p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2 text-center">
+                    <p className="text-[#717971]">Total</p>
+                    <p className="font-bold text-[#6CB4EE]">RM{scanResult.order.totalPrice.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                {/* Pickup Deadline */}
+                <div className="flex items-center gap-2 text-sm text-[#414841]">
+                  <Clock className="w-4 h-4 text-[#FB923C]" />
+                  Pickup by: {new Date(scanResult.order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+
+                {/* Actions */}
+                {scanResult.canComplete ? (
+                  <Button
+                    onClick={handleComplete}
+                    disabled={completing}
+                    className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+                  >
+                    {completing ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5 mr-1.5" /> Complete Order
+                      </>
+                    )}
+                  </Button>
+                ) : (
+                  <div className="bg-[#717971]/10 rounded-xl p-3 text-center">
+                    <p className="text-sm font-bold text-[#717971]">This order cannot be completed</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Completion Confirmation Modal ===== */}
+      <Dialog open={!!completedOrder} onOpenChange={() => setCompletedOrder(null)}>
+        <DialogContent className="rounded-2xl max-w-sm p-0">
+          {completedOrder && (
+            <div className="p-6 text-center">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="w-16 h-16 rounded-full bg-[#6CB4EE]/20 flex items-center justify-center mx-auto mb-4"
+              >
+                <CheckCircle className="w-8 h-8 text-[#6CB4EE]" />
+              </motion.div>
+              <h3 className="text-xl font-extrabold text-[#1a1c1e]">Order Completed!</h3>
+              <p className="text-sm text-[#414841] mt-2">
+                Order #{completedOrder.orderNumber} has been picked up successfully.
+              </p>
+              {completedOrder.dealTitle && (
+                <p className="text-sm text-[#6CB4EE] font-bold mt-1">{completedOrder.dealTitle}</p>
+              )}
+              <p className="text-lg font-extrabold text-[#1a1c1e] mt-2">RM{completedOrder.totalPrice.toFixed(2)}</p>
+              <p className="text-xs text-[#717971] mt-1">
+                Completed at {new Date(completedOrder.completedAt).toLocaleTimeString()}
+              </p>
+              <Button
+                onClick={() => setCompletedOrder(null)}
+                className="mt-4 w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+              >
+                Done
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2204,6 +2557,120 @@ function VendorSubscriptionView() {
             )}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// VENDOR REGISTRATION VIEW
+// ============================================
+function VendorRegistrationView() {
+  const { goBack, navigate } = useAppStore()
+  const { user } = useAuthStore()
+  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({
+    businessName: '',
+    description: '',
+    contactEmail: user?.email || '',
+    contactPhone: user?.phone || '',
+    address: '',
+    latitude: '3.1390',
+    longitude: '101.6869',
+    foodCategories: '[]',
+  })
+
+  const handleSubmit = async () => {
+    if (!form.businessName || !form.contactEmail || !form.contactPhone || !form.address) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+    setLoading(true)
+    try {
+      const res = await apiFetch<Vendor>('/api/vendors', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...form,
+          latitude: parseFloat(form.latitude),
+          longitude: parseFloat(form.longitude),
+          foodCategories: ['Malay', 'Chinese', 'Indian'],
+        }),
+      })
+      if (res.success) {
+        toast.success('Vendor profile created! Your account is pending approval.')
+        // Refresh user data to get the vendor role
+        const meRes = await apiFetch<AuthUser>('/api/auth/me')
+        if (meRes.success && meRes.data) {
+          // Update auth store with new roles
+          const { useAuthStore: getAuthStore } = await import('@/stores/auth-store')
+          getAuthStore.getState().login(meRes.data)
+        }
+        navigate('profile')
+      } else {
+        toast.error(res.error || 'Failed to create vendor profile')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="pb-28 px-5 pt-2">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Become a Vendor</h1>
+      </div>
+
+      <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 rounded-2xl p-5 mb-6">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-12 h-12 rounded-xl bg-[#6CB4EE] flex items-center justify-center">
+            <Store className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h2 className="font-bold text-[#1a1c1e]">Start Selling on FlashBite</h2>
+            <p className="text-xs text-[#414841]">Turn unsold meals into revenue</p>
+          </div>
+        </div>
+        <p className="text-sm text-[#414841]">
+          Fill in your business details below. Your account will be reviewed before you can start posting deals.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <Label className="font-semibold text-[#1a1c1e]">Business Name *</Label>
+          <Input value={form.businessName} onChange={(e) => setForm({...form, businessName: e.target.value})} placeholder="e.g. Kak Roti Corner" className="mt-1.5 h-12 rounded-xl" />
+        </div>
+        <div>
+          <Label className="font-semibold text-[#1a1c1e]">Description</Label>
+          <Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Tell customers about your food..." className="mt-1.5 rounded-xl min-h-[80px]" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="font-semibold text-[#1a1c1e]">Contact Email *</Label>
+            <Input type="email" value={form.contactEmail} onChange={(e) => setForm({...form, contactEmail: e.target.value})} placeholder="your@business.com" className="mt-1.5 h-12 rounded-xl" />
+          </div>
+          <div>
+            <Label className="font-semibold text-[#1a1c1e]">Contact Phone *</Label>
+            <Input value={form.contactPhone} onChange={(e) => setForm({...form, contactPhone: e.target.value})} placeholder="+60 12 345 6789" className="mt-1.5 h-12 rounded-xl" />
+          </div>
+        </div>
+        <div>
+          <Label className="font-semibold text-[#1a1c1e]">Business Address *</Label>
+          <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} placeholder="12 Jalan Tunku Abdul Rahman, KL" className="mt-1.5 h-12 rounded-xl" />
+        </div>
+
+        <Button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+        >
+          {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <>
+            <Store className="w-5 h-5 mr-1.5" /> Register as Vendor
+          </>}
+        </Button>
       </div>
     </div>
   )
@@ -2715,6 +3182,7 @@ function ViewRouter() {
         case 'deal-detail': return <DealDetailView />
         case 'orders': return <FoodieOrdersView />
         case 'profile': return <FoodieProfileView />
+        case 'register-vendor': return <VendorRegistrationView />
         default: return <FoodieHomeView />
       }
     }
@@ -2740,6 +3208,7 @@ function ViewRouter() {
         case 'users': return <AdminUsersView />
         case 'analytics': return <AdminAnalyticsView />
         case 'profile': return <FoodieProfileView />
+        case 'register-vendor': return <VendorRegistrationView />
         default: return <AdminDashboardView />
       }
     }
@@ -2748,8 +3217,8 @@ function ViewRouter() {
   }
 
   const renderBottomNav = () => {
-    // Don't show bottom nav on deal-detail view (has its own sticky action bar)
-    if (currentView === 'deal-detail') return null
+    // Don't show bottom nav on deal-detail or register-vendor views
+    if (currentView === 'deal-detail' || currentView === 'register-vendor') return null
     switch (activeRole) {
       case 'foodie': return <FoodieBottomNav />
       case 'vendor': return <VendorBottomNav />
@@ -2790,6 +3259,7 @@ function AuthModal() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [role, setRole] = useState<'foodie' | 'vendor'>('foodie')
   const [loading, setLoading] = useState(false)
 
   // Reset form when modal opens/closes
@@ -2799,6 +3269,7 @@ function AuthModal() {
       setPassword('')
       setName('')
       setPhone('')
+      setRole('foodie')
     }
   }, [showAuthModal])
 
@@ -2810,7 +3281,7 @@ function AuthModal() {
       const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
       const body = isLogin
         ? { email, password }
-        : { email, password, name, phone }
+        : { email, password, name, phone, role }
 
       const res = await apiFetch<AuthUser>(endpoint, {
         method: 'POST',
@@ -2915,6 +3386,37 @@ function AuthModal() {
                   placeholder="+60 12 345 6789"
                   className="mt-1 h-11 rounded-xl"
                 />
+              </div>
+            )}
+            {!isLogin && (
+              <div>
+                <Label className="text-sm font-semibold text-[#1a1c1e] mb-2 block">I want to...</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setRole('foodie')}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      role === 'foodie'
+                        ? 'border-[#6CB4EE] bg-[#6CB4EE]/10'
+                        : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+                    }`}
+                  >
+                    <Utensils className={`w-5 h-5 ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+                    <span className={`text-xs font-bold ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>Find Deals</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('vendor')}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
+                      role === 'vendor'
+                        ? 'border-[#6CB4EE] bg-[#6CB4EE]/10'
+                        : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+                    }`}
+                  >
+                    <Store className={`w-5 h-5 ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+                    <span className={`text-xs font-bold ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>Sell Food</span>
+                  </button>
+                </div>
               </div>
             )}
             <Button
