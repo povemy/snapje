@@ -9,7 +9,7 @@
   --font-sans: "Nunito Sans", system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
   
-  /* FlashBite × Grab/Foodpanda Design System - Surface Colors */
+  /* FlashBite × Foodpanda Design System - Surface Colors */
   --color-surface: #F4F7F6;
   --color-surface-dim: #e2e8e5;
   --color-surface-bright: #f8faf9;
@@ -24,20 +24,20 @@
   --color-inverse-on-surface: #ecf1ed;
   --color-outline: #717971;
   --color-outline-variant: #c1c9c0;
-  --color-surface-tint: #00B14F;
+  --color-surface-tint: #6CB4EE;
 
-  /* FlashBite Primary - Grab Green */
-  --color-primary: #00B14F;
+  /* FlashBite Primary - Baby Blue */
+  --color-primary: #6CB4EE;
   --color-on-primary: #ffffff;
-  --color-primary-container: #7df5a4;
-  --color-on-primary-container: #008e3e;
-  --color-inverse-primary: #66d99a;
+  --color-primary-container: #B3DAF5;
+  --color-on-primary-container: #3570A8;
+  --color-inverse-primary: #8FC5E8;
 
-  /* FlashBite Secondary */
-  --color-secondary: #506350;
+  /* FlashBite Secondary - Blue Tint */
+  --color-secondary: #4A6A8A;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #d3e8d0;
-  --color-on-secondary-container: #3d4b3d;
+  --color-secondary-container: #D3E4F0;
+  --color-on-secondary-container: #35506E;
 
   /* FlashBite Tertiary */
   --color-tertiary: #3a6567;
@@ -54,8 +54,8 @@
   /* Semantic Colors - Urgency Accents */
   --color-urgency: #FB923C;
   --color-urgency-high: #F97316;
-  --color-success: #00B14F;
-  --color-success-dark: #008e3e;
+  --color-success: #6CB4EE;
+  --color-success-dark: #4A96D5;
   --color-danger: #EF4444;
 
   /* shadcn/ui compatibility */
@@ -118,10 +118,10 @@
   --card-foreground: #1a1c1e;
   --popover: #ffffff;
   --popover-foreground: #1a1c1e;
-  --primary: #00B14F;
+  --primary: #6CB4EE;
   --primary-foreground: #ffffff;
-  --secondary: #d3e8d0;
-  --secondary-foreground: #506350;
+  --secondary: #D3E4F0;
+  --secondary-foreground: #4A6A8A;
   --muted: #e8edea;
   --muted-foreground: #414841;
   --accent: #e8edea;
@@ -130,20 +130,20 @@
   --destructive-foreground: #ffffff;
   --border: #d7ddd9;
   --input: #f0f4f2;
-  --ring: #00B14F;
-  --chart-1: #00B14F;
+  --ring: #6CB4EE;
+  --chart-1: #6CB4EE;
   --chart-2: #3a6567;
   --chart-3: #FB923C;
-  --chart-4: #506350;
-  --chart-5: #66d99a;
+  --chart-4: #4A6A8A;
+  --chart-5: #8FC5E8;
   --sidebar: #f0f4f2;
   --sidebar-foreground: #1a1c1e;
-  --sidebar-primary: #00B14F;
+  --sidebar-primary: #6CB4EE;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #dfe5e1;
   --sidebar-accent-foreground: #1a1c1e;
   --sidebar-border: #d7ddd9;
-  --sidebar-ring: #00B14F;
+  --sidebar-ring: #6CB4EE;
 }
 
 .dark {
@@ -153,10 +153,10 @@
   --card-foreground: #ecf1ed;
   --popover: #242825;
   --popover-foreground: #ecf1ed;
-  --primary: #66d99a;
-  --primary-foreground: #003d1e;
-  --secondary: #3d4b3d;
-  --secondary-foreground: #d3e8d0;
+  --primary: #8FC5E8;
+  --primary-foreground: #1A3A52;
+  --secondary: #3D4B5A;
+  --secondary-foreground: #D3E4F0;
   --muted: #2c302d;
   --muted-foreground: #c1c9c0;
   --accent: #2c302d;
@@ -165,20 +165,20 @@
   --destructive-foreground: #ffffff;
   --border: #414841;
   --input: #2c302d;
-  --ring: #66d99a;
-  --chart-1: #66d99a;
+  --ring: #8FC5E8;
+  --chart-1: #8FC5E8;
   --chart-2: #3a6567;
   --chart-3: #FB923C;
   --chart-4: #c1c9c0;
-  --chart-5: #00B14F;
+  --chart-5: #6CB4EE;
   --sidebar: #242825;
   --sidebar-foreground: #ecf1ed;
-  --sidebar-primary: #66d99a;
-  --sidebar-primary-foreground: #003d1e;
+  --sidebar-primary: #8FC5E8;
+  --sidebar-primary-foreground: #1A3A52;
   --sidebar-accent: #2c302d;
   --sidebar-accent-foreground: #ecf1ed;
   --sidebar-border: #414841;
-  --sidebar-ring: #66d99a;
+  --sidebar-ring: #8FC5E8;
 }
 
 @layer base {
@@ -261,7 +261,7 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Input field focus styles - Grab Green themed */
+/* Input field focus styles - Baby Blue themed */
 @layer base {
   input, textarea, select {
     background-color: #f0f4f2;
@@ -270,9 +270,9 @@
   }
   input:focus, textarea:focus, select:focus {
     background-color: #ffffff;
-    border-color: #00B14F;
+    border-color: #6CB4EE;
     border-width: 2px;
-    box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.1);
+    box-shadow: 0 0 0 3px rgba(108, 180, 238, 0.15);
     outline: none;
   }
 }
