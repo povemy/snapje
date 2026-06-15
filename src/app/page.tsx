@@ -16,7 +16,9 @@ import {
   ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
   AlertTriangle, Ban, RefreshCw, DollarSign, ShoppingCart,
   Utensils, Bike, Building2, Crown, Sparkles, MoreVertical,
-  Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle
+  Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle,
+  Lock, Globe, Volume2, BellRing, KeyRound, Smartphone,
+  Moon, Wallet, Megaphone, EyeOff
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,6 +34,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
+import { Switch } from '@/components/ui/switch'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { toast } from 'sonner'
 
@@ -757,7 +761,9 @@ function DealDetailView() {
         body: JSON.stringify({ reservationId }),
       })
       if (confirmRes.success && confirmRes.data) {
-        setOrder(confirmRes.data)
+        // API returns { order, qrCode, pickupDeadline, dealTitle, vendorName }
+        const orderData = (confirmRes.data as Record<string, unknown>).order as Order || confirmRes.data as unknown as Order
+        setOrder(orderData)
         setClaimed(true)
         toast.success('Deal claimed! Check your orders for the QR code.')
 
@@ -887,8 +893,8 @@ function DealDetailView() {
               <CheckCircle className="w-5 h-5 text-[#3D8AC4]" />
               <span className="font-bold text-[#3D8AC4]">Deal Claimed!</span>
             </div>
-            <p className="text-sm text-[#1A4F72]">
-              Order #{order.orderNumber}
+            <p className="text-xs text-[#1A4F72] break-all">
+              Order <span className="font-mono">{order.orderNumber || '—'}</span>
             </p>
             {order.pickupDeadline && (
               <p className="text-xs text-[#1A4F72] mt-1 flex items-center gap-1">
@@ -952,6 +958,71 @@ function DealDetailView() {
 // ============================================
 // FOODIE: ORDERS VIEW
 // ============================================
+// Pickup progress slider - animated bar showing time remaining
+function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
+  const [progress, setProgress] = useState(0)
+  const [timeLeft, setTimeLeft] = useState('')
+
+  useEffect(() => {
+    const calcProgress = () => {
+      const deadline = new Date(pickupDeadline).getTime()
+      // Assume 2-hour pickup window from order creation
+      const totalWindow = 2 * 60 * 60 * 1000
+      const created = deadline - totalWindow
+      const now = Date.now()
+      const elapsed = now - created
+      const pct = Math.min(100, Math.max(0, (elapsed / totalWindow) * 100))
+      setProgress(pct)
+
+      const remaining = deadline - now
+      if (remaining <= 0) {
+        setTimeLeft('Expired')
+      } else {
+        const mins = Math.floor(remaining / 60000)
+        const hrs = Math.floor(mins / 60)
+        if (hrs > 0) {
+          setTimeLeft(`${hrs}h ${mins % 60}m left`)
+        } else {
+          setTimeLeft(`${mins}m left`)
+        }
+      }
+    }
+    calcProgress()
+    const interval = setInterval(calcProgress, 30000) // update every 30s
+    return () => clearInterval(interval)
+  }, [pickupDeadline])
+
+  const isUrgent = progress > 75
+  const isWarning = progress > 50
+
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between mb-1">
+        <span className={`text-[10px] font-bold ${isUrgent ? 'text-red-500' : isWarning ? 'text-[#FB923C]' : 'text-[#6CB4EE]'}`}>
+          {timeLeft}
+        </span>
+      </div>
+      <div className="h-1.5 bg-[#f0f4f2] rounded-full overflow-hidden">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${progress}%` }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+          className={`h-full rounded-full ${
+            isUrgent ? 'bg-red-500' : isWarning ? 'bg-[#FB923C]' : 'bg-[#6CB4EE]'
+          }`}
+          style={{
+            background: isUrgent
+              ? 'linear-gradient(90deg, #FB923C, #EF4444)'
+              : isWarning
+              ? 'linear-gradient(90deg, #6CB4EE, #FB923C)'
+              : 'linear-gradient(90deg, #8FC5E8, #6CB4EE)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function FoodieOrdersView() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
@@ -1018,19 +1089,26 @@ function FoodieOrdersView() {
                     <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start">
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
-                            <p className="text-xs text-[#414841] mt-0.5">#{order.orderNumber}</p>
+                            <p className="text-[10px] text-[#414841] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
                           </div>
-                          <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold">
+                          <QrCode className="w-6 h-6 text-[#6CB4EE] flex-shrink-0 ml-2" />
+                        </div>
+                        {/* Pickup time with orange color */}
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <Clock className="w-3.5 h-3.5 text-[#FB923C]" />
+                          <span className="text-xs font-bold text-[#FB923C]">
+                            Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {/* Animated progress slider */}
+                        <PickupProgressSlider pickupDeadline={order.pickupDeadline} />
+                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[#d7ddd9]">
+                          <span className="text-lg font-extrabold text-[#6CB4EE]">RM{order.totalPrice.toFixed(2)}</span>
+                          <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold text-[10px]">
                             Pending Pickup
                           </Badge>
-                        </div>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d7ddd9]">
-                          <span className="text-lg font-extrabold text-[#6CB4EE]">RM{order.totalPrice.toFixed(2)}</span>
-                          <span className="text-xs text-[#414841] flex items-center gap-1">
-                            <QrCode className="w-3.5 h-3.5" /> Tap to view QR
-                          </span>
                         </div>
                       </CardContent>
                     </Card>
@@ -1050,9 +1128,9 @@ function FoodieOrdersView() {
                   <Card key={order.id} className="border-0 shadow-card rounded-2xl">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
-                        <div>
+                        <div className="flex-1 min-w-0">
                           <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
-                          <p className="text-xs text-[#414841] mt-0.5">#{order.orderNumber}</p>
+                          <p className="text-[10px] text-[#414841] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
                         </div>
                         <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg font-bold">
                           Completed
@@ -1080,10 +1158,11 @@ function FoodieOrdersView() {
               <div className="bg-white rounded-2xl p-4 inline-block border-2 border-[#6CB4EE]/20 shadow-card">
                 <QRCodeImage qrCode={selectedOrder.qrCode} />
               </div>
-              <p className="mt-4 font-bold text-[#1a1c1e]">Order #{selectedOrder.orderNumber}</p>
+              <p className="mt-4 font-bold text-[#1a1c1e] text-sm font-mono break-all">#{selectedOrder.orderNumber}</p>
               <p className="text-sm text-[#414841] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
-              <p className="text-xs text-[#717971] mt-2">
-                Pickup before: {new Date(selectedOrder.pickupDeadline).toLocaleTimeString()}
+              <p className="text-xs font-bold text-[#FB923C] mt-2 flex items-center justify-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Pickup by {new Date(selectedOrder.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
               {selectedOrder.status === 'completed' && (
                 <Badge className="mt-3 bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg">
@@ -1105,6 +1184,54 @@ function FoodieProfileView() {
   const { user, updateActiveRole, logout, isAuthenticated } = useAuthStore()
   const { setActiveRole, navigate } = useAppStore()
 
+  // Settings state
+  const [editName, setEditName] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [isEditingProfile, setIsEditingProfile] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [changingPassword, setChangingPassword] = useState(false)
+
+  // Settings toggles (persisted in localStorage)
+  const [settings, setSettings] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('flashbite_settings')
+      if (saved) return JSON.parse(saved)
+    }
+    return {
+      pushNotifications: true,
+      dealAlerts: true,
+      expiringDealAlerts: true,
+      locationServices: true,
+      orderUpdates: true,
+      darkMode: false,
+      // Foodie specific
+      dietaryPrefs: [] as string[],
+      dealAlertRadius: 5,
+      // Vendor specific
+      autoAcceptOrders: false,
+      orderNotificationSound: true,
+      lowStockAlerts: true,
+      businessHoursVisible: true,
+    }
+  })
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('flashbite_settings', JSON.stringify(settings))
+    }
+  }, [settings])
+
+  const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }))
+  }
+
   if (!isAuthenticated || !user) {
     return (
       <div className="pb-28 px-5 pt-2">
@@ -1122,6 +1249,7 @@ function FoodieProfileView() {
   }
 
   const roles = user?.roles || []
+  const activeRole = user?.activeRole || 'foodie'
 
   const handleRoleSwitch = (role: AppRole) => {
     if (roles.includes(role)) {
@@ -1135,11 +1263,76 @@ function FoodieProfileView() {
     logout()
   }
 
+  const handleSaveProfile = async () => {
+    setSavingProfile(true)
+    try {
+      const res = await apiFetch('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify({ name: editName, phone: editPhone }),
+      })
+      if (res.success) {
+        toast.success('Profile updated!')
+        setIsEditingProfile(false)
+        // Refresh user data in store
+        const refreshRes = await apiFetch<AuthUser>('/api/auth/me')
+        if (refreshRes.success && refreshRes.data) {
+          useAuthStore.getState().login(refreshRes.data)
+        }
+      } else {
+        toast.error(res.error || 'Failed to update profile')
+      }
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const startEditProfile = () => {
+    setEditName(user?.name || '')
+    setEditPhone(user?.phone || '')
+    setIsEditingProfile(true)
+  }
+
+  const handleChangePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    setChangingPassword(true)
+    try {
+      const res = await apiFetch('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      if (res.success) {
+        toast.success('Password changed successfully!')
+        setShowPasswordModal(false)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+      } else {
+        toast.error(res.error || 'Failed to change password')
+      }
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  const dietaryOptions = ['Halal', 'Vegetarian', 'Vegan', 'Gluten-Free', 'Nut-Free', 'Dairy-Free']
+
+  const toggleDietaryPref = (pref: string) => {
+    const current = settings.dietaryPrefs as string[]
+    updateSetting('dietaryPrefs', current.includes(pref) ? current.filter(p => p !== pref) : [...current, pref])
+  }
+
   return (
     <div className="pb-28 px-5 pt-2">
-      <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Profile</h1>
+      <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Me</h1>
 
-      {/* Role Switching - MOVED TO TOP */}
+      {/* Role Switching - TOP */}
       <h3 className="font-bold text-[#1a1c1e] text-sm mb-2">Switch Mode</h3>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
@@ -1165,7 +1358,7 @@ function FoodieProfileView() {
         })}
       </div>
 
-      {/* User Card - SMALLER and WIDER */}
+      {/* User Card - COMPACT */}
       <Card className="border-0 shadow-card rounded-xl mb-4">
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
@@ -1179,15 +1372,388 @@ function FoodieProfileView() {
               <p className="text-[11px] text-[#414841] truncate">{user?.email}</p>
             </div>
             <Badge className="bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px] flex-shrink-0">
-              {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
+              {activeRole === 'foodie' ? '🍽️ Foodie' : activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
             </Badge>
           </div>
         </CardContent>
       </Card>
 
+      {/* ===== SETTINGS SECTION ===== */}
+      <div className="mb-4">
+        <h3 className="font-bold text-[#1a1c1e] text-sm mb-2 flex items-center gap-2">
+          <Settings className="w-4 h-4 text-[#6CB4EE]" /> Settings
+        </h3>
+
+        <Accordion type="multiple" defaultValue={['basic']} className="space-y-2">
+          {/* ── Basic Settings ── */}
+          <AccordionItem value="basic" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <User className="w-4 h-4 text-[#6CB4EE]" /> Basic
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              {isEditingProfile ? (
+                <>
+                  <div>
+                    <Label className="text-[11px] font-bold text-[#414841]">Display Name</Label>
+                    <Input value={editName} onChange={e => setEditName(e.target.value)} className="mt-1 h-9 text-sm rounded-xl" />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] font-bold text-[#414841]">Phone Number</Label>
+                    <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+60" className="mt-1 h-9 text-sm rounded-xl" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile} className="flex-1 h-9 rounded-xl bg-[#6CB4EE] hover:bg-[#4A96D5] text-white text-xs font-bold">
+                      {savingProfile ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5 mr-1" /> Save</>}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setIsEditingProfile(false)} className="flex-1 h-9 rounded-xl text-xs">Cancel</Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] text-[#717971]">Display Name</p>
+                      <p className="text-sm font-bold text-[#1a1c1e]">{user?.name}</p>
+                    </div>
+                    <button onClick={startEditProfile} className="p-1.5 rounded-lg hover:bg-[#e8edea]">
+                      <Pencil className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                    </button>
+                  </div>
+                  <Separator />
+                  <div>
+                    <p className="text-[11px] text-[#717971]">Email</p>
+                    <p className="text-sm text-[#1a1c1e]">{user?.email}</p>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] text-[#717971]">Phone</p>
+                      <p className="text-sm text-[#1a1c1e]">{user?.phone || 'Not set'}</p>
+                    </div>
+                    <button onClick={startEditProfile} className="p-1.5 rounded-lg hover:bg-[#e8edea]">
+                      <Pencil className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                    </button>
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] text-[#717971]">Language</p>
+                      <p className="text-sm text-[#1a1c1e]">English</p>
+                    </div>
+                    <Globe className="w-4 h-4 text-[#717971]" />
+                  </div>
+                </>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── Notifications ── */}
+          <AccordionItem value="notifications" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <Bell className="w-4 h-4 text-[#FB923C]" /> Notifications
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Push Notifications</p>
+                  <p className="text-[11px] text-[#717971]">Receive push alerts</p>
+                </div>
+                <Switch checked={settings.pushNotifications} onCheckedChange={v => updateSetting('pushNotifications', v)} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">New Deal Alerts</p>
+                  <p className="text-[11px] text-[#717971]">Get notified about new deals</p>
+                </div>
+                <Switch checked={settings.dealAlerts} onCheckedChange={v => updateSetting('dealAlerts', v)} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Expiring Deals</p>
+                  <p className="text-[11px] text-[#717971]">Alert when deals are about to expire</p>
+                </div>
+                <Switch checked={settings.expiringDealAlerts} onCheckedChange={v => updateSetting('expiringDealAlerts', v)} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Order Updates</p>
+                  <p className="text-[11px] text-[#717971]">Status changes for your orders</p>
+                </div>
+                <Switch checked={settings.orderUpdates} onCheckedChange={v => updateSetting('orderUpdates', v)} />
+              </div>
+              {roles.includes('vendor') && (
+                <>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-[#1a1c1e]">Order Sound</p>
+                      <p className="text-[11px] text-[#717971]">Play sound on new orders</p>
+                    </div>
+                    <Switch checked={settings.orderNotificationSound} onCheckedChange={v => updateSetting('orderNotificationSound', v)} />
+                  </div>
+                  <Separator />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-bold text-[#1a1c1e]">Low Stock Alerts</p>
+                      <p className="text-[11px] text-[#717971]">Alert when deal stock is low</p>
+                    </div>
+                    <Switch checked={settings.lowStockAlerts} onCheckedChange={v => updateSetting('lowStockAlerts', v)} />
+                  </div>
+                </>
+              )}
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── Privacy & Security ── */}
+          <AccordionItem value="security" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-[#3D8AC4]" /> Security
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              <button
+                onClick={() => setShowPasswordModal(true)}
+                className="w-full flex items-center justify-between p-0"
+              >
+                <div className="flex items-center gap-2.5">
+                  <KeyRound className="w-4 h-4 text-[#3D8AC4]" />
+                  <div className="text-left">
+                    <p className="text-sm font-bold text-[#1a1c1e]">Change Password</p>
+                    <p className="text-[11px] text-[#717971]">Update your account password</p>
+                  </div>
+                </div>
+                <ChevronRight className="w-4 h-4 text-[#717971]" />
+              </button>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Location Services</p>
+                  <p className="text-[11px] text-[#717971]">Allow location for nearby deals</p>
+                </div>
+                <Switch checked={settings.locationServices} onCheckedChange={v => updateSetting('locationServices', v)} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Profile Visibility</p>
+                  <p className="text-[11px] text-[#717971]">Others can see your profile</p>
+                </div>
+                <Switch defaultChecked={true} />
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── Appearance ── */}
+          <AccordionItem value="appearance" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <Moon className="w-4 h-4 text-[#717971]" /> Appearance
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Dark Mode</p>
+                  <p className="text-[11px] text-[#717971]">Switch to dark theme</p>
+                </div>
+                <Switch checked={settings.darkMode} onCheckedChange={v => updateSetting('darkMode', v)} />
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm font-bold text-[#1a1c1e] mb-2">Deal Card Size</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Compact', 'Normal', 'Large'] as const).map(size => (
+                    <button
+                      key={size}
+                      className={`py-2 text-[11px] font-bold rounded-lg transition-all ${
+                        size === 'Normal' ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#1a1c1e]'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── Foodie-specific Settings ── */}
+          {activeRole === 'foodie' && (
+            <AccordionItem value="foodie" className="border-0">
+              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+                <span className="flex items-center gap-2">
+                  <Utensils className="w-4 h-4 text-[#FB923C]" /> Foodie Preferences
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e] mb-2">Dietary Preferences</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dietaryOptions.map(pref => (
+                      <button
+                        key={pref}
+                        onClick={() => toggleDietaryPref(pref)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                          (settings.dietaryPrefs as string[]).includes(pref)
+                            ? 'bg-[#6CB4EE] text-white'
+                            : 'bg-[#e8edea] text-[#414841]'
+                        }`}
+                      >
+                        {pref}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Separator />
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-bold text-[#1a1c1e]">Deal Alert Radius</p>
+                    <p className="text-xs font-bold text-[#6CB4EE]">{settings.dealAlertRadius} km</p>
+                  </div>
+                  <input
+                    type="range"
+                    min={1}
+                    max={50}
+                    value={settings.dealAlertRadius}
+                    onChange={e => updateSetting('dealAlertRadius', parseInt(e.target.value))}
+                    className="w-full h-1.5 bg-[#e8edea] rounded-full appearance-none cursor-pointer accent-[#6CB4EE]"
+                  />
+                  <div className="flex justify-between text-[10px] text-[#717971] mt-1">
+                    <span>1 km</span>
+                    <span>50 km</span>
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Auto-confirm Claims</p>
+                    <p className="text-[11px] text-[#717971]">Skip reservation, go straight to order</p>
+                  </div>
+                  <Switch defaultChecked={false} />
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* ── Vendor-specific Settings ── */}
+          {activeRole === 'vendor' && roles.includes('vendor') && (
+            <AccordionItem value="vendor" className="border-0">
+              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+                <span className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-[#6CB4EE]" /> Vendor Settings
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Auto-accept Orders</p>
+                    <p className="text-[11px] text-[#717971]">Automatically confirm incoming claims</p>
+                  </div>
+                  <Switch checked={settings.autoAcceptOrders} onCheckedChange={v => updateSetting('autoAcceptOrders', v)} />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Business Hours Visible</p>
+                    <p className="text-[11px] text-[#717971]">Show operating hours to foodies</p>
+                  </div>
+                  <Switch checked={settings.businessHoursVisible} onCheckedChange={v => updateSetting('businessHoursVisible', v)} />
+                </div>
+                <Separator />
+                <button
+                  onClick={() => navigate('subscription')}
+                  className="w-full flex items-center justify-between p-0"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-[#6CB4EE]" />
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-[#1a1c1e]">Subscription Plan</p>
+                      <p className="text-[11px] text-[#717971]">Manage your vendor plan</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#717971]" />
+                </button>
+                <Separator />
+                <button
+                  onClick={() => navigate('inventory')}
+                  className="w-full flex items-center justify-between p-0"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 text-[#6CB4EE]" />
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-[#1a1c1e]">Inventory Management</p>
+                      <p className="text-[11px] text-[#717971]">Manage your deal inventory</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#717971]" />
+                </button>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* ── Advanced ── */}
+          <AccordionItem value="advanced" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#7EC8E3]" /> Advanced
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Data Saver Mode</p>
+                  <p className="text-[11px] text-[#717971]">Reduce image quality to save data</p>
+                </div>
+                <Switch defaultChecked={false} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Analytics Sharing</p>
+                  <p className="text-[11px] text-[#717971]">Help improve FlashBite with usage data</p>
+                </div>
+                <Switch defaultChecked={true} />
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm font-bold text-[#1a1c1e] mb-1">Cache & Storage</p>
+                <p className="text-[11px] text-[#717971] mb-2">Clear local cache and stored data</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('flashbite_settings')
+                      localStorage.removeItem('flashbite_cache')
+                      toast.success('Cache cleared!')
+                    }
+                  }}
+                  className="h-8 rounded-xl text-xs"
+                >
+                  Clear Cache
+                </Button>
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm font-bold text-[#1a1c1e]">App Version</p>
+                <p className="text-[11px] text-[#717971]">FlashBite v1.0.0 (MVP)</p>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </div>
+
       {/* Quick Links */}
       <div className="space-y-2 mb-4">
-        {roles.includes('vendor') && (
+        {roles.includes('vendor') && activeRole !== 'vendor' && (
           <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
             <CreditCard className="w-5 h-5 text-[#6CB4EE]" />
             <div className="text-left flex-1">
@@ -1214,6 +1780,39 @@ function FoodieProfileView() {
         <LogOut className="w-5 h-5" />
         <span className="font-bold text-sm">Sign Out</span>
       </button>
+
+      {/* Change Password Modal */}
+      <Dialog open={showPasswordModal} onOpenChange={setShowPasswordModal}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-[#3D8AC4]" /> Change Password
+            </DialogTitle>
+            <DialogDescription>Enter your current password and choose a new one</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <Label className="text-xs font-bold text-[#414841]">Current Password</Label>
+              <Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="mt-1 h-10 rounded-xl" />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-[#414841]">New Password</Label>
+              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="mt-1 h-10 rounded-xl" />
+            </div>
+            <div>
+              <Label className="text-xs font-bold text-[#414841]">Confirm New Password</Label>
+              <Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="mt-1 h-10 rounded-xl" />
+            </div>
+            <Button
+              onClick={handleChangePassword}
+              disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+              className="w-full h-10 rounded-xl bg-gradient-to-b from-[#3D8AC4] to-[#2E6DA4] text-white font-bold"
+            >
+              {changingPassword ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Change Password'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
