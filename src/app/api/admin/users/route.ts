@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 
 export async function GET(request: Request) {
@@ -18,48 +18,40 @@ export async function GET(request: Request) {
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
     const isBanned = searchParams.get('isBanned')
 
-    const where: Record<string, unknown> = {}
+    const skip = (page - 1) * pageSize
 
+    // Build user query
+    let userQuery = supabase
+      .from('User')
+      .select('id, email, name, phone, avatarUrl, roles, activeRole, emailVerified, isBanned, createdAt, updatedAt, vendor:Vendor(id, businessName, verificationStatus)')
+      .order('createdAt', { ascending: false })
+      .range(skip, skip + pageSize - 1)
+
+    // Build count query
+    let countQuery = supabase
+      .from('User')
+      .select('*', { count: 'exact', head: true })
+
+    // Apply search filter
     if (search) {
-      where.OR = [
-        { name: { contains: search } },
-        { email: { contains: search } },
-      ]
+      userQuery = userQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+      countQuery = countQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
     }
 
+    // Apply isBanned filter
     if (isBanned !== null && isBanned !== undefined && isBanned !== '') {
-      where.isBanned = isBanned === 'true'
+      const isBannedBool = isBanned === 'true'
+      userQuery = userQuery.eq('isBanned', isBannedBool)
+      countQuery = countQuery.eq('isBanned', isBannedBool)
     }
 
-    const [users, total] = await Promise.all([
-      db.user.findMany({
-        where,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          avatarUrl: true,
-          roles: true,
-          activeRole: true,
-          emailVerified: true,
-          isBanned: true,
-          createdAt: true,
-          updatedAt: true,
-          vendor: {
-            select: {
-              id: true,
-              businessName: true,
-              verificationStatus: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      db.user.count({ where }),
+    const [usersRes, countRes] = await Promise.all([
+      userQuery,
+      countQuery,
     ])
+
+    const users = unwrap(usersRes, 'Fetch users')
+    const total = countRes.count ?? 0
 
     return NextResponse.json({
       success: true,

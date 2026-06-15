@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 
 export async function GET(
@@ -17,49 +17,33 @@ export async function GET(
       )
     }
 
-    const order = await db.order.findUnique({
-      where: { id },
-      include: {
-        deal: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            imageUrl: true,
-            category: true,
-            pickupInstructions: true,
-          },
-        },
-        vendor: {
-          select: {
-            id: true,
-            businessName: true,
-            address: true,
-            logoUrl: true,
-            coverImageUrl: true,
-            latitude: true,
-            longitude: true,
-            contactPhone: true,
-          },
-        },
-      },
-    })
+    const orderRes = await supabase
+      .from('Order')
+      .select('*, deal:Deal(id, title, description, imageUrl, category, pickupInstructions), vendor:Vendor(id, businessName, address, logoUrl, coverImageUrl, latitude, longitude, contactPhone)')
+      .eq('id', id)
+      .single()
 
-    if (!order) {
+    if (orderRes.error || !orderRes.data) {
       return NextResponse.json(
         { success: false, error: 'Order not found' },
         { status: 404 }
       )
     }
 
+    const order = orderRes.data
+
     // Check ownership (user who placed order) or vendor who owns the deal or admin
     const isOrderOwner = order.userId === authUser.userId
-    const isVendorOwner = order.vendor.userId === authUser.userId // This would need a join - let's check via vendor
     const isAdmin = hasRole(authUser.roles.join(','), 'admin')
 
     // For vendor check, we need to verify the vendor belongs to this user
-    const vendor = await db.vendor.findUnique({ where: { id: order.vendorId } })
-    const isActualVendorOwner = vendor?.userId === authUser.userId
+    const vendorRes = await supabase
+      .from('Vendor')
+      .select('*')
+      .eq('id', order.vendorId)
+      .single()
+
+    const isActualVendorOwner = vendorRes.data?.userId === authUser.userId
 
     if (!isOrderOwner && !isActualVendorOwner && !isAdmin) {
       return NextResponse.json(

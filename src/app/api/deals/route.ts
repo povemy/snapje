@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION, getDistanceTier } from '@/lib/distance'
 import { cache } from '@/lib/cache'
@@ -16,24 +16,6 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
 
-    // Build where clause
-    const where: Record<string, unknown> = {}
-
-    if (status) {
-      where.status = status
-    }
-
-    if (category) {
-      where.category = category
-    }
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search } },
-        { description: { contains: search } },
-      ]
-    }
-
     // Check cache
     const cacheKey = `deals:${status}:${category}:${search}:${page}:${pageSize}`
     const cached = cache.get<{ deals: unknown[]; total: number }>(cacheKey)
@@ -44,29 +26,40 @@ export async function GET(request: Request) {
       })
     }
 
-    const [deals, total] = await Promise.all([
-      db.deal.findMany({
-        where,
-        include: {
-          vendor: {
-            select: {
-              id: true,
-              businessName: true,
-              latitude: true,
-              longitude: true,
-              address: true,
-              logoUrl: true,
-              rating: true,
-              verificationStatus: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      db.deal.count({ where }),
+    // Build Supabase query for deals
+    const skip = (page - 1) * pageSize
+
+    let dealsQuery = supabase
+      .from('Deal')
+      .select('*, vendor:Vendor(id, businessName, latitude, longitude, address, logoUrl, rating, verificationStatus)')
+      .eq('status', status)
+      .order('createdAt', { ascending: false })
+      .range(skip, skip + pageSize - 1)
+
+    let countQuery = supabase
+      .from('Deal')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', status)
+
+    // Apply category filter
+    if (category) {
+      dealsQuery = dealsQuery.eq('category', category)
+      countQuery = countQuery.eq('category', category)
+    }
+
+    // Apply search filter
+    if (search) {
+      dealsQuery = dealsQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      countQuery = countQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+    }
+
+    const [dealsResponse, countResponse] = await Promise.all([
+      dealsQuery,
+      countQuery,
     ])
+
+    const deals = unwrap(dealsResponse, 'List deals')
+    const total = countResponse.count ?? 0
 
     // Calculate distance for each deal
     const userLocation = !isNaN(lat) && !isNaN(lng)
@@ -145,16 +138,10 @@ export async function POST(request: Request) {
     }
 
     // Find vendor profile
-    const vendor = await db.vendor.findFirst({
-      where: { userId: authUser.userId },
-    })
-
-    if (!vendor) {
-      return NextResponse.json(
-        { success: false, error: 'Vendor profile not found' },
-        { status: 404 }
-      )
-    }
+    const vendor = unwrap(
+      await supabase.from('Vendor').select('*').eq('userId', authUser.userId).limit(1).single(),
+      'Find vendor profile'
+    )
 
     if (vendor.verificationStatus !== 'approved') {
       return NextResponse.json(
@@ -210,8 +197,9 @@ export async function POST(request: Request) {
     // Calculate discount percent
     const discountPercent = Math.round(((originalPrice - dealPrice) / originalPrice) * 100)
 
-    const deal = await db.deal.create({
-      data: {
+    const deal = unwrap(
+      await supabase.from('Deal').insert({
+        id: genId('deal'),
         vendorId: vendor.id,
         title: title.trim(),
         description: description.trim(),
@@ -228,23 +216,11 @@ export async function POST(request: Request) {
         status: 'active',
         pickupOnly: true,
         pickupInstructions: pickupInstructions || null,
-        publicAccessAt: new Date(),
-        expiresAt: expiresDate,
-      },
-      include: {
-        vendor: {
-          select: {
-            id: true,
-            businessName: true,
-            latitude: true,
-            longitude: true,
-            address: true,
-            logoUrl: true,
-            rating: true,
-          },
-        },
-      },
-    })
+        publicAccessAt: new Date().toISOString(),
+        expiresAt: expiresDate.toISOString(),
+      }).select('*, vendor:Vendor(id, businessName, latitude, longitude, address, logoUrl, rating)').single(),
+      'Create deal'
+    )
 
     // Invalidate cache
     cache.delete('deals:active')

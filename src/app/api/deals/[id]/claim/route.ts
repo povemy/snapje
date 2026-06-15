@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 import { reservationManager } from '@/lib/reservation'
 import { rateLimiter } from '@/lib/cache'
@@ -27,18 +27,15 @@ export async function POST(
       )
     }
 
-    // Find the deal
-    const deal = await db.deal.findUnique({
-      where: { id },
-      include: { vendor: true },
-    })
-
-    if (!deal) {
-      return NextResponse.json(
-        { success: false, error: 'Deal not found' },
-        { status: 404 }
-      )
-    }
+    // Find the deal with vendor
+    const deal = unwrap(
+      await supabase
+        .from('Deal')
+        .select('*, vendor:Vendor(*)')
+        .eq('id', id)
+        .single(),
+      'Find deal for claim'
+    )
 
     // Check deal status
     if (deal.status !== 'active') {
@@ -51,7 +48,7 @@ export async function POST(
     // Check if expired
     if (new Date(deal.expiresAt) <= new Date()) {
       // Update deal status to expired
-      await db.deal.update({ where: { id }, data: { status: 'expired' } })
+      await supabase.from('Deal').update({ status: 'expired' }).eq('id', id)
       return NextResponse.json(
         { success: false, error: 'This deal has expired' },
         { status: 400 }
@@ -69,7 +66,7 @@ export async function POST(
     // Check available quantity
     if (deal.availableQuantity <= 0) {
       // Update deal status to sold_out
-      await db.deal.update({ where: { id }, data: { status: 'sold_out' } })
+      await supabase.from('Deal').update({ status: 'sold_out' }).eq('id', id)
       return NextResponse.json(
         { success: false, error: 'This deal is sold out' },
         { status: 400 }
@@ -77,25 +74,29 @@ export async function POST(
     }
 
     // Run these checks in parallel to reduce latency
-    const [existingReservation, userClaimsCount] = await Promise.all([
+    const [existingReservationResponse, userClaimsCountResponse] = await Promise.all([
       // Check if user already has a pending reservation for this deal
-      db.reservation.findFirst({
-        where: {
-          dealId: id,
-          userId: authUser.userId,
-          status: 'pending',
-          expiresAt: { gt: new Date() },
-        },
-      }),
+      supabase
+        .from('Reservation')
+        .select('*')
+        .eq('dealId', id)
+        .eq('userId', authUser.userId)
+        .eq('status', 'pending')
+        .gt('expiresAt', new Date().toISOString())
+        .limit(1)
+        .single(),
       // Check user's total claims for this deal
-      db.reservation.count({
-        where: {
-          dealId: id,
-          userId: authUser.userId,
-          status: { in: ['pending', 'confirmed'] },
-        },
-      }),
+      supabase
+        .from('Reservation')
+        .select('*', { count: 'exact', head: true })
+        .eq('dealId', id)
+        .eq('userId', authUser.userId)
+        .in('status', ['pending', 'confirmed']),
     ])
+
+    // existingReservation may return error if no rows found — that's the expected case
+    const existingReservation = existingReservationResponse.error ? null : existingReservationResponse.data
+    const userClaimsCount = userClaimsCountResponse.count ?? 0
 
     if (existingReservation) {
       return NextResponse.json(
@@ -124,24 +125,29 @@ export async function POST(
       // Create reservation with 5-minute TTL
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
 
-      const reservation = await db.reservation.create({
-        data: {
+      const reservation = unwrap(
+        await supabase.from('Reservation').insert({
+          id: genId('res'),
           dealId: id,
           userId: authUser.userId,
           quantity: 1,
           status: 'pending',
-          expiresAt,
-        },
-      })
+          expiresAt: expiresAt.toISOString(),
+        }).select().single(),
+        'Create reservation'
+      )
 
       // Update deal quantities atomically
-      await db.deal.update({
-        where: { id },
-        data: {
-          reservedQuantity: { increment: 1 },
-          availableQuantity: { decrement: 1 },
-        },
-      })
+      // Fetch current values then update (Supabase REST API doesn't support atomic increment)
+      const currentDeal = unwrap(
+        await supabase.from('Deal').select('reservedQuantity, availableQuantity').eq('id', id).single(),
+        'Fetch deal quantities for update'
+      )
+
+      await supabase.from('Deal').update({
+        reservedQuantity: currentDeal.reservedQuantity + 1,
+        availableQuantity: currentDeal.availableQuantity - 1,
+      }).eq('id', id)
 
       return NextResponse.json({
         success: true,
@@ -160,6 +166,13 @@ export async function POST(
       throw dbError
     }
   } catch (error) {
+    // Check if it's a "not found" error from Supabase (PGRST116)
+    if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('0 rows')) {
+      return NextResponse.json(
+        { success: false, error: 'Deal not found' },
+        { status: 404 }
+      )
+    }
     console.error('Claim deal error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

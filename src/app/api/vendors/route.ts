@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser, hasRole, parseRoles } from '@/lib/auth'
 
 export async function GET(request: Request) {
@@ -11,47 +11,55 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
 
-    const where: Record<string, unknown> = {}
+    let query = supabase
+      .from('Vendor')
+      .select('*, user:User(id, name, email, phone, avatarUrl)')
+      .order('createdAt', { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1)
 
     // If "my" parameter, return only the current user's vendor
     if (my === 'true') {
       const authUser = await getAuthUser()
       if (authUser) {
-        where.userId = authUser.userId
+        query = query.eq('userId', authUser.userId)
       }
     }
 
     if (status) {
-      where.verificationStatus = status
+      query = query.eq('verificationStatus', status)
     }
 
     if (search) {
-      where.OR = [
-        { businessName: { contains: search } },
-        { address: { contains: search } },
-      ]
+      query = query.or(`businessName.ilike.%${search}%,address.ilike.%${search}%`)
     }
 
-    const [vendors, total] = await Promise.all([
-      db.vendor.findMany({
-        where,
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-              avatarUrl: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      db.vendor.count({ where }),
+    // Build count query (same filters, but no pagination)
+    let countQuery = supabase
+      .from('Vendor')
+      .select('*', { count: 'exact', head: true })
+
+    if (my === 'true') {
+      const authUser = await getAuthUser()
+      if (authUser) {
+        countQuery = countQuery.eq('userId', authUser.userId)
+      }
+    }
+
+    if (status) {
+      countQuery = countQuery.eq('verificationStatus', status)
+    }
+
+    if (search) {
+      countQuery = countQuery.or(`businessName.ilike.%${search}%,address.ilike.%${search}%`)
+    }
+
+    const [vendorsRes, countRes] = await Promise.all([
+      query,
+      countQuery,
     ])
+
+    const vendors = unwrap(vendorsRes, 'List vendors')
+    const total = countRes.count ?? 0
 
     return NextResponse.json({
       success: true,
@@ -83,11 +91,14 @@ export async function POST(request: Request) {
     }
 
     // Check if user already has a vendor profile
-    const existingVendor = await db.vendor.findFirst({
-      where: { userId: authUser.userId },
-    })
+    const existingVendorRes = await supabase
+      .from('Vendor')
+      .select('*')
+      .eq('userId', authUser.userId)
+      .limit(1)
+      .maybeSingle()
 
-    if (existingVendor) {
+    if (existingVendorRes.data) {
       return NextResponse.json(
         { success: false, error: 'You already have a vendor profile' },
         { status: 409 }
@@ -115,33 +126,31 @@ export async function POST(request: Request) {
       )
     }
 
-    // Add "vendor" role to user
-    const user = await db.user.findUnique({ where: { id: authUser.userId } })
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
-    }
+    // Get user
+    const user = unwrap(
+      await supabase.from('User').select('*').eq('id', authUser.userId).single(),
+      'Find user for vendor registration'
+    )
 
     const currentRoles = parseRoles(user.roles)
     if (!currentRoles.includes('vendor')) {
       currentRoles.push('vendor')
     }
 
-    // Create vendor and update user roles in transaction
-    const vendor = await db.$transaction(async (tx) => {
-      // Update user roles
-      await tx.user.update({
-        where: { id: authUser.userId },
-        data: {
-          roles: currentRoles.join(','),
-        },
-      })
+    // Sequential: update user roles, then create vendor
+    unwrap(
+      await supabase
+        .from('User')
+        .update({ roles: currentRoles.join(',') })
+        .eq('id', authUser.userId),
+      'Update user roles'
+    )
 
-      // Create vendor profile
-      const newVendor = await tx.vendor.create({
-        data: {
+    const vendor = unwrap(
+      await supabase
+        .from('Vendor')
+        .insert({
+          id: genId('vendor'),
           userId: authUser.userId,
           businessName: businessName.trim(),
           description: description?.trim() || null,
@@ -153,20 +162,11 @@ export async function POST(request: Request) {
           operatingHours: operatingHours ? JSON.stringify(operatingHours) : '{}',
           foodCategories: foodCategories ? JSON.stringify(foodCategories) : '[]',
           verificationStatus: 'pending',
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      })
-
-      return newVendor
-    })
+        })
+        .select('*, user:User(id, name, email)')
+        .single(),
+      'Create vendor'
+    )
 
     return NextResponse.json({
       success: true,

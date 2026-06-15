@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { generateAccessToken, generateRefreshToken, setAuthCookies, parseRoles } from '@/lib/auth'
 import { rateLimiter } from '@/lib/cache'
 import bcrypt from 'bcryptjs'
@@ -49,7 +49,20 @@ export async function POST(request: Request) {
     }
 
     // Check if email already exists
-    const existingUser = await db.user.findUnique({ where: { email: email.toLowerCase() } })
+    const { data: existingUser, error: checkError } = await supabase
+      .from('User')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .maybeSingle()
+
+    if (checkError) {
+      console.error('Register check error:', checkError.message)
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: 'Email already registered' },
@@ -61,16 +74,22 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(password, 10)
 
     // Create user
-    const user = await db.user.create({
-      data: {
-        email: email.toLowerCase(),
-        passwordHash,
-        name: name.trim(),
-        phone: phone?.trim() || null,
-        roles: 'foodie',
-        activeRole: 'foodie',
-      },
-    })
+    const user = unwrap(
+      await supabase
+        .from('User')
+        .insert({
+          id: genId('user'),
+          email: email.toLowerCase(),
+          passwordHash,
+          name: name.trim(),
+          phone: phone?.trim() || null,
+          roles: 'foodie',
+          activeRole: 'foodie',
+        })
+        .select()
+        .single(),
+      'Create user'
+    )
 
     // Generate tokens
     const roles = parseRoles(user.roles)

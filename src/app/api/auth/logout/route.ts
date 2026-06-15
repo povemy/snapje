@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { clearAuthCookies, getAuthUser } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
 export async function POST() {
@@ -10,13 +10,27 @@ export async function POST() {
     
     if (authUser) {
       // Delete all refresh tokens for this user (logout all sessions)
-      await db.refreshToken.deleteMany({ where: { userId: authUser.userId } })
+      const { error: deleteError } = await supabase
+        .from('RefreshToken')
+        .delete()
+        .eq('userId', authUser.userId)
+
+      if (deleteError) {
+        console.error('Logout delete tokens error:', deleteError.message)
+      }
     } else {
       // Even if access token is expired, try to delete the specific refresh token
       const cookieStore = await cookies()
       const refreshToken = cookieStore.get('refresh_token')?.value
       if (refreshToken) {
-        await db.refreshToken.deleteMany({ where: { token: refreshToken } })
+        const { error: deleteError } = await supabase
+          .from('RefreshToken')
+          .delete()
+          .eq('token', refreshToken)
+
+        if (deleteError) {
+          console.error('Logout delete token error:', deleteError.message)
+        }
       }
     }
 

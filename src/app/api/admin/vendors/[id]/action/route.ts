@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 
 export async function POST(
@@ -17,20 +17,15 @@ export async function POST(
       )
     }
 
-    const vendor = await db.vendor.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
+    // Fetch vendor with user join
+    const vendorRes = await supabase
+      .from('Vendor')
+      .select('*, user:User(id, name, email)')
+      .eq('id', id)
+      .single()
 
-    if (!vendor) {
+    const vendor = vendorRes.data
+    if (!vendor || vendorRes.error) {
       return NextResponse.json(
         { success: false, error: 'Vendor not found' },
         { status: 404 }
@@ -58,67 +53,68 @@ export async function POST(
 
     const newStatus = statusMap[action]
 
-    // Update vendor and create notification in transaction
-    const updatedVendor = await db.$transaction(async (tx) => {
-      const updated = await tx.vendor.update({
-        where: { id },
-        data: {
-          verificationStatus: newStatus,
-          ...(action === 'approve' ? { verifiedAt: new Date(), rejectionReason: null } : {}),
-          ...(action === 'reject' ? { rejectionReason: reason || 'No reason provided' } : {}),
-          ...(action === 'restore' ? { rejectionReason: null } : {}),
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-        },
-      })
+    // Build update data
+    const updateData: Record<string, unknown> = {
+      verificationStatus: newStatus,
+    }
 
-      // Create notification for the vendor user
-      const notificationMap: Record<string, { type: string; title: string; message: string }> = {
-        approve: {
-          type: 'vendor_approved',
-          title: 'Vendor Account Approved! 🎉',
-          message: `Your vendor account "${vendor.businessName}" has been approved. You can now create flash deals!`,
-        },
-        reject: {
-          type: 'vendor_rejected',
-          title: 'Vendor Account Rejected',
-          message: `Your vendor account "${vendor.businessName}" application has been rejected. Reason: ${reason || 'No reason provided'}`,
-        },
-        suspend: {
-          type: 'vendor_rejected',
-          title: 'Vendor Account Suspended',
-          message: `Your vendor account "${vendor.businessName}" has been suspended. Reason: ${reason || 'No reason provided'}`,
-        },
-        restore: {
-          type: 'vendor_approved',
-          title: 'Vendor Account Restored',
-          message: `Your vendor account "${vendor.businessName}" has been restored and is now active.`,
-        },
-      }
+    if (action === 'approve') {
+      updateData.verifiedAt = new Date().toISOString()
+      updateData.rejectionReason = null
+    }
+    if (action === 'reject') {
+      updateData.rejectionReason = reason || 'No reason provided'
+    }
+    if (action === 'restore') {
+      updateData.rejectionReason = null
+    }
 
-      const notif = notificationMap[action]
-      await tx.notification.create({
-        data: {
-          userId: vendor.userId,
-          type: notif.type,
-          title: notif.title,
-          message: notif.message,
-          data: JSON.stringify({
-            vendorId: vendor.id,
-            action,
-            reason: reason || null,
-          }),
-        },
-      })
+    // Update vendor (replace transaction with sequential operations)
+    const updatedVendorRes = await supabase
+      .from('Vendor')
+      .update(updateData)
+      .eq('id', id)
+      .select('*, user:User(id, name, email)')
+      .single()
 
-      return updated
+    const updatedVendor = unwrap(updatedVendorRes, 'Update vendor')
+
+    // Create notification for the vendor user
+    const notificationMap: Record<string, { type: string; title: string; message: string }> = {
+      approve: {
+        type: 'vendor_approved',
+        title: 'Vendor Account Approved! 🎉',
+        message: `Your vendor account "${vendor.businessName}" has been approved. You can now create flash deals!`,
+      },
+      reject: {
+        type: 'vendor_rejected',
+        title: 'Vendor Account Rejected',
+        message: `Your vendor account "${vendor.businessName}" application has been rejected. Reason: ${reason || 'No reason provided'}`,
+      },
+      suspend: {
+        type: 'vendor_rejected',
+        title: 'Vendor Account Suspended',
+        message: `Your vendor account "${vendor.businessName}" has been suspended. Reason: ${reason || 'No reason provided'}`,
+      },
+      restore: {
+        type: 'vendor_approved',
+        title: 'Vendor Account Restored',
+        message: `Your vendor account "${vendor.businessName}" has been restored and is now active.`,
+      },
+    }
+
+    const notif = notificationMap[action]
+    await supabase.from('Notification').insert({
+      id: genId('notif'),
+      userId: vendor.userId,
+      type: notif.type,
+      title: notif.title,
+      message: notif.message,
+      data: JSON.stringify({
+        vendorId: vendor.id,
+        action,
+        reason: reason || null,
+      }),
     })
 
     return NextResponse.json({

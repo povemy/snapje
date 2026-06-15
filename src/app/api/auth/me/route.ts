@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthUser, parseRoles } from '@/lib/auth'
-import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 
 export async function GET() {
   try {
@@ -12,11 +12,20 @@ export async function GET() {
       )
     }
 
-    // Fetch fresh user data from DB
-    const user = await db.user.findUnique({
-      where: { id: authUser.userId },
-      include: { vendor: true },
-    })
+    // Fetch fresh user data from DB with vendor relation
+    const { data: user, error: userError } = await supabase
+      .from('User')
+      .select('*, vendor:Vendor(*)')
+      .eq('id', authUser.userId)
+      .maybeSingle()
+
+    if (userError) {
+      console.error('Get current user query error:', userError.message)
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
 
     if (!user) {
       return NextResponse.json(

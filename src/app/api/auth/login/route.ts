@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase } from '@/lib/supabase'
 import { generateAccessToken, generateRefreshToken, setAuthCookies, parseRoles } from '@/lib/auth'
 import { rateLimiter } from '@/lib/cache'
 import bcrypt from 'bcryptjs'
@@ -26,7 +26,20 @@ export async function POST(request: Request) {
     }
 
     // Find user
-    const user = await db.user.findUnique({ where: { email: email.toLowerCase() } })
+    const { data: user, error: userError } = await supabase
+      .from('User')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle()
+
+    if (userError) {
+      console.error('Login query error:', userError.message)
+      return NextResponse.json(
+        { success: false, error: 'Invalid email or password' },
+        { status: 401 }
+      )
+    }
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'Invalid email or password' },

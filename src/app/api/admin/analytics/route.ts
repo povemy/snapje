@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { cache } from '@/lib/cache'
 
@@ -25,69 +25,68 @@ export async function GET() {
 
     // Run all analytics queries in parallel
     const [
-      totalUsers,
-      totalVendors,
-      totalDeals,
-      totalOrders,
-      totalRevenue,
-      dealsByStatus,
-      recentUsers,
-      recentVendors,
-      ordersByStatus,
-      topVendors,
+      totalUsersRes,
+      totalVendorsRes,
+      totalDealsRes,
+      totalOrdersRes,
+      revenueRes,
+      dealsStatusRes,
+      recentUsersRes,
+      recentVendorsRes,
+      ordersStatusRes,
+      topVendorsRes,
     ] = await Promise.all([
-      db.user.count(),
-      db.vendor.count(),
-      db.deal.count(),
-      db.order.count(),
-      db.order.aggregate({
-        where: { status: { in: ['picked_up', 'completed'] } },
-        _sum: { totalPrice: true },
-      }),
-      db.deal.groupBy({
-        by: ['status'],
-        _count: { status: true },
-      }),
-      db.user.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          roles: true,
-          createdAt: true,
-        },
-      }),
-      db.vendor.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          businessName: true,
-          verificationStatus: true,
-          createdAt: true,
-          user: {
-            select: { name: true, email: true },
-          },
-        },
-      }),
-      db.order.groupBy({
-        by: ['status'],
-        _count: { status: true },
-      }),
-      db.vendor.findMany({
-        where: { totalSales: { gt: 0 } },
-        take: 5,
-        orderBy: { totalSales: 'desc' },
-        select: {
-          id: true,
-          businessName: true,
-          totalSales: true,
-          rating: true,
-        },
-      }),
+      supabase.from('User').select('*', { count: 'exact', head: true }),
+      supabase.from('Vendor').select('*', { count: 'exact', head: true }),
+      supabase.from('Deal').select('*', { count: 'exact', head: true }),
+      supabase.from('Order').select('*', { count: 'exact', head: true }),
+      supabase.from('Order').select('totalPrice').in('status', ['picked_up', 'completed']),
+      supabase.from('Deal').select('status'),
+      supabase.from('User').select('id, name, email, roles, createdAt').order('createdAt', { ascending: false }).limit(5),
+      supabase.from('Vendor').select('id, businessName, verificationStatus, createdAt, user:User(name, email)').order('createdAt', { ascending: false }).limit(5),
+      supabase.from('Order').select('status'),
+      supabase.from('Vendor').select('id, businessName, totalSales, rating').gt('totalSales', 0).order('totalSales', { ascending: false }).limit(5),
     ])
+
+    // Unwrap data responses
+    const totalUsers = totalUsersRes.count ?? 0
+    const totalVendors = totalVendorsRes.count ?? 0
+    const totalDeals = totalDealsRes.count ?? 0
+    const totalOrders = totalOrdersRes.count ?? 0
+
+    // Calculate total revenue in-memory
+    const revenueData = unwrap(revenueRes, 'Fetch revenue')
+    const totalRevenue = revenueData.reduce((sum, o) => sum + (o.totalPrice || 0), 0)
+
+    // Group deals by status in-memory
+    const dealsData = unwrap(dealsStatusRes, 'Fetch deals status')
+    const dealsByStatus = dealsData.reduce<Record<string, number>>((acc, item) => {
+      acc[item.status] = (acc[item.status] || 0) + 1
+      return acc
+    }, {})
+
+    // Group orders by status in-memory
+    const ordersData = unwrap(ordersStatusRes, 'Fetch orders status')
+    const ordersByStatus = ordersData.reduce<Record<string, number>>((acc, item) => {
+      acc[item.status] = (acc[item.status] || 0) + 1
+      return acc
+    }, {})
+
+    // Recent users
+    const recentUsers = unwrap(recentUsersRes, 'Fetch recent users')
+
+    // Recent vendors (flatten user relation for response compatibility)
+    const recentVendorsRaw = unwrap(recentVendorsRes, 'Fetch recent vendors')
+    const recentVendors = recentVendorsRaw.map((v) => ({
+      id: v.id,
+      businessName: v.businessName,
+      verificationStatus: v.verificationStatus,
+      createdAt: v.createdAt,
+      user: v.user,
+    }))
+
+    // Top vendors
+    const topVendors = unwrap(topVendorsRes, 'Fetch top vendors')
 
     const analytics = {
       overview: {
@@ -95,16 +94,10 @@ export async function GET() {
         totalVendors,
         totalDeals,
         totalOrders,
-        totalRevenue: totalRevenue._sum.totalPrice || 0,
+        totalRevenue,
       },
-      dealsByStatus: dealsByStatus.reduce<Record<string, number>>((acc, item) => {
-        acc[item.status] = item._count.status
-        return acc
-      }, {}),
-      ordersByStatus: ordersByStatus.reduce<Record<string, number>>((acc, item) => {
-        acc[item.status] = item._count.status
-        return acc
-      }, {}),
+      dealsByStatus,
+      ordersByStatus,
       recentRegistrations: {
         users: recentUsers,
         vendors: recentVendors,

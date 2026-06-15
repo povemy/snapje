@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 
 export async function GET(request: Request) {
@@ -16,30 +16,44 @@ export async function GET(request: Request) {
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const skip = (page - 1) * pageSize
 
-    const where: Record<string, unknown> = {
-      userId: authUser.userId,
-    }
+    let query = supabase
+      .from('Notification')
+      .select('*')
+      .eq('userId', authUser.userId)
+      .order('createdAt', { ascending: false })
+      .range(skip, skip + pageSize - 1)
 
     if (unreadOnly) {
-      where.read = false
+      query = query.eq('read', false)
     }
 
-    const [notifications, total, unreadCount] = await Promise.all([
-      db.notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-      }),
-      db.notification.count({ where }),
-      db.notification.count({
-        where: {
-          userId: authUser.userId,
-          read: false,
-        },
-      }),
+    // Count queries
+    let totalQuery = supabase
+      .from('Notification')
+      .select('*', { count: 'exact', head: true })
+      .eq('userId', authUser.userId)
+
+    if (unreadOnly) {
+      totalQuery = totalQuery.eq('read', false)
+    }
+
+    const unreadCountQuery = supabase
+      .from('Notification')
+      .select('*', { count: 'exact', head: true })
+      .eq('userId', authUser.userId)
+      .eq('read', false)
+
+    const [notificationsRes, totalRes, unreadCountRes] = await Promise.all([
+      query,
+      totalQuery,
+      unreadCountQuery,
     ])
+
+    const notifications = unwrap(notificationsRes, 'List notifications')
+    const total = totalRes.count ?? 0
+    const unreadCount = unreadCountRes.count ?? 0
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 
 export async function POST(
@@ -17,16 +17,20 @@ export async function POST(
       )
     }
 
-    const notification = await db.notification.findUnique({
-      where: { id },
-    })
+    const notifRes = await supabase
+      .from('Notification')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-    if (!notification) {
+    if (notifRes.error || !notifRes.data) {
       return NextResponse.json(
         { success: false, error: 'Notification not found' },
         { status: 404 }
       )
     }
+
+    const notification = notifRes.data
 
     // Verify ownership
     if (notification.userId !== authUser.userId) {
@@ -36,10 +40,15 @@ export async function POST(
       )
     }
 
-    const updatedNotification = await db.notification.update({
-      where: { id },
-      data: { read: true },
-    })
+    const updatedNotification = unwrap(
+      await supabase
+        .from('Notification')
+        .update({ read: true })
+        .eq('id', id)
+        .select()
+        .single(),
+      'Mark notification as read'
+    )
 
     return NextResponse.json({
       success: true,

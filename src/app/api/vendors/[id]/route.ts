@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION } from '@/lib/distance'
 
@@ -10,32 +10,31 @@ export async function GET(
   try {
     const { id } = await params
 
-    const vendor = await db.vendor.findUnique({
-      where: { id },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            avatarUrl: true,
-          },
-        },
-        deals: {
-          where: { status: 'active' },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-        },
-      },
-    })
+    // Split into two queries: vendor with user, and active deals
+    const [vendorRes, dealsRes] = await Promise.all([
+      supabase
+        .from('Vendor')
+        .select('*, user:User(id, name, email, phone, avatarUrl)')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('Deal')
+        .select('*')
+        .eq('vendorId', id)
+        .eq('status', 'active')
+        .order('createdAt', { ascending: false })
+        .limit(10),
+    ])
 
-    if (!vendor) {
+    if (vendorRes.error || !vendorRes.data) {
       return NextResponse.json(
         { success: false, error: 'Vendor not found' },
         { status: 404 }
       )
     }
+
+    const vendor = vendorRes.data
+    const deals = dealsRes.data ?? []
 
     // Calculate distance
     const { searchParams } = new URL(request.url)
@@ -54,6 +53,7 @@ export async function GET(
       success: true,
       data: {
         ...vendor,
+        deals,
         distance: Math.round(distance * 10) / 10,
       },
     })
@@ -81,16 +81,20 @@ export async function PATCH(
       )
     }
 
-    const vendor = await db.vendor.findUnique({
-      where: { id },
-    })
+    const vendorRes = await supabase
+      .from('Vendor')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-    if (!vendor) {
+    if (vendorRes.error || !vendorRes.data) {
       return NextResponse.json(
         { success: false, error: 'Vendor not found' },
         { status: 404 }
       )
     }
+
+    const vendor = vendorRes.data
 
     // Check ownership or admin
     const isAdmin = hasRole(authUser.roles.join(','), 'admin')
@@ -130,19 +134,15 @@ export async function PATCH(
     if (logoUrl !== undefined) updateData.logoUrl = logoUrl
     if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl
 
-    const updatedVendor = await db.vendor.update({
-      where: { id },
-      data: updateData,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-    })
+    const updatedVendor = unwrap(
+      await supabase
+        .from('Vendor')
+        .update(updateData)
+        .eq('id', id)
+        .select('*, user:User(id, name, email)')
+        .single(),
+      'Update vendor'
+    )
 
     return NextResponse.json({
       success: true,

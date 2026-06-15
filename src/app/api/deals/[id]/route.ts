@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION } from '@/lib/distance'
 import { cache } from '@/lib/cache'
@@ -11,35 +11,14 @@ export async function GET(
   try {
     const { id } = await params
 
-    const deal = await db.deal.findUnique({
-      where: { id },
-      include: {
-        vendor: {
-          select: {
-            id: true,
-            businessName: true,
-            description: true,
-            latitude: true,
-            longitude: true,
-            address: true,
-            logoUrl: true,
-            coverImageUrl: true,
-            rating: true,
-            totalSales: true,
-            foodCategories: true,
-            operatingHours: true,
-            verificationStatus: true,
-          },
-        },
-      },
-    })
-
-    if (!deal) {
-      return NextResponse.json(
-        { success: false, error: 'Deal not found' },
-        { status: 404 }
-      )
-    }
+    const deal = unwrap(
+      await supabase
+        .from('Deal')
+        .select('*, vendor:Vendor(id, businessName, description, latitude, longitude, address, logoUrl, coverImageUrl, rating, totalSales, foodCategories, operatingHours, verificationStatus)')
+        .eq('id', id)
+        .single(),
+      'Get deal'
+    )
 
     // Calculate distance if user provides location
     const { searchParams } = new URL(request.url)
@@ -62,6 +41,13 @@ export async function GET(
       },
     })
   } catch (error) {
+    // Check if it's a "not found" error from Supabase (PGRST116)
+    if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('0 rows')) {
+      return NextResponse.json(
+        { success: false, error: 'Deal not found' },
+        { status: 404 }
+      )
+    }
     console.error('Get deal error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
@@ -85,18 +71,15 @@ export async function PATCH(
       )
     }
 
-    // Find the deal
-    const deal = await db.deal.findUnique({
-      where: { id },
-      include: { vendor: true },
-    })
-
-    if (!deal) {
-      return NextResponse.json(
-        { success: false, error: 'Deal not found' },
-        { status: 404 }
-      )
-    }
+    // Find the deal with vendor
+    const deal = unwrap(
+      await supabase
+        .from('Deal')
+        .select('*, vendor:Vendor(*)')
+        .eq('id', id)
+        .single(),
+      'Find deal for update'
+    )
 
     // Check ownership
     if (deal.vendor.userId !== authUser.userId && !hasRole(authUser.roles.join(','), 'admin')) {
@@ -129,7 +112,7 @@ export async function PATCH(
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl
     if (pickupInstructions !== undefined) updateData.pickupInstructions = pickupInstructions
     if (status !== undefined) updateData.status = status
-    if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt)
+    if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt).toISOString()
 
     if (originalPrice !== undefined) updateData.originalPrice = parseFloat(originalPrice)
     if (dealPrice !== undefined) updateData.dealPrice = parseFloat(dealPrice)
@@ -160,23 +143,15 @@ export async function PATCH(
       updateData.availableQuantity = newTotal - deal.soldQuantity - deal.reservedQuantity
     }
 
-    const updatedDeal = await db.deal.update({
-      where: { id },
-      data: updateData,
-      include: {
-        vendor: {
-          select: {
-            id: true,
-            businessName: true,
-            latitude: true,
-            longitude: true,
-            address: true,
-            logoUrl: true,
-            rating: true,
-          },
-        },
-      },
-    })
+    const updatedDeal = unwrap(
+      await supabase
+        .from('Deal')
+        .update(updateData)
+        .eq('id', id)
+        .select('*, vendor:Vendor(id, businessName, latitude, longitude, address, logoUrl, rating)')
+        .single(),
+      'Update deal'
+    )
 
     // Invalidate cache
     cache.delete('deals:active')
@@ -186,6 +161,13 @@ export async function PATCH(
       data: updatedDeal,
     })
   } catch (error) {
+    // Check if it's a "not found" error from Supabase (PGRST116)
+    if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('0 rows')) {
+      return NextResponse.json(
+        { success: false, error: 'Deal not found' },
+        { status: 404 }
+      )
+    }
     console.error('Update deal error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

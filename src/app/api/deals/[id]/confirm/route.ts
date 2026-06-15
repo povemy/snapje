@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 
 export async function POST(
@@ -28,23 +28,14 @@ export async function POST(
     }
 
     // Find the reservation
-    const reservation = await db.reservation.findUnique({
-      where: { id: reservationId },
-      include: {
-        deal: {
-          include: {
-            vendor: true,
-          },
-        },
-      },
-    })
-
-    if (!reservation) {
-      return NextResponse.json(
-        { success: false, error: 'Reservation not found' },
-        { status: 404 }
-      )
-    }
+    const reservation = unwrap(
+      await supabase
+        .from('Reservation')
+        .select('*')
+        .eq('id', reservationId)
+        .single(),
+      'Find reservation'
+    )
 
     // Verify reservation belongs to user
     if (reservation.userId !== authUser.userId) {
@@ -63,19 +54,20 @@ export async function POST(
     }
 
     // Verify reservation hasn't expired
-    if (reservation.expiresAt < new Date()) {
-      await db.reservation.update({
-        where: { id: reservationId },
-        data: { status: 'expired' },
-      })
+    if (new Date(reservation.expiresAt) < new Date()) {
+      await supabase.from('Reservation').update({ status: 'expired' }).eq('id', reservationId)
+
       // Return reserved quantity back to available
-      await db.deal.update({
-        where: { id: reservation.dealId },
-        data: {
-          reservedQuantity: { decrement: 1 },
-          availableQuantity: { increment: 1 },
-        },
-      })
+      // Fetch current deal quantities
+      const currentDeal = unwrap(
+        await supabase.from('Deal').select('reservedQuantity, availableQuantity').eq('id', reservation.dealId).single(),
+        'Fetch deal for expired reservation'
+      )
+      await supabase.from('Deal').update({
+        reservedQuantity: currentDeal.reservedQuantity - 1,
+        availableQuantity: currentDeal.availableQuantity + 1,
+      }).eq('id', reservation.dealId)
+
       return NextResponse.json(
         { success: false, error: 'Your reservation has expired. Please claim the deal again.' },
         { status: 400 }
@@ -90,7 +82,15 @@ export async function POST(
       )
     }
 
-    const deal = reservation.deal
+    // Fetch deal with vendor
+    const deal = unwrap(
+      await supabase
+        .from('Deal')
+        .select('*, vendor:Vendor(*)')
+        .eq('id', id)
+        .single(),
+      'Find deal for confirmation'
+    )
 
     // Generate QR code and order number
     const qrCode = crypto.randomUUID()
@@ -101,66 +101,64 @@ export async function POST(
     // Calculate pickup deadline (2 hours from now)
     const pickupDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000)
 
-    // Use a transaction for atomic operations
-    const order = await db.$transaction(async (tx) => {
-      // Create order
-      const newOrder = await tx.order.create({
-        data: {
-          orderNumber,
-          userId: authUser.userId,
-          vendorId: deal.vendorId,
-          dealId: deal.id,
-          quantity: reservation.quantity,
-          originalPrice: deal.originalPrice,
-          dealPrice: deal.dealPrice,
-          totalPrice: deal.dealPrice * reservation.quantity,
-          status: 'pending_pickup',
-          qrCode,
-          pickupDeadline,
-        },
-      })
+    // Sequential operations (Supabase REST API doesn't support transactions)
+    // 1. Create order
+    const newOrder = unwrap(
+      await supabase.from('Order').insert({
+        id: genId('order'),
+        orderNumber,
+        userId: authUser.userId,
+        vendorId: deal.vendorId,
+        dealId: deal.id,
+        quantity: reservation.quantity,
+        originalPrice: deal.originalPrice,
+        dealPrice: deal.dealPrice,
+        totalPrice: deal.dealPrice * reservation.quantity,
+        status: 'pending_pickup',
+        qrCode,
+        pickupDeadline: pickupDeadline.toISOString(),
+      }).select().single(),
+      'Create order'
+    )
 
-      // Update deal: soldQuantity++, reservedQuantity--
-      await tx.deal.update({
-        where: { id: deal.id },
-        data: {
-          soldQuantity: { increment: 1 },
-          reservedQuantity: { decrement: 1 },
-          // Check if sold out
-          ...(deal.totalQuantity - deal.soldQuantity - deal.reservedQuantity + deal.reservedQuantity - 1 <= 0
-            ? { status: 'sold_out' }
-            : {}),
-        },
-      })
+    // 2. Update deal: soldQuantity++, reservedQuantity-- + check sold out
+    const newSoldQuantity = deal.soldQuantity + 1
+    const newReservedQuantity = deal.reservedQuantity - 1
+    const remainingAvailable = deal.totalQuantity - newSoldQuantity - newReservedQuantity
 
-      // Update reservation status
-      await tx.reservation.update({
-        where: { id: reservationId },
-        data: { status: 'confirmed' },
-      })
+    const dealUpdateData: Record<string, unknown> = {
+      soldQuantity: newSoldQuantity,
+      reservedQuantity: newReservedQuantity,
+    }
 
-      // Create notification
-      await tx.notification.create({
-        data: {
-          userId: authUser.userId,
-          type: 'claim_confirmed',
-          title: 'Order Confirmed!',
-          message: `Your order for "${deal.title}" from ${deal.vendor.businessName} is confirmed. Pick up before ${pickupDeadline.toLocaleTimeString()}.`,
-          data: JSON.stringify({
-            orderId: newOrder.id,
-            dealId: deal.id,
-            vendorId: deal.vendorId,
-          }),
-        },
-      })
+    // Check if sold out after this order
+    if (remainingAvailable <= 0) {
+      dealUpdateData.status = 'sold_out'
+    }
 
-      return newOrder
+    await supabase.from('Deal').update(dealUpdateData).eq('id', deal.id)
+
+    // 3. Update reservation status
+    await supabase.from('Reservation').update({ status: 'confirmed' }).eq('id', reservationId)
+
+    // 4. Create notification
+    await supabase.from('Notification').insert({
+      id: genId('notif'),
+      userId: authUser.userId,
+      type: 'claim_confirmed',
+      title: 'Order Confirmed!',
+      message: `Your order for "${deal.title}" from ${deal.vendor.businessName} is confirmed. Pick up before ${pickupDeadline.toLocaleTimeString()}.`,
+      data: JSON.stringify({
+        orderId: newOrder.id,
+        dealId: deal.id,
+        vendorId: deal.vendorId,
+      }),
     })
 
     return NextResponse.json({
       success: true,
       data: {
-        order,
+        order: newOrder,
         qrCode,
         pickupDeadline: pickupDeadline.toISOString(),
         dealTitle: deal.title,
@@ -169,6 +167,13 @@ export async function POST(
       },
     }, { status: 201 })
   } catch (error) {
+    // Check if it's a "not found" error from Supabase (PGRST116)
+    if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('0 rows')) {
+      return NextResponse.json(
+        { success: false, error: 'Reservation not found' },
+        { status: 404 }
+      )
+    }
     console.error('Confirm reservation error:', error)
     return NextResponse.json(
       { success: false, error: 'Internal server error' },

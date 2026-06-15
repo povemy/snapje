@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, generateAccessToken, generateRefreshToken, setAuthCookies, parseRoles, hasRole } from '@/lib/auth'
 
 export async function POST(request: Request) {
@@ -31,7 +31,20 @@ export async function POST(request: Request) {
     }
 
     // Fetch user from DB to verify roles
-    const user = await db.user.findUnique({ where: { id: authUser.userId } })
+    const { data: user, error: userError } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', authUser.userId)
+      .maybeSingle()
+
+    if (userError) {
+      console.error('Update role fetch user error:', userError.message)
+      return NextResponse.json(
+        { success: false, error: 'Internal server error' },
+        { status: 500 }
+      )
+    }
+
     if (!user) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
@@ -48,10 +61,15 @@ export async function POST(request: Request) {
     }
 
     // Update active role
-    const updatedUser = await db.user.update({
-      where: { id: user.id },
-      data: { activeRole: role },
-    })
+    const updatedUser = unwrap(
+      await supabase
+        .from('User')
+        .update({ activeRole: role })
+        .eq('id', user.id)
+        .select()
+        .single(),
+      'Update user role'
+    )
 
     // Generate new tokens with updated active role
     const roles = parseRoles(updatedUser.roles)
@@ -63,8 +81,16 @@ export async function POST(request: Request) {
     })
     const refreshToken = await generateRefreshToken(updatedUser.id)
 
-    // Delete old refresh tokens
-    await db.refreshToken.deleteMany({ where: { userId: updatedUser.id, token: { not: refreshToken } } })
+    // Delete old refresh tokens (all except the newly generated one)
+    const { error: deleteError } = await supabase
+      .from('RefreshToken')
+      .delete()
+      .eq('userId', updatedUser.id)
+      .neq('token', refreshToken)
+
+    if (deleteError) {
+      console.error('Update role delete old tokens error:', deleteError.message)
+    }
 
     // Set new cookies
     await setAuthCookies(accessToken, refreshToken)
