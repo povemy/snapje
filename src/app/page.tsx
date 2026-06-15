@@ -15,7 +15,8 @@ import {
   Star, Clock, Flame, TrendingUp, Store, Settings, LogOut,
   ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
   AlertTriangle, Ban, RefreshCw, DollarSign, ShoppingCart,
-  Utensils, Bike, Building2, Crown, Sparkles, MoreVertical
+  Utensils, Bike, Building2, Crown, Sparkles, MoreVertical,
+  Pencil, Trash2, Timer, Save
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -1134,24 +1135,38 @@ function VendorDashboardView() {
   const { navigate } = useAppStore()
   const { user } = useAuthStore()
   const [vendor, setVendor] = useState<Vendor | null>(null)
-  const [deals, setDeals] = useState<Deal[]>([])
+  const [allDeals, setAllDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [orders, setOrders] = useState<Order[]>([])
+  const [activeTab, setActiveTab] = useState<'active' | 'expired'>('active')
+  const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editForm, setEditForm] = useState({
+    title: '', description: '', category: 'Malay',
+    originalPrice: '', dealPrice: '', totalQuantity: '',
+    expiresAt: '', status: 'active', pickupInstructions: '',
+  })
+  const [saving, setSaving] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
-  useEffect(() => {
+  const fetchVendorData = useCallback(() => {
     setLoading(true)
     Promise.all([
       apiFetch<{ vendors: Vendor[]; total: number }>('/api/vendors?my=true'),
-      apiFetch<{ deals: Deal[]; total: number }>('/api/deals?status=active&pageSize=50'),
       apiFetch<{ orders: Order[] }>('/api/orders'),
-    ]).then(([vRes, dRes, oRes]) => {
+    ]).then(([vRes, oRes]) => {
       if (vRes.success && vRes.data) {
         const vData = vRes.data.vendors?.[0] || null
-        if (vData) setVendor(vData)
-      }
-      if (dRes.success && dRes.data) {
-        const d = dRes.data.deals || []
-        setDeals(Array.isArray(d) ? d : [])
+        if (vData) {
+          setVendor(vData)
+          // Fetch vendor's deals using vendorId filter
+          apiFetch<{ deals: Deal[] }>(`/api/deals?status=all&vendorId=${vData.id}&pageSize=100`).then((dRes) => {
+            if (dRes.success && dRes.data) {
+              setAllDeals(dRes.data.deals || [])
+            }
+          })
+        }
       }
       if (oRes.success && oRes.data) {
         const o = (oRes.data as { orders?: Order[] }).orders || oRes.data
@@ -1160,12 +1175,115 @@ function VendorDashboardView() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const vendorDeals = deals.filter(d => d.vendorId === vendor?.id)
-  const activeDeals = vendorDeals.filter(d => d.status === 'active')
-  const pendingOrders = orders.filter(o => o.status === 'pending_pickup' && vendorDeals.some(d => d.id === o.dealId))
+  useEffect(() => { fetchVendorData() }, [fetchVendorData])
+
+  // Classify deals into active and expired
+  const isActiveDeal = (d: Deal) => {
+    if (d.status === 'expired' || d.status === 'cancelled') return false
+    if (d.status === 'active' && new Date(d.expiresAt) <= new Date()) return false
+    return d.status === 'active' || d.status === 'paused'
+  }
+
+  const activeDeals = allDeals.filter(isActiveDeal)
+  const expiredDeals = allDeals.filter(d => !isActiveDeal(d))
+  const pendingOrders = orders.filter(o => o.status === 'pending_pickup' && allDeals.some(d => d.id === o.dealId))
   const todayRevenue = orders
     .filter(o => o.vendorId === vendor?.id && o.status === 'completed')
     .reduce((sum, o) => sum + o.totalPrice, 0)
+
+  const displayedDeals = activeTab === 'active' ? activeDeals : expiredDeals
+
+  // Open deal detail modal
+  const openDealDetail = (deal: Deal) => {
+    setSelectedDeal(deal)
+    setShowDetailModal(true)
+  }
+
+  // Open edit modal with deal data
+  const openEditModal = (deal: Deal) => {
+    setEditForm({
+      title: deal.title,
+      description: deal.description,
+      category: deal.category,
+      originalPrice: deal.originalPrice.toString(),
+      dealPrice: deal.dealPrice.toString(),
+      totalQuantity: deal.totalQuantity.toString(),
+      expiresAt: new Date(deal.expiresAt).toISOString().slice(0, 16),
+      status: deal.status,
+      pickupInstructions: deal.pickupInstructions || '',
+    })
+    setSelectedDeal(deal)
+    setShowEditModal(true)
+    setShowDetailModal(false)
+  }
+
+  // Save edited deal
+  const handleSaveEdit = async () => {
+    if (!selectedDeal) return
+    setSaving(true)
+    try {
+      const res = await apiFetch<Deal>(`/api/deals/${selectedDeal.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          title: editForm.title,
+          description: editForm.description,
+          category: editForm.category,
+          originalPrice: parseFloat(editForm.originalPrice),
+          dealPrice: parseFloat(editForm.dealPrice),
+          totalQuantity: parseInt(editForm.totalQuantity),
+          expiresAt: new Date(editForm.expiresAt).toISOString(),
+          status: editForm.status,
+          pickupInstructions: editForm.pickupInstructions,
+        }),
+      })
+      if (res.success) {
+        toast.success('Deal updated successfully!')
+        setShowEditModal(false)
+        // Refresh data - deal may have moved between tabs
+        fetchVendorData()
+        // Auto-switch tab if deal moved
+        const newStatus = editForm.status
+        if (activeTab === 'active' && (newStatus === 'expired' || newStatus === 'cancelled')) {
+          setActiveTab('expired')
+        } else if (activeTab === 'expired' && newStatus === 'active') {
+          setActiveTab('active')
+        }
+      } else {
+        toast.error(res.error || 'Failed to update deal')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Delete deal
+  const handleDelete = async (dealId: string) => {
+    setSaving(true)
+    try {
+      const res = await apiFetch(`/api/deals/${dealId}`, { method: 'DELETE' })
+      if (res.success) {
+        toast.success('Deal deleted successfully!')
+        setDeleteConfirm(null)
+        setShowDetailModal(false)
+        fetchVendorData()
+      } else {
+        toast.error(res.error || 'Failed to delete deal')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr)
+    return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  }
+
+  // Calculate discount for edit form
+  const editDiscount = editForm.originalPrice && editForm.dealPrice
+    ? Math.round(((parseFloat(editForm.originalPrice) - parseFloat(editForm.dealPrice)) / parseFloat(editForm.originalPrice)) * 100)
+    : 0
 
   return (
     <div className="pb-28 px-5 pt-2">
@@ -1183,10 +1301,12 @@ function VendorDashboardView() {
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          </div>
+          <Skeleton className="h-10 rounded-xl" />
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
         </div>
       ) : (
         <>
@@ -1225,80 +1345,374 @@ function VendorDashboardView() {
           {/* Quick Actions */}
           <h3 className="font-bold text-[#1a1c1e] mb-3">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('create-deal')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 rounded-2xl shadow-chip"
-            >
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('create-deal')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 rounded-2xl shadow-chip">
               <div className="w-10 h-10 rounded-xl bg-[#6CB4EE] flex items-center justify-center">
                 <PlusCircle className="w-5 h-5 text-white" />
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Create Deal</span>
             </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('inventory')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#7EC8E3]/20 to-[#3D8AC4]/10 rounded-2xl shadow-chip"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#3D8AC4] flex items-center justify-center">
-                <Package className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xs font-bold text-[#1a1c1e]">Inventory</span>
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('fulfillment')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#FB923C]/20 to-[#F97316]/10 rounded-2xl shadow-chip"
-            >
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('fulfillment')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#FB923C]/20 to-[#F97316]/10 rounded-2xl shadow-chip">
               <div className="w-10 h-10 rounded-xl bg-[#FB923C] flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Fulfillment</span>
             </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => navigate('subscription')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#D3E4F0]/40 to-[#4A6A8A]/10 rounded-2xl shadow-chip"
-            >
-              <div className="w-10 h-10 rounded-xl bg-[#4A6A8A] flex items-center justify-center">
-                <Crown className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xs font-bold text-[#1a1c1e]">Subscription</span>
-            </motion.button>
           </div>
 
-          {/* Active Deals List */}
-          <h3 className="font-bold text-[#1a1c1e] mb-3">Your Active Deals</h3>
-          {activeDeals.length === 0 ? (
+          {/* Active / Expired Tabs */}
+          <div className="flex bg-[#e8edea] rounded-xl p-1 mb-4">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'active' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+              }`}
+            >
+              <Flame className="w-4 h-4" />
+              Active
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === 'active' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+              }`}>{activeDeals.length}</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('expired')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
+                activeTab === 'expired' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Expired
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === 'expired' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+              }`}>{expiredDeals.length}</span>
+            </button>
+          </div>
+
+          {/* Deal List */}
+          {displayedDeals.length === 0 ? (
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-6 text-center">
-                <Flame className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
-                <p className="text-sm text-[#414841]">No active deals. Create one now!</p>
+                {activeTab === 'active' ? (
+                  <>
+                    <Flame className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
+                    <p className="text-sm text-[#414841]">No active deals. Create one now!</p>
+                  </>
+                ) : (
+                  <>
+                    <Clock className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
+                    <p className="text-sm text-[#414841]">No expired deals yet.</p>
+                  </>
+                )}
               </CardContent>
             </Card>
           ) : (
             <div className="space-y-3">
-              {activeDeals.map((deal) => (
-                <Card key={deal.id} className="border-0 shadow-card rounded-2xl">
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="font-bold text-[#1a1c1e]">{deal.title}</p>
-                        <p className="text-xs text-[#414841] mt-0.5">RM{deal.dealPrice.toFixed(2)} • {deal.availableQuantity} left</p>
+              {displayedDeals.map((deal) => (
+                <motion.div
+                  key={deal.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <Card
+                    className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow"
+                    onClick={() => openDealDetail(deal)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0 mr-3">
+                          <p className="font-bold text-[#1a1c1e] truncate">{deal.title}</p>
+                          <p className="text-xs text-[#414841] mt-0.5">
+                            RM{deal.dealPrice.toFixed(2)} <span className="line-through text-[#717971]">RM{deal.originalPrice.toFixed(2)}</span>
+                            <span className="ml-1 text-[#FB923C] font-bold">-{deal.discountPercent}%</span>
+                          </p>
+                        </div>
+                        <Badge className={`border-0 rounded-lg text-xs flex-shrink-0 ${
+                          activeTab === 'active'
+                            ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]'
+                            : 'bg-[#717971]/10 text-[#717971]'
+                        }`}>
+                          {activeTab === 'active' ? 'Active' : deal.status}
+                        </Badge>
                       </div>
-                      <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg text-xs">Active</Badge>
-                    </div>
-                    <div className="mt-2">
-                      <Progress value={(deal.soldQuantity / deal.totalQuantity) * 100} className="h-2" />
-                      <p className="text-xs text-[#717971] mt-1">{deal.soldQuantity}/{deal.totalQuantity} sold</p>
-                    </div>
-                  </CardContent>
-                </Card>
+
+                      <div className="flex items-center gap-2 text-xs text-[#717971] mb-3">
+                        <Timer className="w-3.5 h-3.5" />
+                        <span>Expires: {formatDate(deal.expiresAt)}</span>
+                        <span className="mx-1">•</span>
+                        <span>{deal.availableQuantity} left</span>
+                      </div>
+
+                      <div className="mb-3">
+                        <Progress value={(deal.soldQuantity / deal.totalQuantity) * 100} className="h-2" />
+                        <p className="text-xs text-[#717971] mt-1">{deal.soldQuantity}/{deal.totalQuantity} claimed</p>
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditModal(deal)}
+                          className="flex-1 h-9 rounded-xl text-xs font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                        >
+                          <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(deal.id)}
+                          className="h-9 rounded-xl text-xs font-bold border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/10 px-3"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Delete Confirmation */}
+                  {deleteConfirm === deal.id && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="mt-2 p-3 bg-[#EF4444]/5 border border-[#EF4444]/20 rounded-xl"
+                    >
+                      <p className="text-xs font-bold text-[#EF4444] mb-2">Delete &quot;{deal.title}&quot;?</p>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleDelete(deal.id)}
+                          disabled={saving}
+                          className="flex-1 h-8 rounded-lg text-xs font-bold bg-[#EF4444] hover:bg-[#DC2626] text-white"
+                        >
+                          {saving ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Confirm Delete'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setDeleteConfirm(null)}
+                          className="h-8 rounded-lg text-xs font-bold"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </motion.div>
               ))}
             </div>
           )}
         </>
       )}
+
+      {/* ===== Deal Detail Modal ===== */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
+          {selectedDeal && (
+            <>
+              {/* Header */}
+              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">{selectedDeal.title}</DialogTitle>
+                  <DialogDescription className="text-[#414841] text-xs">
+                    Deal Details • {selectedDeal.category}
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="px-5 pb-5 space-y-4">
+                {/* Status & Discount */}
+                <div className="flex items-center gap-2">
+                  <Badge className={`border-0 rounded-lg text-xs ${
+                    isActiveDeal(selectedDeal) ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' : 'bg-[#717971]/10 text-[#717971]'
+                  }`}>
+                    {isActiveDeal(selectedDeal) ? 'Active' : selectedDeal.status}
+                  </Badge>
+                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">
+                    -{selectedDeal.discountPercent}%
+                  </Badge>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-[#414841]">{selectedDeal.description}</p>
+
+                {/* Pricing */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Original</p>
+                    <p className="font-bold text-[#1a1c1e] line-through">RM{selectedDeal.originalPrice.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Deal Price</p>
+                    <p className="font-bold text-[#6CB4EE]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                {/* Inventory */}
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div className="bg-[#f0f4f2] rounded-lg p-2">
+                    <p className="text-[#717971]">Total</p>
+                    <p className="font-bold text-[#1a1c1e]">{selectedDeal.totalQuantity}</p>
+                  </div>
+                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Reserved</p>
+                    <p className="font-bold text-[#FB923C]">{selectedDeal.reservedQuantity}</p>
+                  </div>
+                  <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Sold</p>
+                    <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Left</p>
+                    <p className="font-bold text-[#6CB4EE]">{selectedDeal.availableQuantity}</p>
+                  </div>
+                </div>
+
+                {/* Timing */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Timer className="w-4 h-4 text-[#FB923C]" />
+                    <span className="text-[#414841]">Expires: {formatDate(selectedDeal.expiresAt)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Clock className="w-4 h-4 text-[#6CB4EE]" />
+                    <span className="text-[#414841]">Created: {formatDate(selectedDeal.createdAt)}</span>
+                  </div>
+                </div>
+
+                {/* Pickup Instructions */}
+                {selectedDeal.pickupInstructions && (
+                  <div className="bg-[#f0f4f2] rounded-xl p-3">
+                    <p className="text-xs font-bold text-[#1a1c1e] mb-1">Pickup Instructions</p>
+                    <p className="text-xs text-[#414841]">{selectedDeal.pickupInstructions}</p>
+                  </div>
+                )}
+
+                {/* Progress */}
+                <div>
+                  <div className="flex justify-between text-xs text-[#717971] mb-1">
+                    <span>Claims Progress</span>
+                    <span>{selectedDeal.soldQuantity}/{selectedDeal.totalQuantity}</span>
+                  </div>
+                  <Progress value={(selectedDeal.soldQuantity / selectedDeal.totalQuantity) * 100} className="h-2.5" />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    onClick={() => openEditModal(selectedDeal)}
+                    className="flex-1 h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+                  >
+                    <Pencil className="w-4 h-4 mr-1.5" /> Edit Deal
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => { setDeleteConfirm(selectedDeal.id); setShowDetailModal(false) }}
+                    className="h-11 rounded-xl font-bold border-[#EF4444]/30 text-[#EF4444] hover:bg-[#EF4444]/10 px-4"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Edit Deal Modal ===== */}
+      <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
+          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Deal</DialogTitle>
+              <DialogDescription className="text-[#414841] text-xs">
+                Update your deal details. Changes are saved when you press Save.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-5 pb-5 space-y-4">
+            {/* Status Toggle - most important for moving between tabs */}
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Status</Label>
+              <Select value={editForm.status} onValueChange={(v) => setEditForm({...editForm, status: v})}>
+                <SelectTrigger className="h-11 rounded-xl mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">🟢 Active</SelectItem>
+                  <SelectItem value="paused">⏸️ Paused</SelectItem>
+                  <SelectItem value="expired">🔴 Expired</SelectItem>
+                  <SelectItem value="cancelled">❌ Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Food Name</Label>
+              <Input value={editForm.title} onChange={(e) => setEditForm({...editForm, title: e.target.value})} className="mt-1.5 h-11 rounded-xl" />
+            </div>
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Description</Label>
+              <Textarea value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} className="mt-1.5 rounded-xl min-h-[80px]" />
+            </div>
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Category</Label>
+              <Select value={editForm.category} onValueChange={(v) => setEditForm({...editForm, category: v})}>
+                <SelectTrigger className="h-11 rounded-xl mt-1.5"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage', 'Other'].map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold text-[#1a1c1e] text-sm">Original (RM)</Label>
+                <Input type="number" value={editForm.originalPrice} onChange={(e) => setEditForm({...editForm, originalPrice: e.target.value})} className="mt-1.5 h-11 rounded-xl" />
+              </div>
+              <div>
+                <Label className="font-semibold text-[#1a1c1e] text-sm">Deal Price (RM)</Label>
+                <Input type="number" value={editForm.dealPrice} onChange={(e) => setEditForm({...editForm, dealPrice: e.target.value})} className="mt-1.5 h-11 rounded-xl" />
+              </div>
+            </div>
+
+            {editDiscount > 0 && (
+              <div className="bg-[#EBF5FB] rounded-xl p-3 text-center">
+                <p className="text-sm text-[#3D8AC4] font-bold">🔥 {editDiscount}% Discount</p>
+              </div>
+            )}
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Quantity</Label>
+              <Input type="number" value={editForm.totalQuantity} onChange={(e) => setEditForm({...editForm, totalQuantity: e.target.value})} className="mt-1.5 h-11 rounded-xl" />
+            </div>
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Expires At</Label>
+              <Input type="datetime-local" value={editForm.expiresAt} onChange={(e) => setEditForm({...editForm, expiresAt: e.target.value})} className="mt-1.5 h-11 rounded-xl" />
+            </div>
+
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Pickup Instructions</Label>
+              <Textarea value={editForm.pickupInstructions} onChange={(e) => setEditForm({...editForm, pickupInstructions: e.target.value})} className="mt-1.5 rounded-xl min-h-[60px]" />
+            </div>
+
+            {/* Save Button */}
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+            >
+              {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Changes</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2013,6 +2427,13 @@ function AdminUsersView() {
 
   const filtered = search ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users
 
+  // Safely parse roles - handles both string and array
+  const getRoles = (roles: string[] | string): string[] => {
+    if (Array.isArray(roles)) return roles
+    if (typeof roles === 'string') return roles.split(',').map(r => r.trim()).filter(Boolean)
+    return []
+  }
+
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
@@ -2044,7 +2465,7 @@ function AdminUsersView() {
                   <p className="text-xs text-[#414841] truncate">{u.email}</p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
-                  {u.roles.map((r) => (
+                  {getRoles(u.roles).map((r) => (
                     <Badge key={r} className="bg-[#e8edea] text-[#6CB4EE] border-0 rounded-md text-[10px] px-1.5">
                       {r}
                     </Badge>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { getAuthUser, hasRole, parseRoles } from '@/lib/auth'
 
 export async function GET(request: Request) {
   try {
@@ -50,8 +50,14 @@ export async function GET(request: Request) {
       countQuery,
     ])
 
-    const users = unwrap(usersRes, 'Fetch users')
+    const rawUsers = unwrap(usersRes, 'Fetch users')
     const total = countRes.count ?? 0
+
+    // Parse roles from comma-separated string to array
+    const users = rawUsers.map((u: Record<string, unknown>) => ({
+      ...u,
+      roles: parseRoles(String(u.roles || '')),
+    }))
 
     return NextResponse.json({
       success: true,

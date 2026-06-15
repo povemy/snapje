@@ -370,3 +370,33 @@ Stage Summary:
 - No remaining Prisma/db imports in any API route
 - Supabase HTTPS REST API used instead of direct TCP (sandbox IPv6 limitation)
 - App fully functional with live Supabase PostgreSQL database
+---
+Task ID: 1
+Agent: Main
+Task: Re-initiate workspace and implement vendor dashboard enhancements
+
+Work Log:
+- Read all key project files (package.json, prisma/schema.prisma, .env, globals.css, page.tsx)
+- Identified u.roles.map error: roles field is comma-separated string in DB, but frontend expected array
+- Fixed admin users API: added parseRoles() transformation in /api/admin/users/route.ts
+- Added defensive getRoles() helper in AdminUsersView frontend component
+- Added DELETE endpoint for deals in /api/deals/[id]/route.ts
+- Updated deals GET API to support vendorId filter and status=all parameter
+- Completely rewrote VendorDashboardView with:
+  - Active/Expired tabs with badge counts
+  - Edit/Remove action buttons on each deal card
+  - Clickable cards opening deal detail modal
+  - Full edit modal with status dropdown and Save Changes button
+  - Auto-switch tabs when deal status changes
+  - Delete confirmation inline UI
+  - Proper data fetching with vendorId filter
+
+Stage Summary:
+- Admin Users "u.roles.map is not a function" error: FIXED
+- DELETE /api/deals/[id] endpoint: ADDED
+- GET /api/deals now supports vendorId and status=all: ADDED
+- Vendor Dashboard with Active/Expired tabs: IMPLEMENTED
+- Edit/Remove actions on deal cards: IMPLEMENTED
+- Deal detail modal (clickable cards): IMPLEMENTED
+- Auto-move between tabs on status change: IMPLEMENTED
+- Save button in edit modal: IMPLEMENTED

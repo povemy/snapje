@@ -9,6 +9,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const status = searchParams.get('status') || 'active'
+    const vendorId = searchParams.get('vendorId')
     const lat = parseFloat(searchParams.get('lat') || '')
     const lng = parseFloat(searchParams.get('lng') || '')
     const maxDistance = parseFloat(searchParams.get('maxDistance') || '50')
@@ -16,14 +17,17 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1')
     const pageSize = parseInt(searchParams.get('pageSize') || '20')
 
-    // Check cache
-    const cacheKey = `deals:${status}:${category}:${search}:${page}:${pageSize}`
-    const cached = cache.get<{ deals: unknown[]; total: number }>(cacheKey)
-    if (cached && isNaN(lat) && isNaN(lng)) {
-      return NextResponse.json({
-        success: true,
-        data: cached,
-      })
+    // Check cache (skip if vendorId or all status - vendor-specific data)
+    const isVendorQuery = !!vendorId || status === 'all'
+    const cacheKey = `deals:${status}:${category}:${search}:${page}:${pageSize}:${vendorId || ''}`
+    if (!isVendorQuery) {
+      const cached = cache.get<{ deals: unknown[]; total: number }>(cacheKey)
+      if (cached && isNaN(lat) && isNaN(lng)) {
+        return NextResponse.json({
+          success: true,
+          data: cached,
+        })
+      }
     }
 
     // Build Supabase query for deals
@@ -32,14 +36,24 @@ export async function GET(request: Request) {
     let dealsQuery = supabase
       .from('Deal')
       .select('*, vendor:Vendor(id, businessName, latitude, longitude, address, logoUrl, rating, verificationStatus)')
-      .eq('status', status)
       .order('createdAt', { ascending: false })
       .range(skip, skip + pageSize - 1)
 
     let countQuery = supabase
       .from('Deal')
       .select('*', { count: 'exact', head: true })
-      .eq('status', status)
+
+    // Apply status filter (skip if 'all')
+    if (status !== 'all') {
+      dealsQuery = dealsQuery.eq('status', status)
+      countQuery = countQuery.eq('status', status)
+    }
+
+    // Apply vendorId filter
+    if (vendorId) {
+      dealsQuery = dealsQuery.eq('vendorId', vendorId)
+      countQuery = countQuery.eq('vendorId', vendorId)
+    }
 
     // Apply category filter
     if (category) {
@@ -102,8 +116,8 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / pageSize),
     }
 
-    // Cache for 30 seconds if no location
-    if (isNaN(lat) && isNaN(lng)) {
+    // Cache for 30 seconds if no location and not a vendor query
+    if (!isVendorQuery && isNaN(lat) && isNaN(lng)) {
       cache.set(cacheKey, result, 30_000)
     }
 

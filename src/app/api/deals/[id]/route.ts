@@ -175,3 +175,69 @@ export async function PATCH(
     )
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const authUser = await getAuthUser()
+
+    if (!authUser) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      )
+    }
+
+    // Find the deal with vendor to check ownership
+    const deal = unwrap(
+      await supabase
+        .from('Deal')
+        .select('*, vendor:Vendor(userId)')
+        .eq('id', id)
+        .single(),
+      'Find deal for deletion'
+    )
+
+    // Check ownership
+    if (deal.vendor.userId !== authUser.userId && !hasRole(authUser.roles.join(','), 'admin')) {
+      return NextResponse.json(
+        { success: false, error: 'You can only delete your own deals' },
+        { status: 403 }
+      )
+    }
+
+    // Delete the deal (cascades to reservations and orders)
+    unwrap(
+      await supabase
+        .from('Deal')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .single(),
+      'Delete deal'
+    )
+
+    // Invalidate cache
+    cache.delete('deals:active')
+
+    return NextResponse.json({
+      success: true,
+      data: { id },
+    })
+  } catch (error) {
+    if (error && typeof error === 'object' && 'message' in error && String(error.message).includes('0 rows')) {
+      return NextResponse.json(
+        { success: false, error: 'Deal not found' },
+        { status: 404 }
+      )
+    }
+    console.error('Delete deal error:', error)
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    )
+  }
+}
