@@ -31,3 +31,31 @@ Stage Summary:
 - All 13 green hex values systematically replaced with Baby Blue equivalents
 - Consistent across light mode, dark mode, brand, semantic, and UI colors
 - No lint errors, no compilation errors
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Integrate FlashBite with Supabase PostgreSQL
+
+Work Log:
+- Updated .env with full Supabase credentials (URL, anon key, service role key, DATABASE_URL, DIRECT_URL)
+- Changed Prisma schema from SQLite to PostgreSQL (provider, directUrl)
+- Installed @supabase/supabase-js and pg packages
+- Created /src/lib/supabase.ts (Supabase client utility)
+- Attempted Prisma db push - failed because db.xknkgtuctjmkpommcxfd.supabase.co only resolves to IPv6 (no IPv4)
+- Attempted Supabase pooler (aws-0-ap-southeast-1.pooler.supabase.com) - "tenant/user not found" error
+- Attempted Supabase Management API - needs personal access token (service role key insufficient)
+- Created manual SQL migration files as fallback:
+  - prisma/migrations/supabase-schema.sql (full schema + RLS + realtime)
+  - prisma/migrations/supabase-seed.sql (demo users, vendors, deals)
+- Created scripts/setup-supabase.ts (auto-setup with fallback to manual SQL output)
+- Added "supabase:setup" script to package.json
+- Regenerated Prisma client for PostgreSQL - successful
+- Lint passes clean
+
+Stage Summary:
+- Prisma schema migrated to PostgreSQL
+- Supabase client library integrated
+- Direct connection from this sandbox blocked (IPv6 only, no IPv4)
+- Manual SQL files created for user to run in Supabase Dashboard SQL Editor
+- User needs to run 2 SQL files manually in Supabase dashboard
