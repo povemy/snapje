@@ -113,11 +113,14 @@ export async function POST(
       'Find deal for confirmation'
     )
 
-    // Generate QR code and order number
-    const qrCode = crypto.randomUUID()
+    // Generate order ID and number
+    const orderId = genId('order')
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 6).toUpperCase()
     const orderNumber = `FB-${timestamp}-${random}`
+    // QR code encodes the orderId so external scanners see a meaningful reference
+    // (previously used crypto.randomUUID() which showed an unrelated UUID)
+    const qrCode = orderId
 
     // Calculate pickup deadline (2 hours from now)
     const pickupDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000)
@@ -126,7 +129,7 @@ export async function POST(
     // 1. Create order
     const newOrder = unwrap(
       await supabase.from('Order').insert({
-        id: genId('order'),
+        id: orderId,
         orderNumber,
         userId: authUser.userId,
         vendorId: deal.vendorId,

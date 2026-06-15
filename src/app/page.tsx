@@ -504,6 +504,206 @@ function QRCodeImage({ qrCode }: { qrCode: string }) {
 }
 
 // ============================================
+// IMAGE UPLOADER COMPONENT
+// High-tech drag-and-drop + camera upload with auto-resize
+// ============================================
+interface ImageUploaderProps {
+  /** Which preset group to use for auto-sizing */
+  group: 'profile' | 'vendor_logo' | 'vendor_banner' | 'deal' | 'notification'
+  /** Current image URL (for preview) */
+  currentUrl?: string | null
+  /** Called with the new URL after successful upload */
+  onUploadComplete: (url: string, urls: Record<string, string>) => void
+  /** Optional label */
+  label?: string
+  /** Optional size hint */
+  sizeHint?: string
+  /** Circle crop for avatars */
+  circular?: boolean
+  /** Compact mode (no label, smaller) */
+  compact?: boolean
+}
+
+function ImageUploader({
+  group,
+  currentUrl,
+  onUploadComplete,
+  label,
+  sizeHint,
+  circular = false,
+  compact = false,
+}: ImageUploaderProps) {
+  const [dragging, setDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [preview, setPreview] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFile = async (file: File) => {
+    const { validateImageFile } = await import('@/lib/image-utils')
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      toast.error(validation.error)
+      return
+    }
+
+    // Show preview immediately
+    const reader = new FileReader()
+    reader.onload = (e) => setPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+
+    setUploading(true)
+    setProgress(0)
+
+    try {
+      const { quickUpload } = await import('@/lib/image-utils')
+      const { uploadImageVariants } = await import('@/lib/image-utils')
+      const result = await uploadImageVariants(file, group, {
+        onProgress: setProgress,
+      })
+
+      // Get the primary URL for this group
+      const primaryKey: Record<string, string> = {
+        profile: 'avatar',
+        vendor_logo: 'logo',
+        vendor_banner: 'banner',
+        deal: 'medium',
+        notification: 'notif',
+      }
+      const primaryUrl = result.urls[primaryKey[group]] || result.originalUrl
+      onUploadComplete(primaryUrl, result.urls)
+      toast.success('Image uploaded!')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Upload failed')
+      setPreview(null)
+    } finally {
+      setUploading(false)
+      setProgress(0)
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragging(true)
+  }
+
+  const handleDragLeave = () => setDragging(false)
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+  }
+
+  const displayUrl = preview || currentUrl
+
+  if (compact) {
+    return (
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#6CB4EE]' : ''}`}
+      >
+        {displayUrl ? (
+          <div className={`relative ${circular ? 'w-20 h-20' : 'w-24 h-16'}`}>
+            <Image src={displayUrl} alt="Upload" fill className={`${circular ? 'rounded-full' : 'rounded-xl'} object-cover`} unoptimized />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+              {uploading ? (
+                <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              ) : (
+                <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className={`${circular ? 'w-20 h-20' : 'w-24 h-16'} flex items-center justify-center bg-[#f0f4f2] ${circular ? 'rounded-full' : 'rounded-xl'} border-2 border-dashed border-[#c1c9c0]`}>
+            {uploading ? (
+              <div className="w-6 h-6 rounded-full border-2 border-[#6CB4EE] border-t-transparent animate-spin" />
+            ) : (
+              <PlusCircle className="w-5 h-5 text-[#717971]" />
+            )}
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {label && <Label className="text-[11px] font-bold text-[#414841]">{label}</Label>}
+      <div
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onClick={() => !uploading && fileInputRef.current?.click()}
+        className={`relative cursor-pointer group border-2 border-dashed rounded-xl transition-all ${
+          dragging ? 'border-[#6CB4EE] bg-[#6CB4EE]/5' : 'border-[#d7ddd9] bg-[#f8faf9] hover:border-[#8FC5E8]'
+        } ${displayUrl ? 'p-0 overflow-hidden' : 'p-6'}`}
+      >
+        {displayUrl ? (
+          <div className="relative">
+            <div className={`${circular ? 'w-24 h-24 mx-auto rounded-full' : 'w-full h-40'} overflow-hidden`}>
+              <Image src={displayUrl} alt="Preview" fill className={`${circular ? 'rounded-full' : ''} object-cover`} unoptimized />
+            </div>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+              {uploading ? (
+                <div className="flex flex-col items-center">
+                  <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin mb-2" />
+                  <span className="text-white text-xs font-bold">{progress}%</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-5 h-5 text-white" />
+                  <span className="text-white text-sm font-bold">Change Photo</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            {uploading ? (
+              <div className="flex flex-col items-center">
+                <div className="w-10 h-10 rounded-full border-3 border-[#6CB4EE] border-t-transparent animate-spin mb-2" />
+                <p className="text-xs text-[#717971]">Uploading... {progress}%</p>
+                <Progress value={progress} className="w-32 h-1.5 mt-2" />
+              </div>
+            ) : (
+              <>
+                <div className="w-12 h-12 rounded-full bg-[#6CB4EE]/10 flex items-center justify-center mx-auto mb-2">
+                  <Camera className="w-6 h-6 text-[#6CB4EE]" />
+                </div>
+                <p className="text-sm font-bold text-[#1a1c1e]">
+                  {dragging ? 'Drop image here' : 'Tap to upload'}
+                </p>
+                <p className="text-[11px] text-[#717971] mt-0.5">
+                  Drag & drop or tap to browse
+                </p>
+                {sizeHint && (
+                  <p className="text-[10px] text-[#717971] mt-1">{sizeHint}</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+      </div>
+      {uploading && !displayUrl && (
+        <Progress value={progress} className="h-1.5" />
+      )}
+    </div>
+  )
+}
+
+// ============================================
 // CATEGORY ICON GRID - Foodpanda Style
 // ============================================
 const CATEGORY_ICONS = [
@@ -1027,13 +1227,14 @@ function FoodieOrdersView() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [orderTab, setOrderTab] = useState<'active' | 'completed' | 'expired'>('active')
   const { navigate } = useAppStore()
-  const { isAuthenticated, user } = useAuthStore()
+  const { isAuthenticated } = useAuthStore()
 
   useEffect(() => {
     if (!isAuthenticated) { setLoading(false); return }
     setLoading(true)
-    apiFetch<{ orders: Order[] }>('/api/orders').then((res) => {
+    apiFetch<{ orders: Order[] }>('/api/orders?pageSize=50').then((res) => {
       if (res.success && res.data) setOrders(res.data.orders || [])
     }).finally(() => setLoading(false))
   }, [isAuthenticated])
@@ -1054,17 +1255,24 @@ function FoodieOrdersView() {
     )
   }
 
-  const activeOrders = orders.filter(o => o.status === 'pending_pickup')
+  const activeOrders = orders.filter(o => o.status === 'pending_pickup' || o.status === 'picked_up')
   const completedOrders = orders.filter(o => o.status === 'completed')
+  const expiredOrders = orders.filter(o => o.status === 'expired' || o.status === 'cancelled')
+
+  const tabConfig = [
+    { key: 'active' as const, label: 'Active', count: activeOrders.length, icon: Clock, color: '#FB923C' },
+    { key: 'completed' as const, label: 'Completed', count: completedOrders.length, icon: CheckCircle, color: '#6CB4EE' },
+    { key: 'expired' as const, label: 'Expired', count: expiredOrders.length, icon: Timer, color: '#EF4444' },
+  ]
 
   return (
     <div className="pb-28 px-5 pt-2">
       <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">My Orders</h1>
 
       {loading ? (
-        Array.from({ length: 2 }).map((_, i) => (
+        Array.from({ length: 3 }).map((_, i) => (
           <Card key={i} className="mb-3 border-0 shadow-card rounded-2xl">
-            <CardContent className="p-4"><Skeleton className="h-16 w-full rounded-xl" /></CardContent>
+            <CardContent className="p-4"><Skeleton className="h-20 w-full rounded-xl" /></CardContent>
           </Card>
         ))
       ) : orders.length === 0 ? (
@@ -1078,70 +1286,192 @@ function FoodieOrdersView() {
         </div>
       ) : (
         <>
-          {activeOrders.length > 0 && (
-            <div className="mb-6">
-              <h2 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
-                <Clock className="w-4 h-4 text-[#FB923C]" /> Active Orders
-              </h2>
+          {/* ── Order Tabs ── */}
+          <div className="flex gap-1.5 mb-4 bg-[#f0f4f2] p-1 rounded-xl">
+            {tabConfig.map((tab) => {
+              const Icon = tab.icon
+              const isActive = orderTab === tab.key
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setOrderTab(tab.key)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                    isActive
+                      ? 'bg-white shadow-sm text-[#1a1c1e]'
+                      : 'text-[#717971]'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" style={{ color: isActive ? tab.color : undefined }} />
+                  {tab.label}
+                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${
+                    isActive ? 'text-white' : 'text-[#717971] bg-[#e0e5e1]'
+                  }`} style={isActive ? { backgroundColor: tab.color } : undefined}>
+                    {tab.count}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* ── Active Orders ── */}
+          {orderTab === 'active' && (
+            activeOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <Clock className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+                <p className="text-sm text-[#717971]">No active orders</p>
+              </div>
+            ) : (
               <div className="space-y-3">
                 {activeOrders.map((order) => (
                   <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
                     <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
-                      <CardContent className="p-4">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
-                            <p className="text-[10px] text-[#414841] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                      <CardContent className="p-3.5">
+                        <div className="flex gap-3">
+                          {/* Thumbnail */}
+                          <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                            {order.deal?.imageUrl ? (
+                              <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={56} height={56} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Utensils className="w-6 h-6 text-[#8FC5E8]" />
+                              </div>
+                            )}
                           </div>
-                          <QrCode className="w-6 h-6 text-[#6CB4EE] flex-shrink-0 ml-2" />
-                        </div>
-                        {/* Pickup time with orange color */}
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <Clock className="w-3.5 h-3.5 text-[#FB923C]" />
-                          <span className="text-xs font-bold text-[#FB923C]">
-                            Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        {/* Animated progress slider */}
-                        <PickupProgressSlider pickupDeadline={order.pickupDeadline} />
-                        <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-[#d7ddd9]">
-                          <span className="text-lg font-extrabold text-[#6CB4EE]">RM{order.totalPrice.toFixed(2)}</span>
-                          <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold text-[10px]">
-                            Pending Pickup
-                          </Badge>
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-sm text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
+                                <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                              </div>
+                              <QrCode className="w-5 h-5 text-[#6CB4EE] flex-shrink-0" />
+                            </div>
+                            {/* Pickup time with orange */}
+                            <div className="flex items-center gap-1.5 mt-1.5">
+                              <Clock className="w-3 h-3 text-[#FB923C]" />
+                              <span className="text-[11px] font-bold text-[#FB923C]">
+                                Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <PickupProgressSlider pickupDeadline={order.pickupDeadline} />
+                            {/* Price & Status */}
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#e8edea]">
+                              <div>
+                                <span className="text-base font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</span>
+                                {order.originalPrice > order.dealPrice && (
+                                  <span className="text-[10px] text-[#EF4444] line-through ml-1.5">RM{order.originalPrice.toFixed(2)}</span>
+                                )}
+                              </div>
+                              <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold text-[10px]">
+                                Pending Pickup
+                              </Badge>
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
                   </motion.div>
                 ))}
               </div>
-            </div>
+            )
           )}
 
-          {completedOrders.length > 0 && (
-            <div>
-              <h2 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-[#7EC8E3]" /> Completed
-              </h2>
+          {/* ── Completed Orders ── */}
+          {orderTab === 'completed' && (
+            completedOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckCircle className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+                <p className="text-sm text-[#717971]">No completed orders</p>
+              </div>
+            ) : (
               <div className="space-y-3">
                 {completedOrders.map((order) => (
-                  <Card key={order.id} className="border-0 shadow-card rounded-2xl">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
-                          <p className="text-[10px] text-[#414841] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                  <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
+                    <Card className="border-0 shadow-card rounded-2xl">
+                      <CardContent className="p-3.5">
+                        <div className="flex gap-3">
+                          {/* Thumbnail */}
+                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                            {order.deal?.imageUrl ? (
+                              <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={48} height={48} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Utensils className="w-5 h-5 text-[#8FC5E8]" />
+                              </div>
+                            )}
+                          </div>
+                          {/* Details */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-sm text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
+                                <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                              </div>
+                              {/* Price right side */}
+                              <div className="text-right flex-shrink-0">
+                                <p className="text-sm font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
+                                {order.originalPrice > order.dealPrice && (
+                                  <p className="text-[10px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
+                                )}
+                              </div>
+                            </div>
+                            <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg font-bold text-[10px] mt-1.5">
+                              <CheckCircle className="w-3 h-3 mr-0.5" /> Completed
+                            </Badge>
+                          </div>
                         </div>
-                        <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg font-bold">
-                          Completed
-                        </Badge>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ── Expired Orders ── */}
+          {orderTab === 'expired' && (
+            expiredOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <Timer className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+                <p className="text-sm text-[#717971]">No expired orders</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {expiredOrders.map((order) => (
+                  <Card key={order.id} className="border-0 shadow-card rounded-2xl opacity-70">
+                    <CardContent className="p-3.5">
+                      <div className="flex gap-3">
+                        {/* Thumbnail */}
+                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2] grayscale">
+                          {order.deal?.imageUrl ? (
+                            <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={48} height={48} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Utensils className="w-5 h-5 text-[#c1c9c0]" />
+                            </div>
+                          )}
+                        </div>
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-sm text-[#717971] truncate">{order.deal?.title || 'Deal'}</p>
+                              <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-sm font-bold text-[#717971]">RM{order.dealPrice.toFixed(2)}</p>
+                            </div>
+                          </div>
+                          <Badge className="bg-[#EF4444]/10 text-[#EF4444] border-0 rounded-lg font-bold text-[10px] mt-1.5">
+                            <AlertTriangle className="w-3 h-3 mr-0.5" /> Expired
+                          </Badge>
+                        </div>
                       </div>
-                      <p className="text-sm font-bold text-[#6CB4EE] mt-2">RM{order.totalPrice.toFixed(2)}</p>
                     </CardContent>
                   </Card>
                 ))}
               </div>
-            </div>
+            )
           )}
         </>
       )}
@@ -1155,6 +1485,8 @@ function FoodieOrdersView() {
           </DialogHeader>
           {selectedOrder && (
             <div className="text-center py-4">
+              {/* Deal name above QR code */}
+              <p className="text-base font-bold text-[#1a1c1e] mb-3">{selectedOrder.deal?.title || 'Deal'}</p>
               <div className="bg-white rounded-2xl p-4 inline-block border-2 border-[#6CB4EE]/20 shadow-card">
                 <QRCodeImage qrCode={selectedOrder.qrCode} />
               </div>
@@ -1187,6 +1519,7 @@ function FoodieProfileView() {
   // Settings state
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
   const [savingProfile, setSavingProfile] = useState(false)
 
@@ -1218,6 +1551,8 @@ function FoodieProfileView() {
       orderNotificationSound: true,
       lowStockAlerts: true,
       businessHoursVisible: true,
+      // Upload
+      autoCompress: true,
     }
   })
 
@@ -1358,15 +1693,24 @@ function FoodieProfileView() {
         })}
       </div>
 
-      {/* User Card - COMPACT */}
+      {/* User Card - COMPACT with avatar upload */}
       <Card className="border-0 shadow-card rounded-xl mb-4">
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
-            <Avatar className="w-10 h-10 border-2 border-[#8FC5E8] flex-shrink-0">
-              <AvatarFallback className="bg-[#6CB4EE] text-white text-sm font-bold">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <ImageUploader
+              group="profile"
+              currentUrl={avatarUrl}
+              onUploadComplete={(url) => {
+                setAvatarUrl(url)
+                // Save to profile via API
+                apiFetch('/api/auth/profile', {
+                  method: 'PUT',
+                  body: JSON.stringify({ avatarUrl: url }),
+                })
+              }}
+              circular
+              compact
+            />
             <div className="flex-1 min-w-0">
               <h2 className="font-bold text-[#1a1c1e] text-sm truncate">{user?.name}</h2>
               <p className="text-[11px] text-[#414841] truncate">{user?.email}</p>
@@ -1384,7 +1728,7 @@ function FoodieProfileView() {
           <Settings className="w-4 h-4 text-[#6CB4EE]" /> Settings
         </h3>
 
-        <Accordion type="multiple" defaultValue={['basic']} className="space-y-2">
+        <Accordion type="multiple" defaultValue={[]} className="space-y-2">
           {/* ── Basic Settings ── */}
           <AccordionItem value="basic" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
@@ -1581,6 +1925,67 @@ function FoodieProfileView() {
                     </button>
                   ))}
                 </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* ── Upload & Photos ── */}
+          <AccordionItem value="photos" className="border-0">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <span className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#6CB4EE]" /> Photos & Uploads
+              </span>
+            </AccordionTrigger>
+            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+              {/* Profile Photo */}
+              <ImageUploader
+                group="profile"
+                currentUrl={avatarUrl}
+                onUploadComplete={(url) => {
+                  setAvatarUrl(url)
+                  apiFetch('/api/auth/profile', { method: 'PUT', body: JSON.stringify({ avatarUrl: url }) })
+                }}
+                label="Profile Photo"
+                sizeHint="200×200px • Auto-resized"
+                circular
+              />
+              <Separator />
+              {/* Vendor-specific uploads */}
+              {roles.includes('vendor') && (
+                <>
+                  <ImageUploader
+                    group="vendor_logo"
+                    onUploadComplete={(url) => {
+                      apiFetch('/api/vendors/my/logo', { method: 'PUT', body: JSON.stringify({ logoUrl: url }) })
+                    }}
+                    label="Vendor Logo"
+                    sizeHint="200×200px • Auto-resized"
+                    circular
+                  />
+                  <Separator />
+                  <ImageUploader
+                    group="vendor_banner"
+                    onUploadComplete={(url) => {
+                      apiFetch('/api/vendors/my/banner', { method: 'PUT', body: JSON.stringify({ bannerUrl: url }) })
+                    }}
+                    label="Store Banner"
+                    sizeHint="1200×400px • Auto-resized"
+                  />
+                  <Separator />
+                </>
+              )}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Auto-compress</p>
+                  <p className="text-[11px] text-[#717971]">Reduce file size before upload</p>
+                </div>
+                <Switch checked={settings.autoCompress !== false} onCheckedChange={v => updateSetting('autoCompress', v)} />
+              </div>
+              <Separator />
+              <div>
+                <p className="text-[11px] text-[#717971]">
+                  💡 Images are auto-resized for each context: thumbnails (200px), cards (400px), full (800px), hero (1200px). Upload any size — the system handles the rest.
+                </p>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -2413,6 +2818,8 @@ function VendorCreateDealView() {
   const { goBack } = useAppStore()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [dealImageUrl, setDealImageUrl] = useState<string | null>(null)
+  const [dealImageUrls, setDealImageUrls] = useState<Record<string, string>>({})
   const [form, setForm] = useState({
     title: '', description: '', category: 'Malay',
     originalPrice: '', dealPrice: '', totalQuantity: '',
@@ -2438,6 +2845,7 @@ function VendorCreateDealView() {
           dealPrice: parseFloat(form.dealPrice),
           totalQuantity: parseInt(form.totalQuantity),
           maxClaimsPerUser: 1,
+          imageUrl: dealImageUrl || dealImageUrls?.medium || dealImageUrls?.large || undefined,
         }),
       })
       if (res.success) {
@@ -2496,6 +2904,17 @@ function VendorCreateDealView() {
               </SelectContent>
             </Select>
           </div>
+          {/* Deal Image Upload */}
+          <ImageUploader
+            group="deal"
+            currentUrl={dealImageUrl}
+            onUploadComplete={(url, urls) => {
+              setDealImageUrl(url)
+              setDealImageUrls(urls)
+            }}
+            label="Food Photo"
+            sizeHint="Auto-generates thumb (200px), card (400px), full (800px), hero (1200px)"
+          />
           <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white">
             Next: Pricing <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
@@ -2540,7 +2959,12 @@ function VendorCreateDealView() {
       {/* Step 3: Review & Publish */}
       {step === 3 && (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
-          <Card className="border-0 shadow-card rounded-2xl">
+          <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
+            {dealImageUrl && (
+              <div className="w-full h-40 bg-[#f0f4f2] relative">
+                <Image src={dealImageUrl} alt={form.title || 'Deal'} fill className="object-cover" unoptimized />
+              </div>
+            )}
             <CardContent className="p-5 space-y-3">
               <h3 className="font-bold text-lg text-[#1a1c1e]">{form.title || 'Untitled Deal'}</h3>
               <p className="text-sm text-[#414841]">{form.description}</p>
@@ -2910,22 +3334,22 @@ function VendorFulfillmentView() {
         <h1 className="text-xl font-extrabold text-[#1a1c1e]">Fulfillment</h1>
       </div>
 
-      {/* QR Scanner Card */}
-      <Card className="border-0 shadow-card rounded-2xl mb-5 overflow-hidden">
-        <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
-          <h3 className="font-bold text-[#1a1c1e] flex items-center gap-2">
-            <ScanLine className="w-5 h-5 text-[#6CB4EE]" /> Scan QR Code
+      {/* QR Scanner Card — compact */}
+      <Card className="border-0 shadow-card rounded-2xl mb-4 overflow-hidden">
+        <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-4 pt-3 pb-1.5">
+          <h3 className="font-bold text-sm text-[#1a1c1e] flex items-center gap-2">
+            <ScanLine className="w-4 h-4 text-[#6CB4EE]" /> Scan QR Code
           </h3>
-          <p className="text-xs text-[#414841] mt-0.5">Scan customer&apos;s QR to verify & complete pickup</p>
+          <p className="text-[10px] text-[#414841]">Scan customer&apos;s QR to verify & complete pickup</p>
         </div>
-        <CardContent className="p-5 space-y-3">
+        <CardContent className="p-3 space-y-2">
           {/* Camera Scanner Toggle */}
           {!cameraActive ? (
             <Button
               onClick={startScanner}
-              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white flex items-center justify-center gap-2"
+              className="w-full h-10 rounded-xl font-bold text-sm bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white flex items-center justify-center gap-2"
             >
-              <Camera className="w-5 h-5" /> Open Camera Scanner
+              <Camera className="w-4 h-4" /> Open Camera Scanner
             </Button>
           ) : (
             <div className="space-y-3">
@@ -2933,20 +3357,20 @@ function VendorFulfillmentView() {
                 ref={scannerRef}
                 id="qr-scanner-container"
                 className="w-full rounded-xl overflow-hidden border-2 border-[#6CB4EE]/30"
-                style={{ minHeight: '250px' }}
+                style={{ minHeight: '180px' }}
               />
               <Button
                 onClick={stopScanner}
                 variant="outline"
-                className="w-full h-10 rounded-xl font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
+                className="w-full h-9 rounded-xl font-bold text-xs text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
               >
-                <XCircle className="w-4 h-4 mr-1.5" /> Stop Scanner
+                <XCircle className="w-3.5 h-3.5 mr-1" /> Stop Scanner
               </Button>
             </div>
           )}
 
           {/* Manual Input Fallback */}
-          <div className="flex items-center gap-2 text-[10px] text-[#717971]">
+          <div className="flex items-center gap-2 text-[9px] text-[#717971]">
             <div className="flex-1 h-px bg-[#d7ddd9]" />
             OR ENTER MANUALLY
             <div className="flex-1 h-px bg-[#d7ddd9]" />
@@ -2956,13 +3380,13 @@ function VendorFulfillmentView() {
               value={qrInput}
               onChange={(e) => setQrInput(e.target.value)}
               placeholder="Enter QR code..."
-              className="h-12 rounded-xl flex-1 font-mono text-sm"
+              className="h-10 rounded-xl flex-1 font-mono text-xs"
               onKeyDown={(e) => e.key === 'Enter' && handleScan()}
             />
             <Button
               onClick={handleScan}
               disabled={scanning || !qrInput.trim()}
-              className="h-12 px-5 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+              className="h-10 px-4 rounded-xl font-bold text-sm bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
             >
               {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             </Button>
@@ -3040,53 +3464,56 @@ function VendorFulfillmentView() {
           <p className="text-sm text-[#717971]">No completed orders yet</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {completed.map((order) => (
-            <Card key={order.id} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-3">
-                <div className="flex gap-3">
-                  {/* Thumbnail */}
-                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+            <Card key={order.id} className="border-0 shadow-card rounded-xl">
+              <CardContent className="p-2.5">
+                <div className="flex gap-2.5 items-center">
+                  {/* Thumbnail — compact */}
+                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
                     {order.deal?.imageUrl ? (
                       <Image
                         src={order.deal.imageUrl}
                         alt={order.deal?.title || 'Deal'}
-                        width={56}
-                        height={56}
+                        width={40}
+                        height={40}
                         className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Utensils className="w-6 h-6 text-[#8FC5E8]" />
+                        <Utensils className="w-4 h-4 text-[#8FC5E8]" />
                       </div>
                     )}
                   </div>
                   {/* Details */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[10px] text-[#717971] font-mono truncate">#{order.orderNumber}</p>
-                        <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-md text-[10px] h-4 px-1.5 mt-0.5">Done</Badge>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
-                        <p className="text-[10px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
-                      </div>
+                    {/* Deal name above order ID */}
+                    <p className="text-xs font-bold text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-[9px] text-[#717971] font-mono truncate">#{order.orderNumber}</p>
+                      <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded text-[8px] h-3.5 px-1">Done</Badge>
                     </div>
-                    {/* Timestamps */}
-                    <div className="mt-1.5 space-y-0.5">
-                      <p className="text-[10px] text-[#717971] flex items-center gap-1">
-                        <Zap className="w-2.5 h-2.5 text-[#FB923C]" />
-                        Snapped: {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {/* Timestamps — compact */}
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
+                        <Zap className="w-2 h-2 text-[#FB923C]" />
+                        {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
-                      <p className="text-[10px] text-[#717971] flex items-center gap-1">
-                        <ScanLine className="w-2.5 h-2.5 text-[#6CB4EE]" />
-                        Scanned: {order.qrVerifiedAt
+                      <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
+                        <ScanLine className="w-2 h-2 text-[#6CB4EE]" />
+                        Redeemed: {order.qrVerifiedAt
                           ? new Date(order.qrVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : new Date(order.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         }
                       </p>
                     </div>
+                  </div>
+                  {/* Price right-center */}
+                  <div className="flex-shrink-0 flex flex-col items-end justify-center">
+                    <p className="text-xs font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
+                    {order.originalPrice > order.dealPrice && (
+                      <p className="text-[9px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -3537,6 +3964,7 @@ function AdminDashboardView() {
               { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#7EC8E3]' },
               { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#6CB4EE]' },
               { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#FB923C]' },
+              { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#8FC5E8]' },
             ].map((item) => (
               <motion.button
                 key={item.view}
@@ -4312,6 +4740,310 @@ const NotificationBell = memo(function NotificationBell() {
 })
 
 // ============================================
+// ADMIN: UPLOAD SETTINGS VIEW
+// ============================================
+function AdminUploadSettingsView() {
+  const { goBack } = useAppStore()
+  const [settings, setSettings] = useState<Record<string, unknown>>({
+    maxFileSizeMB: 10,
+    autoResize: true,
+    autoCompress: true,
+    qualityProfile: 85,
+    qualityDeal: 80,
+    qualityVendor: 85,
+    enableWatermark: false,
+    watermarkText: 'FlashBite',
+    moderationMode: 'auto',
+    maxUploadsPerDay: 100,
+    enableCDN: false,
+    cdnUrl: '',
+    storageLimitMB: 5000,
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    apiFetch<Record<string, unknown>>('/api/admin/upload-settings').then((res) => {
+      if (res.success && res.data) setSettings(res.data)
+    }).finally(() => setLoading(false))
+  }, [])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const res = await apiFetch('/api/admin/upload-settings', {
+        method: 'PUT',
+        body: JSON.stringify(settings),
+      })
+      if (res.success) {
+        toast.success('Upload settings saved!')
+      } else {
+        toast.error(res.error || 'Failed to save settings')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateField = (key: string, value: unknown) => {
+    setSettings(prev => ({ ...prev, [key]: value }))
+  }
+
+  return (
+    <div className="pb-28 px-5 pt-2">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Upload Settings</h1>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* File Limits */}
+          <Card className="border-0 shadow-card rounded-2xl">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Shield className="w-4 h-4 text-[#6CB4EE]" /> File Limits
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Max File Size</p>
+                  <p className="text-[11px] text-[#717971]">Maximum upload size per file</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={String(settings.maxFileSizeMB || 10)}
+                    onChange={(e) => updateField('maxFileSizeMB', parseInt(e.target.value))}
+                    className="w-16 h-8 text-center text-sm rounded-lg"
+                  />
+                  <span className="text-xs text-[#717971]">MB</span>
+                </div>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Daily Upload Limit</p>
+                  <p className="text-[11px] text-[#717971]">Per user per day</p>
+                </div>
+                <Input
+                  type="number"
+                  value={String(settings.maxUploadsPerDay || 100)}
+                  onChange={(e) => updateField('maxUploadsPerDay', parseInt(e.target.value))}
+                  className="w-20 h-8 text-center text-sm rounded-lg"
+                />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Storage Limit</p>
+                  <p className="text-[11px] text-[#717971]">Total storage for uploads</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={String(settings.storageLimitMB || 5000)}
+                    onChange={(e) => updateField('storageLimitMB', parseInt(e.target.value))}
+                    className="w-20 h-8 text-center text-sm rounded-lg"
+                  />
+                  <span className="text-xs text-[#717971]">MB</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Processing */}
+          <Card className="border-0 shadow-card rounded-2xl">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#6CB4EE]" /> Auto-Processing
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Auto-Resize</p>
+                  <p className="text-[11px] text-[#717971]">Generate multiple size variants on upload</p>
+                </div>
+                <Switch checked={settings.autoResize as boolean} onCheckedChange={(v) => updateField('autoResize', v)} />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Auto-Compress</p>
+                  <p className="text-[11px] text-[#717971]">Reduce quality to meet size limits</p>
+                </div>
+                <Switch checked={settings.autoCompress as boolean} onCheckedChange={(v) => updateField('autoCompress', v)} />
+              </div>
+              <Separator />
+              <div>
+                <p className="text-sm font-bold text-[#1a1c1e] mb-2">Quality Presets</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { key: 'qualityProfile', label: 'Profile', value: settings.qualityProfile as number },
+                    { key: 'qualityDeal', label: 'Deal', value: settings.qualityDeal as number },
+                    { key: 'qualityVendor', label: 'Vendor', value: settings.qualityVendor as number },
+                  ].map((item) => (
+                    <div key={item.key} className="bg-[#f0f4f2] rounded-lg p-2 text-center">
+                      <p className="text-[10px] text-[#717971]">{item.label}</p>
+                      <Input
+                        type="number"
+                        min={30}
+                        max={100}
+                        value={String(item.value || 80)}
+                        onChange={(e) => updateField(item.key, parseInt(e.target.value))}
+                        className="w-full h-7 text-center text-sm rounded-md mt-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Watermark & Moderation */}
+          <Card className="border-0 shadow-card rounded-2xl">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Eye className="w-4 h-4 text-[#6CB4EE]" /> Moderation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Enable Watermark</p>
+                  <p className="text-[11px] text-[#717971]">Add watermark to uploaded images</p>
+                </div>
+                <Switch checked={settings.enableWatermark as boolean} onCheckedChange={(v) => updateField('enableWatermark', v)} />
+              </div>
+              {settings.enableWatermark && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Watermark Text</p>
+                    <Input
+                      value={String(settings.watermarkText || 'FlashBite')}
+                      onChange={(e) => updateField('watermarkText', e.target.value)}
+                      className="mt-1 h-9 rounded-xl text-sm"
+                    />
+                  </div>
+                </>
+              )}
+              <Separator />
+              <div>
+                <p className="text-sm font-bold text-[#1a1c1e] mb-2">Moderation Mode</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { value: 'auto', label: 'Auto', desc: 'AI approves' },
+                    { value: 'manual', label: 'Manual', desc: 'Admin reviews' },
+                    { value: 'none', label: 'None', desc: 'No review' },
+                  ].map((mode) => (
+                    <button
+                      key={mode.value}
+                      onClick={() => updateField('moderationMode', mode.value)}
+                      className={`p-2 rounded-lg text-center transition-all ${
+                        settings.moderationMode === mode.value
+                          ? 'bg-[#6CB4EE] text-white'
+                          : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                      }`}
+                    >
+                      <p className="text-xs font-bold">{mode.label}</p>
+                      <p className={`text-[9px] ${settings.moderationMode === mode.value ? 'text-white/80' : 'text-[#717971]'}`}>
+                        {mode.desc}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* CDN */}
+          <Card className="border-0 shadow-card rounded-2xl">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Globe className="w-4 h-4 text-[#6CB4EE]" /> CDN
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-[#1a1c1e]">Enable CDN</p>
+                  <p className="text-[11px] text-[#717971]">Serve images via CDN</p>
+                </div>
+                <Switch checked={settings.enableCDN as boolean} onCheckedChange={(v) => updateField('enableCDN', v)} />
+              </div>
+              {settings.enableCDN && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">CDN URL</p>
+                    <Input
+                      value={String(settings.cdnUrl || '')}
+                      onChange={(e) => updateField('cdnUrl', e.target.value)}
+                      placeholder="https://cdn.example.com"
+                      className="mt-1 h-9 rounded-xl text-sm"
+                    />
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Image Size Reference */}
+          <Card className="border-0 shadow-card rounded-2xl">
+            <CardHeader className="pb-2 pt-4 px-4">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Camera className="w-4 h-4 text-[#6CB4EE]" /> Size Reference
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="space-y-2">
+                {[
+                  { label: 'Profile Avatar', sizes: '200×200, 80×80', group: 'profile' },
+                  { label: 'Vendor Logo', sizes: '200×200, 64×64', group: 'vendor_logo' },
+                  { label: 'Vendor Banner', sizes: '1200×400', group: 'vendor_banner' },
+                  { label: 'Deal Thumbnail', sizes: '200×150', group: 'deal' },
+                  { label: 'Deal Card', sizes: '400×300', group: 'deal' },
+                  { label: 'Deal Full', sizes: '800×600', group: 'deal' },
+                  { label: 'Deal Hero', sizes: '1200×800', group: 'deal' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between py-1.5">
+                    <div>
+                      <p className="text-xs font-bold text-[#1a1c1e]">{item.label}</p>
+                      <p className="text-[10px] text-[#717971]">{item.group}</p>
+                    </div>
+                    <code className="text-[10px] text-[#6CB4EE] bg-[#6CB4EE]/5 px-2 py-0.5 rounded">
+                      {item.sizes}
+                    </code>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Save Button */}
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+          >
+            {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Settings</>}
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
 // BOTTOM NAVIGATION - FOODIE (Foodpanda Style)
 // ============================================
 function FoodieBottomNav() {
@@ -4490,6 +5222,7 @@ function ViewRouter() {
         case 'users': return <AdminUsersView />
         case 'analytics': return <AdminAnalyticsView />
         case 'admin-deals': return <AdminDealsView />
+        case 'upload-settings': return <AdminUploadSettingsView />
         case 'profile': return <FoodieProfileView />
         case 'register-vendor': return <VendorRegistrationView />
         default: return <AdminDashboardView />

@@ -1,5 +1,5 @@
 ---
-name: FlashBite
+name: SnapJe
 colors:
   surface: '#f8f9ff'
   surface-dim: '#ccdbf2'
