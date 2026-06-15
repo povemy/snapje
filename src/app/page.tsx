@@ -272,11 +272,24 @@ const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false
 })
 
 // ============================================
-// DEAL CARD COMPONENT
+// DEAL CARD COMPONENT - Varied Sizes
 // ============================================
-const DealCard = memo(function DealCard({ deal, onSelect }: { deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; onSelect: () => void }) {
+type CardSize = 'featured' | 'large' | 'medium' | 'small'
+
+const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: { 
+  deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; 
+  onSelect: () => void;
+  size?: CardSize;
+}) {
   const isLowStock = deal.availableQuantity <= 5 && deal.availableQuantity > 0
   const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
+
+  // Featured: full-width hero card with tall image
+  // Large: full-width card with medium image
+  // Medium: half-width card (2 per row)
+  // Small: half-width card with compact layout
+  const isHalfWidth = size === 'medium' || size === 'small'
+  const imageAspect = size === 'featured' ? 'aspect-[16/9]' : size === 'large' ? 'aspect-[4/3]' : 'aspect-square'
 
   return (
     <motion.div
@@ -286,68 +299,133 @@ const DealCard = memo(function DealCard({ deal, onSelect }: { deal: Deal & { dis
       className="cursor-pointer"
     >
       <Card className="overflow-hidden border-0 shadow-card hover:shadow-card-hover transition-shadow duration-200 rounded-2xl">
-        {/* Image */}
-        <div className="relative aspect-[4/3] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff] overflow-hidden">
+        {/* Image with overlaid badges */}
+        <div className={`relative ${imageAspect} bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff] overflow-hidden`}>
           {deal.imageUrl ? (
             <Image
               src={deal.imageUrl}
               alt={deal.title}
               className="w-full h-full object-cover"
               fill
-              sizes="(max-width: 640px) 100vw, 400px"
+              sizes={isHalfWidth ? "(max-width: 640px) 50vw, 200px" : "(max-width: 640px) 100vw, 400px"}
               loading="lazy"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Utensils className="w-12 h-12 text-[#89cff0]" />
+              <Utensils className={isHalfWidth ? 'w-8 h-8 text-[#89cff0]' : 'w-12 h-12 text-[#89cff0]'} />
             </div>
           )}
-          {/* Discount Badge */}
-          <div className="absolute top-3 left-3">
-            <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold text-xs px-2.5 py-1 rounded-lg shadow-chip border-0">
+          
+          {/* Gradient overlay at bottom for text readability */}
+          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+          
+          {/* Discount Badge - Top Left */}
+          <div className="absolute top-2 left-2">
+            <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold text-[10px] px-2 py-0.5 rounded-lg shadow-chip border-0">
               -{deal.discountPercent}%
             </Badge>
           </div>
-          {/* Distance */}
+          
+          {/* Distance - Top Right */}
           {deal.distance !== undefined && (
-            <div className="absolute top-3 right-3">
-              <Badge variant="secondary" className="bg-white/90 text-[#0d1c2d] text-xs px-2 py-1 rounded-lg shadow-chip">
-                <MapPin className="w-3 h-3 mr-0.5" />
+            <div className="absolute top-2 right-2">
+              <Badge variant="secondary" className="bg-white/90 text-[#0d1c2d] text-[10px] px-1.5 py-0.5 rounded-md shadow-chip">
+                <MapPin className="w-2.5 h-2.5 mr-0.5" />
                 {deal.distance.toFixed(1)}km
               </Badge>
             </div>
           )}
+          
+          {/* Countdown Timer Overlay - Below distance, right side */}
+          <div className="absolute top-8 right-2">
+            <CountdownTimerOverlay expiresAt={deal.expiresAt} />
+          </div>
+          
           {/* Stock overlay */}
           {isSoldOut && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">SOLD OUT</span>
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+              <span className="text-white font-bold text-sm">SOLD OUT</span>
             </div>
           )}
-        </div>
-        {/* Info */}
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-[#0d1c2d] text-base truncate">{deal.title}</h3>
-              <p className="text-sm text-[#40484d] truncate mt-0.5">
-                {deal.vendor?.businessName || 'Vendor'}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-lg font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</p>
-              <p className="text-xs text-[#70787d] line-through">RM{deal.originalPrice.toFixed(2)}</p>
+
+          {/* Price & Title overlay at bottom of image */}
+          <div className="absolute bottom-0 left-0 right-0 p-2.5 z-[5]">
+            <div className="flex items-end justify-between gap-1">
+              <div className="flex-1 min-w-0">
+                <h3 className={`font-bold text-white truncate drop-shadow-sm ${isHalfWidth ? 'text-xs' : size === 'featured' ? 'text-lg' : 'text-sm'}`}>
+                  {deal.title}
+                </h3>
+                {!isHalfWidth && (
+                  <p className="text-[11px] text-white/80 truncate mt-0.5">
+                    {deal.vendor?.businessName || 'Vendor'}
+                  </p>
+                )}
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className={`font-extrabold text-[#89cff0] drop-shadow-sm ${isHalfWidth ? 'text-sm' : 'text-base'}`}>
+                  RM{deal.dealPrice.toFixed(2)}
+                </p>
+                <p className="text-[10px] text-white/60 line-through">RM{deal.originalPrice.toFixed(2)}</p>
+              </div>
             </div>
           </div>
-          {/* Bottom row */}
-          <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d4e4fa]">
-            <CountdownTimer expiresAt={deal.expiresAt} compact />
-            <div className={`text-xs font-bold ${isLowStock ? 'text-[#FB923C] animate-pulse-urgent' : isSoldOut ? 'text-[#70787d]' : 'text-[#34D399]'}`}>
-              {isSoldOut ? 'Sold out' : isLowStock ? `🔥 Only ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
+        </div>
+        
+        {/* Compact info bar below image */}
+        <CardContent className="p-2">
+          <div className="flex items-center justify-between">
+            {/* Stock indicator */}
+            <div className={`text-[10px] font-bold ${isLowStock ? 'text-[#FB923C]' : isSoldOut ? 'text-[#70787d]' : 'text-[#34D399]'}`}>
+              {isSoldOut ? 'Sold out' : isLowStock ? `🔥 ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
             </div>
+            {/* Vendor for half-width cards */}
+            {isHalfWidth && (
+              <p className="text-[10px] text-[#70787d] truncate max-w-[60%]">
+                {deal.vendor?.businessName || 'Vendor'}
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
     </motion.div>
+  )
+})
+
+// ============================================
+// COUNTDOWN TIMER OVERLAY (compact, for cards)
+// ============================================
+const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }: { expiresAt: string }) {
+  const [timeLeft, setTimeLeft] = useState('')
+
+  useEffect(() => {
+    const update = () => {
+      const diff = new Date(expiresAt).getTime() - Date.now()
+      if (diff <= 0) { setTimeLeft('Expired'); return }
+      const hours = Math.floor(diff / 3600000)
+      const mins = Math.floor((diff % 3600000) / 60000)
+      const secs = Math.floor((diff % 60000) / 1000)
+      if (hours > 0) setTimeLeft(`${hours}h ${mins}m`)
+      else if (mins > 0) setTimeLeft(`${mins}m ${secs}s`)
+      else setTimeLeft(`${secs}s`)
+    }
+    update()
+    const interval = setInterval(update, 1000)
+    return () => clearInterval(interval)
+  }, [expiresAt])
+
+  const isUrgent = timeLeft !== 'Expired' && !timeLeft.includes('h')
+
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-sm ${
+      timeLeft === 'Expired' 
+        ? 'bg-black/40 text-white/70' 
+        : isUrgent 
+        ? 'bg-[#FB923C]/90 text-white animate-pulse-urgent' 
+        : 'bg-black/40 text-white/90'
+    }`}>
+      <Clock className="w-2.5 h-2.5" />
+      {timeLeft}
+    </span>
   )
 })
 
@@ -361,6 +439,7 @@ function FoodieHomeView() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
+  const [categoryOpen, setCategoryOpen] = useState(false)
 
   // Debounce search input by 300ms to avoid excessive API calls
   useEffect(() => {
@@ -387,76 +466,105 @@ function FoodieHomeView() {
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
+  // Assign card sizes based on position for visual variety
+  const getCardSize = (index: number): CardSize => {
+    if (index === 0) return 'featured'    // First deal: big hero card
+    if (index % 5 === 1) return 'large'   // Every 5th position: large card
+    return 'medium'                        // Default: half-width (2 per row)
+  }
+
   return (
     <div className="pb-28">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-5 pt-4 pb-3" style={{ paddingTop: 'max(16px, env(safe-area-inset-top, 16px))' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-2xl font-extrabold text-[#0d1c2d]">FlashBite</h1>
-            <p className="text-sm text-[#40484d] flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-[#0d6683]" />
-              Kuala Lumpur
-            </p>
+      {/* Compact Header */}
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-4 pt-2 pb-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top, 12px))' }}>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#89cff0] to-[#0d6683] flex items-center justify-center">
+              <Flame className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <h1 className="text-base font-extrabold text-[#0d1c2d] leading-tight">FlashBite</h1>
+              <p className="text-[10px] text-[#40484d] flex items-center gap-0.5 leading-tight">
+                <MapPin className="w-2.5 h-2.5 text-[#0d6683]" />
+                Kuala Lumpur
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {isAuthenticated ? (
               <NotificationBell />
             ) : (
               <Button
                 onClick={() => setShowAuthModal(true)}
-                className="h-9 px-4 rounded-xl text-sm font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
+                className="h-7 px-3 rounded-lg text-xs font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
               >
                 Sign In
               </Button>
             )}
           </div>
         </div>
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#70787d]" />
-          <Input
-            placeholder="Search deals..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 h-10 rounded-xl text-sm"
-          />
-        </div>
-        {/* Categories */}
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1 scrollbar-none">
-          {FOOD_CATEGORIES_LIST.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat === 'All' ? null : cat)}
-              className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all ${
-                (cat === 'All' && !selectedCategory) || selectedCategory === cat
-                  ? 'bg-[#0d6683] text-white'
-                  : 'bg-[#e5efff] text-[#40484d] hover:bg-[#dbe9ff]'
-              }`}
+        {/* Search + Category Dropdown row */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#70787d]" />
+            <Input
+              placeholder="Search deals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-9 rounded-xl text-xs"
+            />
+          </div>
+          {/* Category Dropdown */}
+          <div className="relative">
+            <Button
+              variant="outline"
+              onClick={() => setCategoryOpen(!categoryOpen)}
+              className="h-9 px-3 rounded-xl text-xs font-bold border-[#d4e4fa] bg-white hover:bg-[#eef4ff] gap-1"
             >
-              {cat}
-            </button>
-          ))}
+              <Filter className="w-3.5 h-3.5" />
+              {selectedCategory || 'All'}
+              <ChevronRight className={`w-3 h-3 transition-transform ${categoryOpen ? 'rotate-90' : ''}`} />
+            </Button>
+            {categoryOpen && (
+              <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-modal border border-[#d4e4fa] p-2 z-50 min-w-[140px] max-h-[240px] overflow-y-auto">
+                {FOOD_CATEGORIES_LIST.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSelectedCategory(cat === 'All' ? null : cat)
+                      setCategoryOpen(false)
+                    }}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      (cat === 'All' && !selectedCategory) || selectedCategory === cat
+                        ? 'bg-[#0d6683] text-white'
+                        : 'hover:bg-[#eef4ff] text-[#40484d]'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Deals Feed */}
-      <div className="px-5 mt-4 space-y-4">
+      {/* Close category dropdown on outside click */}
+      {categoryOpen && (
+        <div className="fixed inset-0 z-20" onClick={() => setCategoryOpen(false)} />
+      )}
+
+      {/* Deals Grid - E-commerce style with varied sizes */}
+      <div className="px-4 mt-3">
         {loading ? (
           // Skeleton loaders
-          Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden border-0 shadow-card rounded-2xl">
-              <Skeleton className="aspect-[4/3] rounded-none" />
-              <div className="p-4 space-y-3">
-                <Skeleton className="h-5 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
-                <div className="flex justify-between">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-4 w-16" />
-                </div>
-              </div>
-            </Card>
-          ))
+          <div className="space-y-3">
+            <Skeleton className="aspect-[16/9] rounded-2xl" />
+            <div className="grid grid-cols-2 gap-3">
+              <Skeleton className="aspect-square rounded-2xl" />
+              <Skeleton className="aspect-square rounded-2xl" />
+            </div>
+          </div>
         ) : deals.length === 0 ? (
           <div className="text-center py-16">
             <Utensils className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
@@ -464,13 +572,51 @@ function FoodieHomeView() {
             <p className="text-sm text-[#40484d] mt-1">Check back soon for new flash deals!</p>
           </div>
         ) : (
-          deals.map((deal) => (
-            <DealCard
-              key={deal.id}
-              deal={deal}
-              onSelect={() => navigate('deal-detail', { id: deal.id })}
-            />
-          ))
+          deals.map((deal, index) => {
+            const size = getCardSize(index)
+            // Featured and large cards span full width
+            // Medium cards are in a 2-column grid
+            const isFullWidth = size === 'featured' || size === 'large'
+            
+            // Check if this is the start of a pair row (medium cards come in pairs)
+            const nextDeal = deals[index + 1]
+            const isPairStart = size === 'medium' && nextDeal && getCardSize(index + 1) === 'medium'
+            const isPairSecond = index > 0 && getCardSize(index) === 'medium' && getCardSize(index - 1) === 'medium'
+            
+            return (
+              <div key={deal.id}>
+                {isFullWidth ? (
+                  <DealCard
+                    deal={deal}
+                    onSelect={() => navigate('deal-detail', { id: deal.id })}
+                    size={size}
+                  />
+                ) : isPairStart ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <DealCard
+                      deal={deal}
+                      onSelect={() => navigate('deal-detail', { id: deal.id })}
+                      size="medium"
+                    />
+                    <DealCard
+                      deal={nextDeal}
+                      onSelect={() => navigate('deal-detail', { id: nextDeal.id })}
+                      size="medium"
+                    />
+                  </div>
+                ) : isPairSecond ? null : (
+                  // Odd medium card (no pair)
+                  <DealCard
+                    deal={deal}
+                    onSelect={() => navigate('deal-detail', { id: deal.id })}
+                    size="medium"
+                  />
+                )}
+                {/* Spacing between cards */}
+                <div className="h-3" />
+              </div>
+            )
+          })
         )}
       </div>
     </div>
@@ -481,7 +627,7 @@ function FoodieHomeView() {
 // FOODIE: DEAL DETAIL VIEW
 // ============================================
 function DealDetailView() {
-  const { viewParams, goBack, setShowAuthModal } = useAppStore()
+  const { viewParams, goBack, setShowAuthModal, navigate } = useAppStore()
   const [deal, setDeal] = useState<Deal | null>(null)
   const [loading, setLoading] = useState(true)
   const [claiming, setClaiming] = useState(false)
@@ -654,8 +800,21 @@ function DealDetailView() {
               <span className="font-bold text-[#059669]">Deal Claimed!</span>
             </div>
             <p className="text-sm text-[#065f46]">
-              Order #{order.orderNumber}. Check your Orders for the pickup QR code.
+              Order #{order.orderNumber}
             </p>
+            {order.pickupDeadline && (
+              <p className="text-xs text-[#065f46] mt-1 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+            <Button
+              onClick={() => navigate('orders')}
+              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#059669] to-[#047857] text-white hover:opacity-90 active:scale-95 transition-all"
+            >
+              <QrCode className="w-4 h-4 mr-1.5" />
+              View QR Code & Pickup Details
+            </Button>
           </motion.div>
         )}
       </div>

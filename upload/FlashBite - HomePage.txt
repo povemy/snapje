@@ -1,0 +1,285 @@
+<!DOCTYPE html><html lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>FlashBite - Home</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@100..900&amp;display=swap" rel="stylesheet">
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed": "#091d2e",
+                      "inverse-surface": "#233143",
+                      "inverse-primary": "#8ad0f1",
+                      "on-primary-fixed-variant": "#004d65",
+                      "on-tertiary-fixed": "#171c1f",
+                      "surface-variant": "#d4e4fa",
+                      "on-secondary-fixed-variant": "#36485b",
+                      "on-error-container": "#93000a",
+                      "surface-container-highest": "#d4e4fa",
+                      "background": "#f8f9ff",
+                      "on-tertiary": "#ffffff",
+                      "on-secondary": "#ffffff",
+                      "error-container": "#ffdad6",
+                      "surface-bright": "#f8f9ff",
+                      "secondary": "#4e6073",
+                      "primary-fixed-dim": "#8ad0f1",
+                      "error": "#ba1a1a",
+                      "surface-container": "#e5efff",
+                      "tertiary-fixed": "#dfe3e7",
+                      "outline-variant": "#bfc8cd",
+                      "on-background": "#0d1c2d",
+                      "secondary-fixed-dim": "#b5c8df",
+                      "inverse-on-surface": "#e9f1ff",
+                      "on-secondary-container": "#526478",
+                      "surface-container-low": "#eef4ff",
+                      "primary-container": "#89cff0",
+                      "on-error": "#ffffff",
+                      "surface-container-high": "#dbe9ff",
+                      "on-surface-variant": "#40484d",
+                      "on-surface": "#0d1c2d",
+                      "secondary-fixed": "#d1e4fb",
+                      "primary-fixed": "#bee9ff",
+                      "outline": "#70787d",
+                      "surface-dim": "#ccdbf2",
+                      "on-primary": "#ffffff",
+                      "tertiary-container": "#c2c6ca",
+                      "secondary-container": "#cfe2f9",
+                      "primary": "#0d6683",
+                      "tertiary": "#5a5f62",
+                      "surface-tint": "#0d6683",
+                      "on-primary-container": "#005974",
+                      "on-tertiary-fixed-variant": "#42474b",
+                      "tertiary-fixed-dim": "#c3c7cb",
+                      "on-tertiary-container": "#4e5356",
+                      "surface-container-lowest": "#ffffff",
+                      "on-primary-fixed": "#001f2a",
+                      "surface": "#f8f9ff"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "xs": "4px",
+                      "sm": "8px",
+                      "xl": "32px",
+                      "lg": "24px",
+                      "md": "16px",
+                      "container-margin": "20px",
+                      "gutter": "16px"
+              },
+              "fontFamily": {
+                      "headline-sm": ["Nunito Sans"],
+                      "label-md": ["Nunito Sans"],
+                      "display-lg": ["Nunito Sans"],
+                      "body-lg": ["Nunito Sans"],
+                      "display-lg-mobile": ["Nunito Sans"],
+                      "body-md": ["Nunito Sans"],
+                      "body-sm": ["Nunito Sans"],
+                      "headline-md": ["Nunito Sans"],
+                      "label-sm": ["Nunito Sans"]
+              },
+              "fontSize": {
+                      "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "700" }],
+                      "label-md": ["14px", { "lineHeight": "16px", "fontWeight": "700" }],
+                      "display-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                      "body-lg": ["18px", { "lineHeight": "26px", "fontWeight": "400" }],
+                      "display-lg-mobile": ["28px", { "lineHeight": "34px", "letterSpacing": "-0.02em", "fontWeight": "800" }],
+                      "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                      "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                      "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                      "label-sm": ["12px", { "lineHeight": "14px", "fontWeight": "600" }]
+              }
+            }
+          }
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Nunito Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            border-radius: 9999px; /* Ensure rounded caps/joins visually */
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+        .gradient-btn {
+            background: linear-gradient(to bottom, rgba(255,255,255,0.2), transparent), linear-gradient(to bottom, #89CFF0, #bee9ff);
+        }
+        /* Custom spring animations */
+        .spring-bounce {
+            transition-property: all;
+            transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition-duration: 300ms;
+        }
+        .spring-bounce:active {
+            transform: scale(0.95);
+        }
+        
+        /* Hide scrollbar for horizontal lists */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background antialiased pb-24 pt-20">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-container-margin py-sm bg-surface shadow-md">
+<button class="w-10 h-10 flex items-center justify-center text-primary spring-bounce">
+<span class="material-symbols-outlined text-[24px]" data-icon="location_on">location_on</span>
+</button>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">FlashBite</h1>
+<button class="w-10 h-10 flex items-center justify-center rounded-full overflow-hidden spring-bounce shadow-sm">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="A close-up portrait of a professional individual with a warm, welcoming smile. The image is brightly lit with soft, high-key lighting emphasizing a modern, clean aesthetic. The background is subtle and out of focus, drawing attention to the subject. The overall mood conveys trust, reliability, and friendliness, fitting for a premium delivery service profile avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6gSBsAlmO-LvH26F2JK9_8RmjyHeM7_NU6T9REMLuyv0eKYfPtEB3xcYsdqrPlU68oQvIrYIIXLTZ-TiXp45qaNKyVE54YF8MfIaLaLG8cFqcOyl5YvKHcq8QBQJTKcZ5X07sfP2RvYJ6Ec5lvgNjd52X3otrpCY65EeojVtSs4C5IglNgjq4HYZsd8mLsud16pDIq_zTeYS_F5-CGsvjXQUf15VRyKZ22XdXdC-Rq8m_uGAYjb_0xvgWq36tHRmS7GcbM7MHwFE">
+</button>
+</header>
+<!-- Location & Filter Sub-header -->
+<section class="px-container-margin py-md flex flex-col gap-sm bg-surface-bright shadow-sm relative z-40">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">Delivering to</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Downtown Office</span>
+<span class="material-symbols-outlined text-primary text-[18px]" data-icon="expand_more">expand_more</span>
+</div>
+<div class="bg-primary-container text-on-primary-container px-3 py-1 rounded-full flex items-center gap-xs shadow-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="verified" data-weight="fill">verified</span>
+<span class="font-label-sm text-label-sm">First Dibs</span>
+</div>
+</div>
+<div class="flex items-center gap-sm mt-xs">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]" data-icon="radar">radar</span>
+<input class="w-full h-1 bg-surface-variant rounded-full appearance-none outline-none focus:ring-2 focus:ring-primary-container" max="10" min="1" type="range" value="5">
+<span class="font-label-md text-label-md text-primary w-12 text-right">5 km</span>
+</div>
+<!-- Category Chips -->
+<div class="flex gap-sm overflow-x-auto no-scrollbar py-sm mt-xs">
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-full font-label-md text-label-md whitespace-nowrap shadow-sm spring-bounce transition-all duration-300 active:scale-95 gradient-btn">All Deals</button>
+<button class="px-4 py-2 bg-surface-variant text-on-surface-variant rounded-full font-label-md text-label-md whitespace-nowrap shadow-sm spring-bounce transition-all duration-300 active:scale-95">Sushi</button>
+<button class="px-4 py-2 bg-surface-variant text-on-surface-variant rounded-full font-label-md text-label-md whitespace-nowrap shadow-sm spring-bounce transition-all duration-300 active:scale-95">Burgers</button>
+<button class="px-4 py-2 bg-surface-variant text-on-surface-variant rounded-full font-label-md text-label-md whitespace-nowrap shadow-sm spring-bounce transition-all duration-300 active:scale-95">Vegan</button>
+<button class="px-4 py-2 bg-surface-variant text-on-surface-variant rounded-full font-label-md text-label-md whitespace-nowrap shadow-sm spring-bounce transition-all duration-300 active:scale-95">Desserts</button>
+</div>
+</section>
+<!-- Main Content Area -->
+<main class="px-container-margin py-lg flex flex-col gap-lg">
+<!-- Hero Deal (Single Column) -->
+<article class="bg-surface rounded-xl shadow-md overflow-hidden flex flex-col spring-bounce relative transition-all duration-300 active:scale-95 animate-in fade-in slide-in-from-bottom-4 duration-700">
+<div class="h-48 w-full relative">
+<img alt="Gourmet Sushi Platter" class="w-full h-full object-cover" data-alt="A stunning, high-resolution overhead shot of a gourmet sushi platter presented on a minimalist slate board. The lighting is crisp and bright, accentuating the fresh, vibrant colors of the salmon, tuna, and avocado. The background features subtle, clean white tableware to maintain a modern, appetizing aesthetic. The mood is high-end, tempting, and meticulously arranged, perfectly suited for a premium food delivery service." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDwsron6KVVtrXY9tJ7GQjP3gz2m7N1ZmJy_xq4WxGgFksICkxNUCpE13j30NUb3yDjA5qQ4hAOqG_LFnz3GmiRm8PA7VtS9vCbUPmqIxCzqRa6KPTBbH1hr9dG3uFVXmn5OzxBxxeUTL5bPMfzc-QKwbxtp4FyNev6sKohIgNDb-DBRHz-SCNPef9znzXdLRUaSowdge872SYH59Q4X_CcyVKHQO_hVj4rVR2GSd7QZz2WSqDkDQNGDBd6_i_Tz00gDhClMrZl5RI">
+<!-- Badges -->
+<div class="absolute top-sm left-sm flex flex-col gap-xs">
+<div class="bg-error-container text-on-error-container px-3 py-1 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs animate-pulse">
+<span class="">🔥 8 left</span>
+</div>
+</div>
+<div class="absolute top-sm right-sm bg-surface/90 backdrop-blur-sm text-on-surface px-3 py-1 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs">
+<span class="material-symbols-outlined text-[14px]" data-icon="schedule">schedule</span>
+<span class="">Ends in 45m</span>
+</div>
+</div>
+<div class="p-md flex flex-col gap-sm">
+<div class="flex justify-between items-start">
+<div>
+<h2 class="font-headline-md text-headline-md text-on-surface">Umami Master Sushi</h2>
+<div class="flex items-center gap-xs text-secondary mt-xs">
+<span class="material-symbols-outlined text-[16px]" data-icon="location_on">location_on</span>
+<span class="font-body-sm text-body-sm">1.2km • 15-20 min</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-sm text-label-sm text-outline line-through">$24.00</span>
+<span class="font-headline-md text-headline-md text-primary">$12.00</span>
+</div>
+</div>
+</div>
+</article>
+<!-- Bento Grid for Smaller Deals -->
+<div class="grid grid-cols-2 gap-md animate-in fade-in slide-in-from-bottom-8 duration-1000">
+<!-- Deal Card 1 -->
+<article class="bg-surface rounded-xl shadow-md overflow-hidden flex flex-col spring-bounce relative transition-all duration-300 active:scale-95">
+<div class="h-32 w-full relative">
+<img alt="Artisan Burger" class="w-full h-full object-cover" data-alt="A mouth-watering, close-up shot of an artisan burger loaded with melted cheese, fresh lettuce, and a juicy patty on a toasted brioche bun. The lighting is warm and bright, casting soft shadows that enhance the appetizing textures of the ingredients. The background is a clean, modern white surface, ensuring the focus remains entirely on the food. The image evokes a sense of immediate craving and premium quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPkLiCI3DUAqZ7csqPyGgkiGtOTGS5iUi3MIC32kzwGvMxrJrV5_N-0S-DnTJRVU8Zu1MAPg1tyZknO7YjiT5VAsN9NHSz6Z7Lo2xqusFhCphC2M5uvmIefHm-_MMxklbn7waB9BrUATXwQniFQedfCl8N4K9qZnU6c5Fd__Di33YJbCBX2iFOYDpmfG7Mamxe1ALa8JwDyIxES4jBMVGHyltjaarb10RSY_1p6mCIjc4UGIqRVupQ640wunNY_BtRKJKydeWfg64">
+<div class="absolute bottom-xs left-xs bg-error-container text-on-error-container px-2 py-0.5 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs scale-90 origin-bottom-left animate-pulse">
+<span class="">🔥 3 left</span>
+</div>
+<div class="absolute top-xs right-xs bg-surface/90 text-on-surface px-2 py-0.5 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs scale-90 origin-top-right">
+<span class="material-symbols-outlined text-[12px]" data-icon="schedule">schedule</span>
+<span class="">12m</span>
+</div>
+</div>
+<div class="p-sm flex flex-col gap-xs">
+<h3 class="font-label-md text-label-md text-on-surface line-clamp-1">Smash Bros Burger</h3>
+<div class="flex items-center gap-xs text-secondary">
+<span class="font-body-sm text-body-sm text-[12px]">2.5km</span>
+</div>
+<div class="flex items-center gap-sm mt-auto pt-xs">
+<span class="font-headline-sm text-headline-sm text-primary">$6.00</span>
+<span class="font-label-sm text-label-sm text-outline line-through">$15.00</span>
+</div>
+</div>
+</article>
+<!-- Deal Card 2 -->
+<article class="bg-surface rounded-xl shadow-md overflow-hidden flex flex-col spring-bounce relative transition-all duration-300 active:scale-95">
+<div class="h-32 w-full relative">
+<img alt="Fresh Poke Bowl" class="w-full h-full object-cover" data-alt="A vibrant, top-down view of a fresh Hawaiian poke bowl filled with diced tuna, edamame, mango, and seaweed salad over rice. The lighting is natural and bright, highlighting the glossy textures and vivid colors of the fresh ingredients. The bowl rests on a pristine, minimalist table setting, aligning with a clean, modern lifestyle aesthetic. The overall mood is healthy, appetizing, and highly premium." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCWT7vK-ydgyZDJ5xo4tOAuL_RKEh3zgSmgMrw7F8ox_XX8sO21h58Q34_pfjtNGodMbfhJHnHdcyOvGTv-bmyvJ7KxOmqBBUMLO9NJ0pF5PJReoBc-tI2BUTI45UWD-bBVU5IXOzpMuWXkweigka4uWHo1L_NjDy4M90TKGCAJBi2t5XaJAnfuLzVgaU20N-8OkwDGuXei2KAm8tKCvT0-IieRoEa9Aemi9k36jHn7hK6zLIvsSF3Q4uYej1NYuilJVI9yyIMaVCU">
+<div class="absolute bottom-xs left-xs bg-error-container text-on-error-container px-2 py-0.5 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs scale-90 origin-bottom-left animate-pulse">
+<span class="">🔥 12 left</span>
+</div>
+<div class="absolute top-xs right-xs bg-surface/90 text-on-surface px-2 py-0.5 rounded-full font-label-sm text-label-sm shadow-sm flex items-center gap-xs scale-90 origin-top-right">
+<span class="material-symbols-outlined text-[12px]" data-icon="schedule">schedule</span>
+<span class="">55m</span>
+</div>
+</div>
+<div class="p-sm flex flex-col gap-xs">
+<h3 class="font-label-md text-label-md text-on-surface line-clamp-1">Oasis Poke</h3>
+<div class="flex items-center gap-xs text-secondary">
+<span class="font-body-sm text-body-sm text-[12px]">0.8km</span>
+</div>
+<div class="flex items-center gap-sm mt-auto pt-xs">
+<span class="font-headline-sm text-headline-sm text-primary">$8.50</span>
+<span class="font-label-sm text-label-sm text-outline line-through">$18.00</span>
+</div>
+</div>
+</article>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 flex justify-around items-center px-md pb-md pt-sm bg-surface shadow-[0_-4px_12px_rgba(44,62,80,0.05)] rounded-t-xl">
+<!-- Active Tab: Deals -->
+<button class="flex flex-col items-center justify-center bg-primary-container text-on-primary-container rounded-full px-4 py-1 hover:bg-surface-container-high transition-all scale-110 duration-300 spring-bounce gradient-btn">
+<span class="material-symbols-outlined" data-icon="flash_on" data-weight="fill">flash_on</span>
+<span class="font-label-sm text-label-sm mt-1">Deals</span>
+</button>
+<!-- Inactive Tabs -->
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-all duration-300 rounded-lg px-3 py-1 spring-bounce">
+<span class="material-symbols-outlined" data-icon="group">group</span>
+<span class="font-label-sm text-label-sm mt-1">Pods</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-all duration-300 rounded-lg px-3 py-1 spring-bounce">
+<span class="material-symbols-outlined" data-icon="shopping_bag">shopping_bag</span>
+<span class="font-label-sm text-label-sm mt-1">Orders</span>
+</button>
+<button class="flex flex-col items-center justify-center text-on-surface-variant hover:bg-surface-container-high transition-all duration-300 rounded-lg px-3 py-1 spring-bounce">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-label-sm text-label-sm mt-1">Profile</span>
+</button>
+</nav>
+
+
+</body></html>

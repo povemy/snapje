@@ -362,3 +362,43 @@ Stage Summary:
 - "Claim Deal Now" button fully visible on deal detail page
 - Performance improvements: socket reconnection fix, notification polling fix, auth flash fix, search debounce, DB indexes, parallel queries, N+1 fix, 16 unused deps removed, React.memo on key components, Next.js Image optimization
 - All 26 browser tests pass across all flows
+---
+Task ID: 14
+Agent: Main Orchestrator
+Task: Redesign homepage with varied card sizes, food images, overlay timers, compact header, and improved claim flow
+
+Work Log:
+- Redesigned DealCard component with varied card sizes (featured/large/medium/small)
+  - Featured: full-width 16:9 hero card for first deal
+  - Large: full-width 4:3 card for every 5th deal
+  - Medium: half-width square cards in 2-column grid (default)
+- Moved countdown timer to card overlay (top-right, below distance badge)
+  - Created CountdownTimerOverlay component with semi-transparent backdrop
+  - Urgent timers pulse with orange background
+- Added food images for all 10 deals via image-search API
+  - Nasi Lemak, Char Kuey Teow, Roti Canai, Mee Goreng, Chicken Rice
+  - Sarawak Laksa, Satay, Cendol, Teh Tarik, Korean Fried Rice
+- Redesigned card layout: title & price now overlay on image bottom with gradient
+  - Compact info bar below image shows stock count only
+  - Cards are much shorter now (no separate timer section)
+- Compacted header section:
+  - Logo icon (28x28 gradient square) + smaller "FlashBite" text (text-base)
+  - Location text reduced to 10px
+  - Search input reduced to h-9 with 12px font
+  - Categories replaced with dropdown button (Filter icon + selected category + chevron)
+  - Overall header height reduced from ~140px to ~80px
+- Improved Claim Deal post-flow UX:
+  - Success card now shows order number + pickup deadline time
+  - Added "View QR Code & Pickup Details" CTA button
+  - Button navigates user directly to Orders view
+- Updated seed data with imageUrl for all deals
+- Re-seeded database with image URLs
+- Lint passes clean
+
+Stage Summary:
+- Homepage now has e-commerce style varied card layout (1 featured + 2-column grid)
+- All deals show real food photos
+- Countdown timer overlaid on card image (top-right, below distance)
+- Header is significantly more compact (~80px vs ~140px before)
+- Category filter moved to dropdown next to search
+- Claim deal success now has clear CTA to view QR code

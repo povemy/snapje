@@ -320,6 +320,7 @@ export async function POST() {
         maxClaimsPerUser: 2,
         expiresAt: new Date(now.getTime() + 4 * 60 * 60 * 1000), // 4 hours
         pickupInstructions: 'Show your QR code at the counter. Pickup at main entrance.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/d1f8eab41b2d.jpg',
       },
       {
         vendorId: vendorRecords[1].id,
@@ -332,6 +333,7 @@ export async function POST() {
         maxClaimsPerUser: 1,
         expiresAt: new Date(now.getTime() + 3 * 60 * 60 * 1000), // 3 hours
         pickupInstructions: 'Collect at stall #5. Present order confirmation.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/658794e37269.jpg',
       },
       {
         vendorId: vendorRecords[2].id,
@@ -344,6 +346,7 @@ export async function POST() {
         maxClaimsPerUser: 3,
         expiresAt: new Date(now.getTime() + 6 * 60 * 60 * 1000), // 6 hours
         pickupInstructions: 'Self-service pickup. Show QR at counter.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/9f2ff963df78.jpg',
       },
       {
         vendorId: vendorRecords[3].id,
@@ -356,6 +359,7 @@ export async function POST() {
         maxClaimsPerUser: 2,
         expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000), // 2 hours
         pickupInstructions: 'Pickup at the front counter. Ask for extra napkins!',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/a7f764bc299d.jpg',
       },
       {
         vendorId: vendorRecords[4].id,
@@ -368,6 +372,7 @@ export async function POST() {
         maxClaimsPerUser: 2,
         expiresAt: new Date(now.getTime() + 5 * 60 * 60 * 1000), // 5 hours
         pickupInstructions: 'Pickup at the food court, Stall B3.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/c25939cfb21d.jpg',
       },
       {
         vendorId: vendorRecords[5].id,
@@ -380,6 +385,7 @@ export async function POST() {
         maxClaimsPerUser: 1,
         expiresAt: new Date(now.getTime() + 3 * 60 * 60 * 1000),
         pickupInstructions: 'Counter pickup. Bring your own container for eco-friendly option.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/45ef964ffdc9.jpg',
       },
       {
         vendorId: vendorRecords[6].id,
@@ -392,6 +398,7 @@ export async function POST() {
         maxClaimsPerUser: 2,
         expiresAt: new Date(now.getTime() + 8 * 60 * 60 * 1000), // 8 hours
         pickupInstructions: 'Grill counter at the back. Follow the aroma!',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/95939562463c.jpg',
       },
       {
         vendorId: vendorRecords[0].id,
@@ -404,6 +411,7 @@ export async function POST() {
         maxClaimsPerUser: 2,
         expiresAt: new Date(now.getTime() + 5 * 60 * 60 * 1000),
         pickupInstructions: 'Dessert counter next to the main stall.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/5ea784d83bd1.jpg',
       },
       {
         vendorId: vendorRecords[2].id,
@@ -416,6 +424,7 @@ export async function POST() {
         maxClaimsPerUser: 3,
         expiresAt: new Date(now.getTime() + 7 * 60 * 60 * 1000),
         pickupInstructions: 'Drinks counter at the front. Show your order.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/7a01a7c14ac1.jpg',
       },
       {
         vendorId: vendorRecords[4].id,
@@ -428,6 +437,7 @@ export async function POST() {
         maxClaimsPerUser: 1,
         expiresAt: new Date(now.getTime() + 4 * 60 * 60 * 1000),
         pickupInstructions: 'Pickup at fusion counter, Level 2.',
+        imageUrl: 'https://sfile.chatglm.cn/images-ppt/685ae8fc5812.jpg',
       },
     ]
 
