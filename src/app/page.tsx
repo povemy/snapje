@@ -2733,6 +2733,7 @@ function VendorFulfillmentView() {
   const [scanning, setScanning] = useState(false)
   const [completing, setCompleting] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
+  const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
 
   // Camera scanner refs
   const scannerRef = useRef<HTMLDivElement>(null)
@@ -2761,7 +2762,6 @@ function VendorFulfillmentView() {
   useEffect(() => { fetchOrders() }, [fetchOrders])
 
   const pendingPickup = orders.filter(o => o.status === 'pending_pickup')
-  const pickedUp = orders.filter(o => o.status === 'picked_up')
   const completed = orders.filter(o => o.status === 'completed')
 
   // Start camera scanner
@@ -2970,56 +2970,125 @@ function VendorFulfillmentView() {
         </CardContent>
       </Card>
 
-      {/* Pending Pickup */}
-      <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
-        <Clock className="w-4 h-4 text-[#FB923C]" /> Pending Pickup ({pendingPickup.length})
-      </h3>
-      {pendingPickup.length === 0 ? (
-        <p className="text-sm text-[#717971] mb-6">No pending pickups</p>
-      ) : (
-        <div className="space-y-2 mb-6">
-          {pendingPickup.map((order) => (
-            <Card key={order.id} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm text-[#1a1c1e] truncate">#{order.orderNumber}</p>
-                  <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
-                  <p className="text-[10px] text-[#717971] mt-0.5">
-                    Pickup by: {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
-                  <Button
-                    size="sm"
-                    onClick={() => quickScan(order)}
-                    className="h-8 px-3 rounded-lg text-xs font-bold bg-[#6CB4EE] text-white hover:bg-[#4A96D5]"
-                  >
-                    <QrCode className="w-3 h-3 mr-1" /> Scan
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Tabs: Pending Pickup / Completed Orders */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'pending'
+              ? 'bg-[#FB923C] text-white shadow-card'
+              : 'bg-[#f0f4f2] text-[#414841]'
+          }`}
+        >
+          <Clock className="w-4 h-4" /> Pending ({pendingPickup.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('completed')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'completed'
+              ? 'bg-[#6CB4EE] text-white shadow-card'
+              : 'bg-[#f0f4f2] text-[#414841]'
+          }`}
+        >
+          <CheckCircle className="w-4 h-4" /> Completed ({completed.length})
+        </button>
+      </div>
 
-      {/* Completed */}
-      <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
-        <CheckCircle className="w-4 h-4 text-[#7EC8E3]" /> Completed ({completed.length})
-      </h3>
-      {completed.length === 0 ? (
-        <p className="text-sm text-[#717971]">No completed orders yet</p>
+      {/* Tab Content */}
+      {loading ? (
+        Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i} className="mb-2 border-0 shadow-card rounded-2xl">
+            <CardContent className="p-4"><Skeleton className="h-14 w-full rounded-xl" /></CardContent>
+          </Card>
+        ))
+      ) : activeTab === 'pending' ? (
+        pendingPickup.length === 0 ? (
+          <div className="text-center py-10">
+            <Clock className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+            <p className="text-sm text-[#717971]">No pending pickups</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {pendingPickup.map((order) => (
+              <Card key={order.id} className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-4 flex justify-between items-center">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-sm text-[#1a1c1e] truncate">#{order.orderNumber}</p>
+                    <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
+                    <p className="text-[10px] text-[#717971] mt-0.5">
+                      Pickup by: {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                    <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
+                    <Button
+                      size="sm"
+                      onClick={() => quickScan(order)}
+                      className="h-8 px-3 rounded-lg text-xs font-bold bg-[#6CB4EE] text-white hover:bg-[#4A96D5]"
+                    >
+                      <QrCode className="w-3 h-3 mr-1" /> Scan
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )
+      ) : completed.length === 0 ? (
+        <div className="text-center py-10">
+          <CheckCircle className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+          <p className="text-sm text-[#717971]">No completed orders yet</p>
+        </div>
       ) : (
         <div className="space-y-2">
-          {completed.slice(0, 10).map((order) => (
+          {completed.map((order) => (
             <Card key={order.id} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-4 flex justify-between items-center">
-                <div>
-                  <p className="font-bold text-sm text-[#1a1c1e]">#{order.orderNumber}</p>
-                  <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)}</p>
+              <CardContent className="p-3">
+                <div className="flex gap-3">
+                  {/* Thumbnail */}
+                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                    {order.deal?.imageUrl ? (
+                      <Image
+                        src={order.deal.imageUrl}
+                        alt={order.deal?.title || 'Deal'}
+                        width={56}
+                        height={56}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Utensils className="w-6 h-6 text-[#8FC5E8]" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[10px] text-[#717971] font-mono truncate">#{order.orderNumber}</p>
+                        <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-md text-[10px] h-4 px-1.5 mt-0.5">Done</Badge>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
+                        <p className="text-[10px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
+                      </div>
+                    </div>
+                    {/* Timestamps */}
+                    <div className="mt-1.5 space-y-0.5">
+                      <p className="text-[10px] text-[#717971] flex items-center gap-1">
+                        <Zap className="w-2.5 h-2.5 text-[#FB923C]" />
+                        Snapped: {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                      <p className="text-[10px] text-[#717971] flex items-center gap-1">
+                        <ScanLine className="w-2.5 h-2.5 text-[#6CB4EE]" />
+                        Scanned: {order.qrVerifiedAt
+                          ? new Date(order.qrVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : new Date(order.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                        }
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg text-xs">Done</Badge>
               </CardContent>
             </Card>
           ))}
@@ -3137,6 +3206,10 @@ function VendorFulfillmentView() {
       {/* ===== Completion Confirmation Modal ===== */}
       <Dialog open={!!completedOrder} onOpenChange={() => setCompletedOrder(null)}>
         <DialogContent className="rounded-2xl max-w-sm p-0">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Order Completed</DialogTitle>
+            <DialogDescription>The order has been successfully completed</DialogDescription>
+          </DialogHeader>
           {completedOrder && (
             <div className="p-6 text-center">
               <motion.div
