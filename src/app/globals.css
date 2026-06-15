@@ -6,44 +6,44 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Nunito Sans", sans-serif;
+  --font-sans: "Nunito Sans", system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
   
-  /* FlashBite Design System - Surface Colors */
-  --color-surface: #f8f9ff;
-  --color-surface-dim: #ccdbf2;
-  --color-surface-bright: #f8f9ff;
+  /* FlashBite × Grab/Foodpanda Design System - Surface Colors */
+  --color-surface: #F4F7F6;
+  --color-surface-dim: #e2e8e5;
+  --color-surface-bright: #f8faf9;
   --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #eef4ff;
-  --color-surface-container: #e5efff;
-  --color-surface-container-high: #dbe9ff;
-  --color-surface-container-highest: #d4e4fa;
-  --color-on-surface: #0d1c2d;
-  --color-on-surface-variant: #40484d;
-  --color-inverse-surface: #233143;
-  --color-inverse-on-surface: #e9f1ff;
-  --color-outline: #70787d;
-  --color-outline-variant: #bfc8cd;
-  --color-surface-tint: #0d6683;
+  --color-surface-container-low: #f0f4f2;
+  --color-surface-container: #e8edea;
+  --color-surface-container-high: #dfe5e1;
+  --color-surface-container-highest: #d7ddd9;
+  --color-on-surface: #1a1c1e;
+  --color-on-surface-variant: #414841;
+  --color-inverse-surface: #2c302d;
+  --color-inverse-on-surface: #ecf1ed;
+  --color-outline: #717971;
+  --color-outline-variant: #c1c9c0;
+  --color-surface-tint: #00B14F;
 
-  /* FlashBite Primary */
-  --color-primary: #0d6683;
+  /* FlashBite Primary - Grab Green */
+  --color-primary: #00B14F;
   --color-on-primary: #ffffff;
-  --color-primary-container: #89cff0;
-  --color-on-primary-container: #005974;
-  --color-inverse-primary: #8ad0f1;
+  --color-primary-container: #7df5a4;
+  --color-on-primary-container: #008e3e;
+  --color-inverse-primary: #66d99a;
 
   /* FlashBite Secondary */
-  --color-secondary: #4e6073;
+  --color-secondary: #506350;
   --color-on-secondary: #ffffff;
-  --color-secondary-container: #cfe2f9;
-  --color-on-secondary-container: #526478;
+  --color-secondary-container: #d3e8d0;
+  --color-on-secondary-container: #3d4b3d;
 
   /* FlashBite Tertiary */
-  --color-tertiary: #5a5f62;
+  --color-tertiary: #3a6567;
   --color-on-tertiary: #ffffff;
-  --color-tertiary-container: #c2c6ca;
-  --color-on-tertiary-container: #4e5356;
+  --color-tertiary-container: #bdebec;
+  --color-on-tertiary-container: #1f4d50;
 
   /* FlashBite Error */
   --color-error: #ba1a1a;
@@ -54,8 +54,8 @@
   /* Semantic Colors - Urgency Accents */
   --color-urgency: #FB923C;
   --color-urgency-high: #F97316;
-  --color-success: #34D399;
-  --color-success-dark: #059669;
+  --color-success: #00B14F;
+  --color-success-dark: #008e3e;
   --color-danger: #EF4444;
 
   /* shadcn/ui compatibility */
@@ -89,17 +89,17 @@
 
   /* Border Radius - FlashBite Design System */
   --radius-sm: 0.25rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
-  --radius-2xl: 2rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
   --radius-full: 9999px;
 
   /* Shadows - FlashBite Design System */
-  --shadow-card: 0px 4px 12px rgba(44, 62, 80, 0.12);
-  --shadow-card-hover: 0px 8px 24px rgba(44, 62, 80, 0.18);
-  --shadow-modal: 0px 8px 24px rgba(44, 62, 80, 0.16);
-  --shadow-chip: 0px 2px 4px rgba(44, 62, 80, 0.08);
+  --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-card-hover: 0px 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-modal: 0px 8px 24px rgba(0, 0, 0, 0.16);
+  --shadow-chip: 0px 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 :root {
@@ -111,74 +111,74 @@
   --fb-spacing-xl: 32px;
   --fb-spacing-container: 20px;
 
-  --radius: 1rem;
-  --background: #f8f9ff;
-  --foreground: #0d1c2d;
+  --radius: 0.75rem;
+  --background: #F4F7F6;
+  --foreground: #1a1c1e;
   --card: #ffffff;
-  --card-foreground: #0d1c2d;
+  --card-foreground: #1a1c1e;
   --popover: #ffffff;
-  --popover-foreground: #0d1c2d;
-  --primary: #0d6683;
+  --popover-foreground: #1a1c1e;
+  --primary: #00B14F;
   --primary-foreground: #ffffff;
-  --secondary: #cfe2f9;
-  --secondary-foreground: #4e6073;
-  --muted: #e5efff;
-  --muted-foreground: #40484d;
-  --accent: #e5efff;
-  --accent-foreground: #0d1c2d;
+  --secondary: #d3e8d0;
+  --secondary-foreground: #506350;
+  --muted: #e8edea;
+  --muted-foreground: #414841;
+  --accent: #e8edea;
+  --accent-foreground: #1a1c1e;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --border: #d4e4fa;
-  --input: #f1f5f9;
-  --ring: #0d6683;
-  --chart-1: #0d6683;
-  --chart-2: #34D399;
+  --border: #d7ddd9;
+  --input: #f0f4f2;
+  --ring: #00B14F;
+  --chart-1: #00B14F;
+  --chart-2: #3a6567;
   --chart-3: #FB923C;
-  --chart-4: #4e6073;
-  --chart-5: #8ad0f1;
-  --sidebar: #eef4ff;
-  --sidebar-foreground: #0d1c2d;
-  --sidebar-primary: #0d6683;
+  --chart-4: #506350;
+  --chart-5: #66d99a;
+  --sidebar: #f0f4f2;
+  --sidebar-foreground: #1a1c1e;
+  --sidebar-primary: #00B14F;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dbe9ff;
-  --sidebar-accent-foreground: #0d1c2d;
-  --sidebar-border: #d4e4fa;
-  --sidebar-ring: #0d6683;
+  --sidebar-accent: #dfe5e1;
+  --sidebar-accent-foreground: #1a1c1e;
+  --sidebar-border: #d7ddd9;
+  --sidebar-ring: #00B14F;
 }
 
 .dark {
-  --background: #0d1c2d;
-  --foreground: #e9f1ff;
-  --card: #162436;
-  --card-foreground: #e9f1ff;
-  --popover: #162436;
-  --popover-foreground: #e9f1ff;
-  --primary: #8ad0f1;
-  --primary-foreground: #003444;
-  --secondary: #36485b;
-  --secondary-foreground: #cfe2f9;
-  --muted: #1e3347;
-  --muted-foreground: #bfc8cd;
-  --accent: #1e3347;
-  --accent-foreground: #e9f1ff;
+  --background: #1a1c1e;
+  --foreground: #ecf1ed;
+  --card: #242825;
+  --card-foreground: #ecf1ed;
+  --popover: #242825;
+  --popover-foreground: #ecf1ed;
+  --primary: #66d99a;
+  --primary-foreground: #003d1e;
+  --secondary: #3d4b3d;
+  --secondary-foreground: #d3e8d0;
+  --muted: #2c302d;
+  --muted-foreground: #c1c9c0;
+  --accent: #2c302d;
+  --accent-foreground: #ecf1ed;
   --destructive: #EF4444;
   --destructive-foreground: #ffffff;
-  --border: #2a4055;
-  --input: #1e3347;
-  --ring: #8ad0f1;
-  --chart-1: #8ad0f1;
-  --chart-2: #34D399;
+  --border: #414841;
+  --input: #2c302d;
+  --ring: #66d99a;
+  --chart-1: #66d99a;
+  --chart-2: #3a6567;
   --chart-3: #FB923C;
-  --chart-4: #bfc8cd;
-  --chart-5: #0d6683;
-  --sidebar: #162436;
-  --sidebar-foreground: #e9f1ff;
-  --sidebar-primary: #8ad0f1;
-  --sidebar-primary-foreground: #003444;
-  --sidebar-accent: #1e3347;
-  --sidebar-accent-foreground: #e9f1ff;
-  --sidebar-border: #2a4055;
-  --sidebar-ring: #8ad0f1;
+  --chart-4: #c1c9c0;
+  --chart-5: #00B14F;
+  --sidebar: #242825;
+  --sidebar-foreground: #ecf1ed;
+  --sidebar-primary: #66d99a;
+  --sidebar-primary-foreground: #003d1e;
+  --sidebar-accent: #2c302d;
+  --sidebar-accent-foreground: #ecf1ed;
+  --sidebar-border: #414841;
+  --sidebar-ring: #66d99a;
 }
 
 @layer base {
@@ -187,25 +187,25 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Nunito Sans", sans-serif;
+    font-family: "Nunito Sans", system-ui, -apple-system, sans-serif;
   }
 }
 
 /* FlashBite Custom Scrollbar */
 @layer base {
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 4px;
+    height: 4px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #bfc8cd;
+    background: #c1c9c0;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #70787d;
+    background: #717971;
   }
 }
 
@@ -224,16 +224,16 @@
     animation: success-pop 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   }
   .shadow-card {
-    box-shadow: 0px 4px 12px rgba(44, 62, 80, 0.12);
+    box-shadow: 0px 2px 8px rgba(0, 0, 0, 0.08);
   }
   .shadow-card-hover {
-    box-shadow: 0px 8px 24px rgba(44, 62, 80, 0.18);
+    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.12);
   }
   .shadow-modal {
-    box-shadow: 0px 8px 24px rgba(44, 62, 80, 0.16);
+    box-shadow: 0px 8px 24px rgba(0, 0, 0, 0.16);
   }
   .shadow-chip {
-    box-shadow: 0px 2px 4px rgba(44, 62, 80, 0.08);
+    box-shadow: 0px 1px 3px rgba(0, 0, 0, 0.06);
   }
 }
 
@@ -261,18 +261,18 @@
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* Input field focus styles per DESIGN.md */
+/* Input field focus styles - Grab Green themed */
 @layer base {
   input, textarea, select {
-    background-color: #f1f5f9;
+    background-color: #f0f4f2;
     border: 1px solid transparent;
-    transition: border-color 0.2s, box-shadow 0.2s;
+    transition: border-color 0.15s ease-out, box-shadow 0.15s ease-out;
   }
   input:focus, textarea:focus, select:focus {
     background-color: #ffffff;
-    border-color: #0d6683;
+    border-color: #00B14F;
     border-width: 2px;
-    box-shadow: 0 0 0 3px rgba(13, 102, 131, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 177, 79, 0.1);
     outline: none;
   }
 }

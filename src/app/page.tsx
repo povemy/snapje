@@ -52,17 +52,16 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
 // ============================================
 // Page Transition Variants
 // ============================================
+// Performance: lightweight scale & opacity fades (Grab style)
 const pageVariants = {
-  initial: { opacity: 0, scale: 0.98, y: 8 },
-  animate: { opacity: 1, scale: 1, y: 0 },
-  exit: { opacity: 0, scale: 0.98, y: -8 },
+  initial: { opacity: 0 },
+  animate: { opacity: 1 },
+  exit: { opacity: 0 },
 }
 
 const pageTransition = {
-  type: 'spring',
-  stiffness: 300,
-  damping: 25,
-  duration: 0.2,
+  duration: 0.15,
+  ease: 'easeOut',
 }
 
 // ============================================
@@ -104,7 +103,7 @@ function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#eef4ff] to-white px-5">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#f0f4f2] to-white px-5">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -117,20 +116,20 @@ function AuthScreen() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#89cff0] to-[#0d6683] mb-4 shadow-card"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#66d99a] to-[#00B14F] mb-4 shadow-card"
           >
             <Flame className="w-10 h-10 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-extrabold text-[#0d1c2d] tracking-tight">FlashBite</h1>
-          <p className="text-[#40484d] mt-1 text-sm">Hyper-local food flash deals</p>
+          <h1 className="text-3xl font-extrabold text-[#1a1c1e] tracking-tight">FlashBite</h1>
+          <p className="text-[#414841] mt-1 text-sm">Hyper-local food flash deals</p>
         </div>
 
         {/* Toggle */}
-        <div className="flex bg-[#e5efff] rounded-xl p-1 mb-6">
+        <div className="flex bg-[#e8edea] rounded-xl p-1 mb-6">
           <button
             onClick={() => setIsLogin(true)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-              isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+              isLogin ? 'bg-white text-[#00B14F] shadow-chip' : 'text-[#414841]'
             }`}
           >
             Sign In
@@ -138,7 +137,7 @@ function AuthScreen() {
           <button
             onClick={() => setIsLogin(false)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-              !isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+              !isLogin ? 'bg-white text-[#00B14F] shadow-chip' : 'text-[#414841]'
             }`}
           >
             Sign Up
@@ -149,7 +148,7 @@ function AuthScreen() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <div>
-              <Label htmlFor="name" className="text-sm font-semibold text-[#0d1c2d]">Full Name</Label>
+              <Label htmlFor="name" className="text-sm font-semibold text-[#1a1c1e]">Full Name</Label>
               <Input
                 id="name"
                 value={name}
@@ -161,7 +160,7 @@ function AuthScreen() {
             </div>
           )}
           <div>
-            <Label htmlFor="email" className="text-sm font-semibold text-[#0d1c2d]">Email</Label>
+            <Label htmlFor="email" className="text-sm font-semibold text-[#1a1c1e]">Email</Label>
             <Input
               id="email"
               type="email"
@@ -173,7 +172,7 @@ function AuthScreen() {
             />
           </div>
           <div>
-            <Label htmlFor="password" className="text-sm font-semibold text-[#0d1c2d]">Password</Label>
+            <Label htmlFor="password" className="text-sm font-semibold text-[#1a1c1e]">Password</Label>
             <Input
               id="password"
               type="password"
@@ -187,7 +186,7 @@ function AuthScreen() {
           </div>
           {!isLogin && (
             <div>
-              <Label htmlFor="phone" className="text-sm font-semibold text-[#0d1c2d]">Phone (optional)</Label>
+              <Label htmlFor="phone" className="text-sm font-semibold text-[#1a1c1e]">Phone (optional)</Label>
               <Input
                 id="phone"
                 value={phone}
@@ -200,7 +199,7 @@ function AuthScreen() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
+            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
           >
             {loading ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -213,11 +212,11 @@ function AuthScreen() {
         </form>
 
         {/* Demo hint */}
-        <div className="mt-6 p-3 bg-[#eef4ff] rounded-xl text-center">
-          <p className="text-xs text-[#40484d]">
+        <div className="mt-6 p-3 bg-[#f0f4f2] rounded-xl text-center">
+          <p className="text-xs text-[#414841]">
             🎯 Demo: <span className="font-semibold">foodie@test.com</span> / <span className="font-semibold">vendor@test.com</span> / <span className="font-semibold">admin@test.com</span>
           </p>
-          <p className="text-xs text-[#70787d] mt-0.5">Password: <span className="font-semibold">password123</span></p>
+          <p className="text-xs text-[#717971] mt-0.5">Password: <span className="font-semibold">password123</span></p>
         </div>
       </motion.div>
     </div>
@@ -263,7 +262,7 @@ const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false
 
   return (
     <span className={`inline-flex items-center gap-1 ${compact ? 'text-xs' : 'text-sm'} font-bold ${
-      timeLeft === 'Expired' ? 'text-[#70787d]' : isUrgent ? 'text-[#FB923C] animate-pulse-urgent' : 'text-[#0d6683]'
+      timeLeft === 'Expired' ? 'text-[#717971]' : isUrgent ? 'text-[#FB923C] animate-pulse-urgent' : 'text-[#00B14F]'
     }`}>
       <Clock className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
       {timeLeft}
@@ -272,7 +271,7 @@ const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false
 })
 
 // ============================================
-// DEAL CARD COMPONENT - Varied Sizes
+// DEAL CARD COMPONENT - Grab/Foodpanda Style
 // ============================================
 type CardSize = 'featured' | 'large' | 'medium' | 'small'
 
@@ -283,111 +282,96 @@ const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: {
 }) {
   const isLowStock = deal.availableQuantity <= 5 && deal.availableQuantity > 0
   const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
-
-  // Featured: full-width hero card with tall image
-  // Large: full-width card with medium image
-  // Medium: half-width card (2 per row)
-  // Small: half-width card with compact layout
   const isHalfWidth = size === 'medium' || size === 'small'
-  const imageAspect = size === 'featured' ? 'aspect-[16/9]' : size === 'large' ? 'aspect-[4/3]' : 'aspect-square'
 
   return (
-    <motion.div
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.98 }}
+    <div
       onClick={onSelect}
-      className="cursor-pointer"
+      className="cursor-pointer group"
     >
-      <Card className="overflow-hidden border-0 shadow-card hover:shadow-card-hover transition-shadow duration-200 rounded-2xl">
-        {/* Image with overlaid badges */}
-        <div className={`relative ${imageAspect} bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff] overflow-hidden`}>
+      <div className="overflow-hidden rounded-xl bg-white shadow-card group-hover:shadow-card-hover transition-shadow duration-150">
+        {/* Image - 16:9 dominant aspect ratio, h-44 for featured */}
+        <div className={`relative overflow-hidden ${size === 'featured' ? 'h-44' : size === 'large' ? 'h-36' : isHalfWidth ? 'h-28' : 'h-32'} bg-[#f0f4f2]`}>
           {deal.imageUrl ? (
             <Image
               src={deal.imageUrl}
               alt={deal.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
               fill
               sizes={isHalfWidth ? "(max-width: 640px) 50vw, 200px" : "(max-width: 640px) 100vw, 400px"}
-              loading="lazy"
+              loading={size === 'featured' ? 'eager' : 'lazy'}
+              priority={size === 'featured'}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <Utensils className={isHalfWidth ? 'w-8 h-8 text-[#89cff0]' : 'w-12 h-12 text-[#89cff0]'} />
+              <Utensils className={isHalfWidth ? 'w-8 h-8 text-[#c1c9c0]' : 'w-12 h-12 text-[#c1c9c0]'} />
             </div>
           )}
           
-          {/* Gradient overlay at bottom for text readability */}
-          <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+          {/* Promo Badge - Top Left, overlapping image */}
+          <div className="absolute top-1.5 left-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#00B14F] text-white text-[10px] font-bold shadow-sm">
+              Promo
+            </span>
+          </div>
           
-          {/* Discount Badge - Top Left */}
-          <div className="absolute top-2 left-2">
-            <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold text-[10px] px-2 py-0.5 rounded-lg shadow-chip border-0">
+          {/* Discount % Badge - Below Promo */}
+          <div className="absolute top-7 left-1.5">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#FB923C] text-white text-[9px] font-bold">
               -{deal.discountPercent}%
-            </Badge>
+            </span>
           </div>
           
           {/* Distance - Top Right */}
           {deal.distance !== undefined && (
-            <div className="absolute top-2 right-2">
-              <Badge variant="secondary" className="bg-white/90 text-[#0d1c2d] text-[10px] px-1.5 py-0.5 rounded-md shadow-chip">
-                <MapPin className="w-2.5 h-2.5 mr-0.5" />
+            <div className="absolute top-1.5 right-1.5">
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/90 text-[#1a1c1e] text-[10px] font-medium shadow-sm">
+                <MapPin className="w-2.5 h-2.5 text-[#00B14F]" />
                 {deal.distance.toFixed(1)}km
-              </Badge>
+              </span>
             </div>
           )}
           
-          {/* Countdown Timer Overlay - Below distance, right side */}
-          <div className="absolute top-8 right-2">
+          {/* Countdown Timer Overlay - Below distance, right */}
+          <div className="absolute top-7 right-1.5">
             <CountdownTimerOverlay expiresAt={deal.expiresAt} />
           </div>
           
-          {/* Stock overlay */}
+          {/* Sold Out overlay */}
           {isSoldOut && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
-              <span className="text-white font-bold text-sm">SOLD OUT</span>
+              <span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-lg">SOLD OUT</span>
             </div>
           )}
-
-          {/* Price & Title overlay at bottom of image */}
-          <div className="absolute bottom-0 left-0 right-0 p-2.5 z-[5]">
-            <div className="flex items-end justify-between gap-1">
-              <div className="flex-1 min-w-0">
-                <h3 className={`font-bold text-white truncate drop-shadow-sm ${isHalfWidth ? 'text-xs' : size === 'featured' ? 'text-lg' : 'text-sm'}`}>
-                  {deal.title}
-                </h3>
-                {!isHalfWidth && (
-                  <p className="text-[11px] text-white/80 truncate mt-0.5">
-                    {deal.vendor?.businessName || 'Vendor'}
-                  </p>
-                )}
-              </div>
-              <div className="text-right flex-shrink-0">
-                <p className={`font-extrabold text-[#89cff0] drop-shadow-sm ${isHalfWidth ? 'text-sm' : 'text-base'}`}>
-                  RM{deal.dealPrice.toFixed(2)}
-                </p>
-                <p className="text-[10px] text-white/60 line-through">RM{deal.originalPrice.toFixed(2)}</p>
-              </div>
-            </div>
-          </div>
         </div>
         
-        {/* Compact info bar below image */}
-        <CardContent className="p-2">
-          <div className="flex items-center justify-between">
-            {/* Stock indicator */}
-            <div className={`text-[10px] font-bold ${isLowStock ? 'text-[#FB923C]' : isSoldOut ? 'text-[#70787d]' : 'text-[#34D399]'}`}>
-              {isSoldOut ? 'Sold out' : isLowStock ? `🔥 ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
-            </div>
-            {/* Vendor for half-width cards */}
-            {isHalfWidth && (
-              <p className="text-[10px] text-[#70787d] truncate max-w-[60%]">
-                {deal.vendor?.businessName || 'Vendor'}
-              </p>
-            )}
+        {/* Card Content - tight padding (p-4), Grab style */}
+        <div className="p-3">
+          {/* Title + Vendor */}
+          <h3 className={`font-bold text-[#1a1c1e] truncate leading-tight ${isHalfWidth ? 'text-xs' : 'text-sm'}`}>
+            {deal.title}
+          </h3>
+          <p className="text-[11px] text-[#717971] truncate mt-0.5">
+            {deal.vendor?.businessName || 'Vendor'}
+          </p>
+          
+          {/* Price Row - heavy emphasis on deal price, minimized original */}
+          <div className="flex items-baseline gap-1.5 mt-1.5">
+            <span className={`font-black text-[#00B14F] ${isHalfWidth ? 'text-sm' : 'text-lg'}`}>
+              RM{deal.dealPrice.toFixed(2)}
+            </span>
+            <span className="text-[10px] text-[#717971] line-through">
+              RM{deal.originalPrice.toFixed(2)}
+            </span>
           </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+          
+          {/* Stock indicator */}
+          <div className={`text-[10px] font-bold mt-1 ${isLowStock ? 'text-[#FB923C]' : isSoldOut ? 'text-[#717971]' : 'text-[#00B14F]'}`}>
+            {isSoldOut ? 'Sold out' : isLowStock ? `🔥 ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
+          </div>
+        </div>
+      </div>
+    </div>
   )
 })
 
@@ -430,7 +414,21 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
 })
 
 // ============================================
-// FOODIE: HOME VIEW
+// CATEGORY ICON GRID - Grab/Foodpanda Style
+// ============================================
+const CATEGORY_ICONS = [
+  { key: 'All', label: 'Flash Deals', icon: Zap, color: '#00B14F', bg: '#e6f9ef' },
+  { key: 'Malay', label: 'Malay', icon: Utensils, color: '#e74c3c', bg: '#fde8e8' },
+  { key: 'Chinese', label: 'Chinese', icon: Utensils, color: '#f39c12', bg: '#fef3e2' },
+  { key: 'Indian', label: 'Indian', icon: Utensils, color: '#e67e22', bg: '#fef0e0' },
+  { key: 'Western', label: 'Western', icon: Utensils, color: '#3498db', bg: '#e8f4fd' },
+  { key: 'Japanese', label: 'Japanese', icon: Utensils, color: '#e91e63', bg: '#fce4ec' },
+  { key: 'Korean', label: 'Korean', icon: Utensils, color: '#9b59b6', bg: '#f3e5f5' },
+  { key: 'Dessert', label: 'Dessert', icon: Utensils, color: '#ff6b81', bg: '#ffe8ed' },
+]
+
+// ============================================
+// FOODIE: HOME VIEW - Grab/Foodpanda Style
 // ============================================
 function FoodieHomeView() {
   const { navigate, setShowAuthModal } = useAppStore()
@@ -439,9 +437,8 @@ function FoodieHomeView() {
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
-  const [categoryOpen, setCategoryOpen] = useState(false)
 
-  // Debounce search input by 300ms to avoid excessive API calls
+  // Debounce search input by 300ms
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300)
     return () => clearTimeout(timer)
@@ -452,7 +449,6 @@ function FoodieHomeView() {
     const params = new URLSearchParams({ status: 'active' })
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
     if (debouncedSearch) params.set('search', debouncedSearch)
-    // Use default KL location
     params.set('lat', '3.1390')
     params.set('lng', '101.6869')
     params.set('maxDistance', '20')
@@ -466,119 +462,127 @@ function FoodieHomeView() {
 
   useEffect(() => { fetchDeals() }, [fetchDeals])
 
-  // Assign card sizes based on position for visual variety
+  // Assign card sizes for visual variety
   const getCardSize = (index: number): CardSize => {
-    if (index === 0) return 'featured'    // First deal: big hero card
-    if (index % 5 === 1) return 'large'   // Every 5th position: large card
-    return 'medium'                        // Default: half-width (2 per row)
+    if (index === 0) return 'featured'     // First: hero card
+    if (index % 5 === 0) return 'large'    // Every 5th: full-width
+    return 'medium'                         // Default: 2-column
   }
 
   return (
-    <div className="pb-28">
-      {/* Compact Header */}
-      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm border-b border-[#d4e4fa] px-4 pt-2 pb-2" style={{ paddingTop: 'max(12px, env(safe-area-inset-top, 12px))' }}>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#89cff0] to-[#0d6683] flex items-center justify-center">
-              <Flame className="w-4 h-4 text-white" />
+    <div className="pb-28 bg-[#F4F7F6]">
+      {/* ===== Sticky Header - Grab/Foodpanda Style ===== */}
+      <div 
+        className="sticky top-0 z-30 bg-white" 
+        style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 8px))' }}
+      >
+        {/* Delivery Address Bar */}
+        <div className="px-4 pb-2">
+          <div className="flex items-center justify-between">
+            <button className="flex items-center gap-1.5 flex-1 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-[#00B14F] flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-4 h-4 text-white" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-[#717971] font-medium leading-tight">Deliver to</p>
+                <p className="text-xs font-bold text-[#1a1c1e] truncate leading-tight">
+                  Kuala Lumpur, Malaysia
+                </p>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-[#717971] flex-shrink-0" />
+            </button>
+            <div className="flex items-center gap-2 ml-2">
+              {isAuthenticated ? (
+                <NotificationBell />
+              ) : (
+                <Button
+                  onClick={() => setShowAuthModal(true)}
+                  className="h-8 px-4 rounded-full text-xs font-bold bg-[#00B14F] text-white hover:bg-[#008e3e] active:scale-95 transition-all"
+                >
+                  Sign In
+                </Button>
+              )}
             </div>
-            <div>
-              <h1 className="text-base font-extrabold text-[#0d1c2d] leading-tight">FlashBite</h1>
-              <p className="text-[10px] text-[#40484d] flex items-center gap-0.5 leading-tight">
-                <MapPin className="w-2.5 h-2.5 text-[#0d6683]" />
-                Kuala Lumpur
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            {isAuthenticated ? (
-              <NotificationBell />
-            ) : (
-              <Button
-                onClick={() => setShowAuthModal(true)}
-                className="h-7 px-3 rounded-lg text-xs font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
-              >
-                Sign In
-              </Button>
-            )}
           </div>
         </div>
-        {/* Search + Category Dropdown row */}
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#70787d]" />
+
+        {/* Search Bar */}
+        <div className="px-4 pb-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717971]" />
             <Input
-              placeholder="Search deals..."
+              placeholder="Search flash deals, restaurants..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 h-9 rounded-xl text-xs"
+              className="pl-10 h-10 rounded-full text-sm bg-[#F4F7F6] border-0 focus:bg-white focus:border-[#00B14F]"
             />
-          </div>
-          {/* Category Dropdown */}
-          <div className="relative">
-            <Button
-              variant="outline"
-              onClick={() => setCategoryOpen(!categoryOpen)}
-              className="h-9 px-3 rounded-xl text-xs font-bold border-[#d4e4fa] bg-white hover:bg-[#eef4ff] gap-1"
-            >
-              <Filter className="w-3.5 h-3.5" />
-              {selectedCategory || 'All'}
-              <ChevronRight className={`w-3 h-3 transition-transform ${categoryOpen ? 'rotate-90' : ''}`} />
-            </Button>
-            {categoryOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-modal border border-[#d4e4fa] p-2 z-50 min-w-[140px] max-h-[240px] overflow-y-auto">
-                {FOOD_CATEGORIES_LIST.map((cat) => (
-                  <button
-                    key={cat}
-                    onClick={() => {
-                      setSelectedCategory(cat === 'All' ? null : cat)
-                      setCategoryOpen(false)
-                    }}
-                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      (cat === 'All' && !selectedCategory) || selectedCategory === cat
-                        ? 'bg-[#0d6683] text-white'
-                        : 'hover:bg-[#eef4ff] text-[#40484d]'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>
 
-      {/* Close category dropdown on outside click */}
-      {categoryOpen && (
-        <div className="fixed inset-0 z-20" onClick={() => setCategoryOpen(false)} />
-      )}
+      {/* ===== Category Icon Grid (grid-cols-4) ===== */}
+      <div className="bg-white px-4 py-3 mb-2">
+        <div className="grid grid-cols-4 gap-2">
+          {CATEGORY_ICONS.map((cat) => {
+            const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
+            const Icon = cat.icon
+            return (
+              <button
+                key={cat.key}
+                onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
+                className={`flex flex-col items-center gap-1.5 py-2 rounded-xl transition-all duration-150 ${
+                  isActive ? 'bg-[#00B14F]/10 ring-1 ring-[#00B14F]/30' : ''
+                }`}
+              >
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: cat.bg }}
+                >
+                  <Icon className="w-5 h-5" style={{ color: cat.color }} />
+                </div>
+                <span className={`text-[10px] font-bold leading-tight ${
+                  isActive ? 'text-[#00B14F]' : 'text-[#1a1c1e]'
+                }`}>
+                  {cat.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
 
-      {/* Deals Grid - E-commerce style with varied sizes */}
-      <div className="px-4 mt-3">
+      {/* ===== Flash Deals Section Header ===== */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="flex items-center gap-2">
+          <Flame className="w-5 h-5 text-[#FB923C]" />
+          <h2 className="text-base font-extrabold text-[#1a1c1e]">Flash Deals</h2>
+          <span className="text-xs text-[#717971] font-medium">{deals.length} available</span>
+        </div>
+      </div>
+
+      {/* ===== Deals Grid ===== */}
+      <div className="px-4">
         {loading ? (
-          // Skeleton loaders
           <div className="space-y-3">
-            <Skeleton className="aspect-[16/9] rounded-2xl" />
+            <Skeleton className="h-44 rounded-xl" />
             <div className="grid grid-cols-2 gap-3">
-              <Skeleton className="aspect-square rounded-2xl" />
-              <Skeleton className="aspect-square rounded-2xl" />
+              <Skeleton className="h-52 rounded-xl" />
+              <Skeleton className="h-52 rounded-xl" />
             </div>
           </div>
         ) : deals.length === 0 ? (
           <div className="text-center py-16">
-            <Utensils className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-[#0d1c2d]">No deals found</h3>
-            <p className="text-sm text-[#40484d] mt-1">Check back soon for new flash deals!</p>
+            <div className="w-20 h-20 rounded-full bg-[#f0f4f2] flex items-center justify-center mx-auto mb-4">
+              <Utensils className="w-10 h-10 text-[#c1c9c0]" />
+            </div>
+            <h3 className="text-base font-bold text-[#1a1c1e]">No deals found</h3>
+            <p className="text-sm text-[#717971] mt-1">Check back soon for new flash deals!</p>
           </div>
         ) : (
           deals.map((deal, index) => {
             const size = getCardSize(index)
-            // Featured and large cards span full width
-            // Medium cards are in a 2-column grid
             const isFullWidth = size === 'featured' || size === 'large'
             
-            // Check if this is the start of a pair row (medium cards come in pairs)
             const nextDeal = deals[index + 1]
             const isPairStart = size === 'medium' && nextDeal && getCardSize(index + 1) === 'medium'
             const isPairSecond = index > 0 && getCardSize(index) === 'medium' && getCardSize(index - 1) === 'medium'
@@ -605,14 +609,12 @@ function FoodieHomeView() {
                     />
                   </div>
                 ) : isPairSecond ? null : (
-                  // Odd medium card (no pair)
                   <DealCard
                     deal={deal}
                     onSelect={() => navigate('deal-detail', { id: deal.id })}
                     size="medium"
                   />
                 )}
-                {/* Spacing between cards */}
                 <div className="h-3" />
               </div>
             )
@@ -700,7 +702,7 @@ function DealDetailView() {
   if (!deal) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
-        <p className="text-[#40484d]">Deal not found</p>
+        <p className="text-[#414841]">Deal not found</p>
       </div>
     )
   }
@@ -711,16 +713,16 @@ function DealDetailView() {
     <div className="pb-28">
       {/* Back button */}
       <button onClick={goBack} className="fixed top-4 left-4 z-50 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-card">
-        <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
       </button>
 
       {/* Hero Image */}
-      <div className="relative aspect-[16/10] bg-gradient-to-br from-[#dbe9ff] to-[#eef4ff]">
+      <div className="relative aspect-[16/10] bg-gradient-to-br from-[#dfe5e1] to-[#f0f4f2]">
         {deal.imageUrl ? (
           <Image src={deal.imageUrl} alt={deal.title} className="w-full h-full object-cover" fill sizes="(max-width: 640px) 100vw, 400px" priority />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Utensils className="w-20 h-20 text-[#89cff0]" />
+            <Utensils className="w-20 h-20 text-[#66d99a]" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
@@ -733,36 +735,36 @@ function DealDetailView() {
 
       {/* Content */}
       <div className="px-5 pt-4">
-        <h1 className="text-2xl font-extrabold text-[#0d1c2d]">{deal.title}</h1>
-        <p className="text-[#40484d] mt-1 flex items-center gap-1.5">
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e]">{deal.title}</h1>
+        <p className="text-[#414841] mt-1 flex items-center gap-1.5">
           <Store className="w-4 h-4" />
           {deal.vendor?.businessName || 'Vendor'}
         </p>
 
         {/* Price */}
         <div className="flex items-end gap-3 mt-4">
-          <span className="text-3xl font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</span>
-          <span className="text-lg text-[#70787d] line-through mb-0.5">RM{deal.originalPrice.toFixed(2)}</span>
+          <span className="text-3xl font-extrabold text-[#00B14F]">RM{deal.dealPrice.toFixed(2)}</span>
+          <span className="text-lg text-[#717971] line-through mb-0.5">RM{deal.originalPrice.toFixed(2)}</span>
         </div>
 
         {/* Info Cards */}
         <div className="grid grid-cols-3 gap-3 mt-4">
-          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
-            <Clock className="w-5 h-5 text-[#0d6683] mx-auto mb-1" />
-            <p className="text-xs text-[#40484d]">Ends in</p>
+          <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+            <Clock className="w-5 h-5 text-[#00B14F] mx-auto mb-1" />
+            <p className="text-xs text-[#414841]">Ends in</p>
             <CountdownTimer expiresAt={deal.expiresAt} compact />
           </div>
-          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
-            <Flame className={`w-5 h-5 mx-auto mb-1 ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#0d6683]'}`} />
-            <p className="text-xs text-[#40484d]">Stock</p>
-            <p className={`text-sm font-bold ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#0d1c2d]'}`}>
+          <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+            <Flame className={`w-5 h-5 mx-auto mb-1 ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#00B14F]'}`} />
+            <p className="text-xs text-[#414841]">Stock</p>
+            <p className={`text-sm font-bold ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#1a1c1e]'}`}>
               {deal.availableQuantity} left
             </p>
           </div>
-          <div className="bg-[#eef4ff] rounded-xl p-3 text-center">
-            <MapPin className="w-5 h-5 text-[#0d6683] mx-auto mb-1" />
-            <p className="text-xs text-[#40484d]">Distance</p>
-            <p className="text-sm font-bold text-[#0d1c2d]">
+          <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+            <MapPin className="w-5 h-5 text-[#00B14F] mx-auto mb-1" />
+            <p className="text-xs text-[#414841]">Distance</p>
+            <p className="text-sm font-bold text-[#1a1c1e]">
               {deal.distance ? `${deal.distance.toFixed(1)}km` : 'Nearby'}
             </p>
           </div>
@@ -770,20 +772,20 @@ function DealDetailView() {
 
         {/* Description */}
         <div className="mt-5">
-          <h3 className="font-bold text-[#0d1c2d] mb-2">About this deal</h3>
-          <p className="text-sm text-[#40484d] leading-relaxed">{deal.description}</p>
+          <h3 className="font-bold text-[#1a1c1e] mb-2">About this deal</h3>
+          <p className="text-sm text-[#414841] leading-relaxed">{deal.description}</p>
         </div>
 
         {/* Pickup Info */}
         <div className="mt-5">
-          <h3 className="font-bold text-[#0d1c2d] mb-2">Pickup Details</h3>
-          <div className="bg-[#eef4ff] rounded-xl p-4">
-            <p className="text-sm text-[#40484d] flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#0d6683]" />
+          <h3 className="font-bold text-[#1a1c1e] mb-2">Pickup Details</h3>
+          <div className="bg-[#f0f4f2] rounded-xl p-4">
+            <p className="text-sm text-[#414841] flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-[#00B14F]" />
               Pickup only
             </p>
             {deal.pickupInstructions && (
-              <p className="text-sm text-[#40484d] mt-2">{deal.pickupInstructions}</p>
+              <p className="text-sm text-[#414841] mt-2">{deal.pickupInstructions}</p>
             )}
           </div>
         </div>
@@ -819,22 +821,22 @@ function DealDetailView() {
         )}
       </div>
 
-      {/* Sticky Bottom Action - Claim Deal Now */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] px-5 py-3 z-50">
+      {/* Sticky Bottom Action - Claim Deal Now (Grab Style) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] px-5 py-3 z-50 pb-[max(12px,env(safe-area-inset-bottom,12px))]">
         <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
           <div>
-            <p className="text-xs text-[#40484d]">Flash Deal Price</p>
-            <p className="text-2xl font-extrabold text-[#0d6683]">RM{deal.dealPrice.toFixed(2)}</p>
+            <p className="text-[10px] text-[#717971] font-medium">Flash Deal Price</p>
+            <p className="text-2xl font-black text-[#00B14F]">RM{deal.dealPrice.toFixed(2)}</p>
           </div>
           <Button
             onClick={handleClaim}
             disabled={claiming || (isSoldOut && isAuthenticated) || (claimed && isAuthenticated)}
             className={`h-12 px-8 rounded-xl font-bold text-base transition-all active:scale-95 ${
               claimed && isAuthenticated
-                ? 'bg-[#34D399] hover:bg-[#34D399] text-white'
+                ? 'bg-[#00B14F] hover:bg-[#00B14F] text-white'
                 : isSoldOut && isAuthenticated
-                ? 'bg-[#70787d] text-white cursor-not-allowed'
-                : 'bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90'
+                ? 'bg-[#c1c9c0] text-white cursor-not-allowed'
+                : 'bg-[#00B14F] hover:bg-[#008e3e] text-white'
             }`}
           >
             {claiming ? (
@@ -882,12 +884,12 @@ function FoodieOrdersView() {
   if (!isAuthenticated) {
     return (
       <div className="pb-28 px-5 pt-2">
-        <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">My Orders</h1>
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">My Orders</h1>
         <div className="text-center py-16">
-          <ShoppingBag className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-[#0d1c2d]">Sign in to view orders</h3>
-          <p className="text-sm text-[#40484d] mt-1">You need an account to track your orders</p>
-          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+          <ShoppingBag className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to view orders</h3>
+          <p className="text-sm text-[#414841] mt-1">You need an account to track your orders</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white rounded-xl">
             Sign In
           </Button>
         </div>
@@ -900,7 +902,7 @@ function FoodieOrdersView() {
 
   return (
     <div className="pb-28 px-5 pt-2">
-      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">My Orders</h1>
+      <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">My Orders</h1>
 
       {loading ? (
         Array.from({ length: 2 }).map((_, i) => (
@@ -910,10 +912,10 @@ function FoodieOrdersView() {
         ))
       ) : orders.length === 0 ? (
         <div className="text-center py-16">
-          <ShoppingBag className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-[#0d1c2d]">No orders yet</h3>
-          <p className="text-sm text-[#40484d] mt-1">Claim your first flash deal!</p>
-          <Button onClick={() => navigate('home')} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+          <ShoppingBag className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">No orders yet</h3>
+          <p className="text-sm text-[#414841] mt-1">Claim your first flash deal!</p>
+          <Button onClick={() => navigate('home')} className="mt-4 bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white rounded-xl">
             Browse Deals
           </Button>
         </div>
@@ -921,7 +923,7 @@ function FoodieOrdersView() {
         <>
           {activeOrders.length > 0 && (
             <div className="mb-6">
-              <h2 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+              <h2 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
                 <Clock className="w-4 h-4 text-[#FB923C]" /> Active Orders
               </h2>
               <div className="space-y-3">
@@ -931,16 +933,16 @@ function FoodieOrdersView() {
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start">
                           <div>
-                            <p className="font-bold text-[#0d1c2d]">{order.deal?.title || 'Deal'}</p>
-                            <p className="text-xs text-[#40484d] mt-0.5">#{order.orderNumber}</p>
+                            <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
+                            <p className="text-xs text-[#414841] mt-0.5">#{order.orderNumber}</p>
                           </div>
                           <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold">
                             Pending Pickup
                           </Badge>
                         </div>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d4e4fa]">
-                          <span className="text-lg font-extrabold text-[#0d6683]">RM{order.totalPrice.toFixed(2)}</span>
-                          <span className="text-xs text-[#40484d] flex items-center gap-1">
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#d7ddd9]">
+                          <span className="text-lg font-extrabold text-[#00B14F]">RM{order.totalPrice.toFixed(2)}</span>
+                          <span className="text-xs text-[#414841] flex items-center gap-1">
                             <QrCode className="w-3.5 h-3.5" /> Tap to view QR
                           </span>
                         </div>
@@ -954,7 +956,7 @@ function FoodieOrdersView() {
 
           {completedOrders.length > 0 && (
             <div>
-              <h2 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+              <h2 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-[#34D399]" /> Completed
               </h2>
               <div className="space-y-3">
@@ -963,14 +965,14 @@ function FoodieOrdersView() {
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start">
                         <div>
-                          <p className="font-bold text-[#0d1c2d]">{order.deal?.title || 'Deal'}</p>
-                          <p className="text-xs text-[#40484d] mt-0.5">#{order.orderNumber}</p>
+                          <p className="font-bold text-[#1a1c1e]">{order.deal?.title || 'Deal'}</p>
+                          <p className="text-xs text-[#414841] mt-0.5">#{order.orderNumber}</p>
                         </div>
                         <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg font-bold">
                           Completed
                         </Badge>
                       </div>
-                      <p className="text-sm font-bold text-[#0d6683] mt-2">RM{order.totalPrice.toFixed(2)}</p>
+                      <p className="text-sm font-bold text-[#00B14F] mt-2">RM{order.totalPrice.toFixed(2)}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -989,12 +991,12 @@ function FoodieOrdersView() {
           </DialogHeader>
           {selectedOrder && (
             <div className="text-center py-4">
-              <div className="bg-[#eef4ff] rounded-2xl p-6 inline-block">
-                <QrCode className="w-40 h-40 text-[#0d6683]" />
+              <div className="bg-[#f0f4f2] rounded-2xl p-6 inline-block">
+                <QrCode className="w-40 h-40 text-[#00B14F]" />
               </div>
-              <p className="mt-4 font-bold text-[#0d1c2d]">Order #{selectedOrder.orderNumber}</p>
-              <p className="text-sm text-[#40484d] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
-              <p className="text-xs text-[#70787d] mt-2">
+              <p className="mt-4 font-bold text-[#1a1c1e]">Order #{selectedOrder.orderNumber}</p>
+              <p className="text-sm text-[#414841] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
+              <p className="text-xs text-[#717971] mt-2">
                 Pickup before: {new Date(selectedOrder.pickupDeadline).toLocaleTimeString()}
               </p>
             </div>
@@ -1015,12 +1017,12 @@ function FoodieProfileView() {
   if (!isAuthenticated || !user) {
     return (
       <div className="pb-28 px-5 pt-2">
-        <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">Profile</h1>
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Profile</h1>
         <div className="text-center py-16">
-          <User className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-[#0d1c2d]">Sign in to your profile</h3>
-          <p className="text-sm text-[#40484d] mt-1">Access your account settings and more</p>
-          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white rounded-xl">
+          <User className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to your profile</h3>
+          <p className="text-sm text-[#414841] mt-1">Access your account settings and more</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white rounded-xl">
             Sign In
           </Button>
         </div>
@@ -1044,21 +1046,21 @@ function FoodieProfileView() {
 
   return (
     <div className="pb-28 px-5 pt-2">
-      <h1 className="text-2xl font-extrabold text-[#0d1c2d] mb-4">Profile</h1>
+      <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Profile</h1>
 
       {/* User Card */}
       <Card className="border-0 shadow-card rounded-2xl mb-4">
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
-            <Avatar className="w-14 h-14 border-2 border-[#89cff0]">
-              <AvatarFallback className="bg-[#0d6683] text-white text-lg font-bold">
+            <Avatar className="w-14 h-14 border-2 border-[#66d99a]">
+              <AvatarFallback className="bg-[#00B14F] text-white text-lg font-bold">
                 {user?.name?.charAt(0)?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-[#0d1c2d] text-base truncate">{user?.name}</h2>
-              <p className="text-xs text-[#40484d] truncate">{user?.email}</p>
-              <Badge className="mt-1 bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg text-[10px]">
+              <h2 className="font-bold text-[#1a1c1e] text-base truncate">{user?.name}</h2>
+              <p className="text-xs text-[#414841] truncate">{user?.email}</p>
+              <Badge className="mt-1 bg-[#00B14F]/10 text-[#00B14F] border-0 rounded-lg text-[10px]">
                 {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
               </Badge>
             </div>
@@ -1067,7 +1069,7 @@ function FoodieProfileView() {
       </Card>
 
       {/* Role Switching */}
-      <h3 className="font-bold text-[#0d1c2d] text-sm mb-2">Switch Mode</h3>
+      <h3 className="font-bold text-[#1a1c1e] text-sm mb-2">Switch Mode</h3>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
           const isAvailable = roles.includes(role)
@@ -1081,7 +1083,7 @@ function FoodieProfileView() {
               onClick={() => handleRoleSwitch(role)}
               disabled={!isAvailable}
               className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
-                isActive ? 'bg-[#0d6683] text-white shadow-card' : 'bg-[#eef4ff] text-[#0d1c2d]'
+                isActive ? 'bg-[#00B14F] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
               } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <Icon className="w-5 h-5" />
@@ -1095,23 +1097,23 @@ function FoodieProfileView() {
       {/* Quick Links */}
       <div className="space-y-2 mb-4">
         {roles.includes('vendor') && (
-          <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
-            <CreditCard className="w-5 h-5 text-[#0d6683]" />
+          <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+            <CreditCard className="w-5 h-5 text-[#00B14F]" />
             <div className="text-left flex-1">
-              <p className="font-bold text-sm text-[#0d1c2d]">Subscription Plan</p>
-              <p className="text-[11px] text-[#40484d]">Manage your vendor subscription</p>
+              <p className="font-bold text-sm text-[#1a1c1e]">Subscription Plan</p>
+              <p className="text-[11px] text-[#414841]">Manage your vendor subscription</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+            <ChevronRight className="w-4 h-4 text-[#717971]" />
           </button>
         )}
         {!roles.includes('vendor') && (
-          <button onClick={() => navigate('home', {})} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#89cff0]/20 to-[#0d6683]/5 hover:from-[#89cff0]/30 hover:to-[#0d6683]/10 transition-colors">
-            <Sparkles className="w-5 h-5 text-[#0d6683]" />
+          <button onClick={() => navigate('home', {})} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#66d99a]/20 to-[#00B14F]/5 hover:from-[#66d99a]/30 hover:to-[#00B14F]/10 transition-colors">
+            <Sparkles className="w-5 h-5 text-[#00B14F]" />
             <div className="text-left flex-1">
-              <p className="font-bold text-sm text-[#0d1c2d]">Become a Vendor</p>
-              <p className="text-[11px] text-[#40484d]">Turn unsold meals into revenue</p>
+              <p className="font-bold text-sm text-[#1a1c1e]">Become a Vendor</p>
+              <p className="text-[11px] text-[#414841]">Turn unsold meals into revenue</p>
             </div>
-            <ChevronRight className="w-4 h-4 text-[#70787d]" />
+            <ChevronRight className="w-4 h-4 text-[#717971]" />
           </button>
         )}
       </div>
@@ -1169,13 +1171,13 @@ function VendorDashboardView() {
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Dashboard</h1>
-          <p className="text-sm text-[#40484d]">{vendor?.businessName || 'Your Store'}</p>
+          <h1 className="text-2xl font-extrabold text-[#1a1c1e]">Dashboard</h1>
+          <p className="text-sm text-[#414841]">{vendor?.businessName || 'Your Store'}</p>
         </div>
         <div className="flex items-center gap-2">
           <NotificationBell />
-          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
-            <User className="w-5 h-5 text-[#0d6683]" />
+          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors" aria-label="Account">
+            <User className="w-5 h-5 text-[#00B14F]" />
           </button>
         </div>
       </div>
@@ -1192,46 +1194,46 @@ function VendorDashboardView() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <DollarSign className="w-6 h-6 text-[#0d6683] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Revenue</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">RM{todayRevenue.toFixed(0)}</p>
+                <DollarSign className="w-6 h-6 text-[#00B14F] mx-auto mb-1" />
+                <p className="text-xs text-[#414841]">Revenue</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">RM{todayRevenue.toFixed(0)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
                 <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Active Deals</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{activeDeals.length}</p>
+                <p className="text-xs text-[#414841]">Active Deals</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{activeDeals.length}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
                 <ShoppingBag className="w-6 h-6 text-[#34D399] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Pending Pickup</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{pendingOrders.length}</p>
+                <p className="text-xs text-[#414841]">Pending Pickup</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{pendingOrders.length}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <Package className="w-6 h-6 text-[#4e6073] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Total Sold</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{vendor?.totalSales || 0}</p>
+                <Package className="w-6 h-6 text-[#506350] mx-auto mb-1" />
+                <p className="text-xs text-[#414841]">Total Sold</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{vendor?.totalSales || 0}</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Quick Actions */}
-          <h3 className="font-bold text-[#0d1c2d] mb-3">Quick Actions</h3>
+          <h3 className="font-bold text-[#1a1c1e] mb-3">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3 mb-6">
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('create-deal')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#89cff0]/20 to-[#0d6683]/10 rounded-2xl shadow-chip"
+              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#66d99a]/20 to-[#00B14F]/10 rounded-2xl shadow-chip"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#0d6683] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#00B14F] flex items-center justify-center">
                 <PlusCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xs font-bold text-[#0d1c2d]">Create Deal</span>
+              <span className="text-xs font-bold text-[#1a1c1e]">Create Deal</span>
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -1241,7 +1243,7 @@ function VendorDashboardView() {
               <div className="w-10 h-10 rounded-xl bg-[#059669] flex items-center justify-center">
                 <Package className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xs font-bold text-[#0d1c2d]">Inventory</span>
+              <span className="text-xs font-bold text-[#1a1c1e]">Inventory</span>
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
@@ -1251,27 +1253,27 @@ function VendorDashboardView() {
               <div className="w-10 h-10 rounded-xl bg-[#FB923C] flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xs font-bold text-[#0d1c2d]">Fulfillment</span>
+              <span className="text-xs font-bold text-[#1a1c1e]">Fulfillment</span>
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => navigate('subscription')}
-              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#cfe2f9]/40 to-[#4e6073]/10 rounded-2xl shadow-chip"
+              className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#d3e8d0]/40 to-[#506350]/10 rounded-2xl shadow-chip"
             >
-              <div className="w-10 h-10 rounded-xl bg-[#4e6073] flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[#506350] flex items-center justify-center">
                 <Crown className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xs font-bold text-[#0d1c2d]">Subscription</span>
+              <span className="text-xs font-bold text-[#1a1c1e]">Subscription</span>
             </motion.button>
           </div>
 
           {/* Active Deals List */}
-          <h3 className="font-bold text-[#0d1c2d] mb-3">Your Active Deals</h3>
+          <h3 className="font-bold text-[#1a1c1e] mb-3">Your Active Deals</h3>
           {activeDeals.length === 0 ? (
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-6 text-center">
-                <Flame className="w-10 h-10 text-[#bfc8cd] mx-auto mb-2" />
-                <p className="text-sm text-[#40484d]">No active deals. Create one now!</p>
+                <Flame className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
+                <p className="text-sm text-[#414841]">No active deals. Create one now!</p>
               </CardContent>
             </Card>
           ) : (
@@ -1281,14 +1283,14 @@ function VendorDashboardView() {
                   <CardContent className="p-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="font-bold text-[#0d1c2d]">{deal.title}</p>
-                        <p className="text-xs text-[#40484d] mt-0.5">RM{deal.dealPrice.toFixed(2)} • {deal.availableQuantity} left</p>
+                        <p className="font-bold text-[#1a1c1e]">{deal.title}</p>
+                        <p className="text-xs text-[#414841] mt-0.5">RM{deal.dealPrice.toFixed(2)} • {deal.availableQuantity} left</p>
                       </div>
                       <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg text-xs">Active</Badge>
                     </div>
                     <div className="mt-2">
                       <Progress value={(deal.soldQuantity / deal.totalQuantity) * 100} className="h-2" />
-                      <p className="text-xs text-[#70787d] mt-1">{deal.soldQuantity}/{deal.totalQuantity} sold</p>
+                      <p className="text-xs text-[#717971] mt-1">{deal.soldQuantity}/{deal.totalQuantity} sold</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -1349,10 +1351,10 @@ function VendorCreateDealView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Create Flash Deal</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Create Flash Deal</h1>
       </div>
 
       {/* Steps indicator */}
@@ -1360,11 +1362,11 @@ function VendorCreateDealView() {
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2 flex-1">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-              s <= step ? 'bg-[#0d6683] text-white' : 'bg-[#e5efff] text-[#70787d]'
+              s <= step ? 'bg-[#00B14F] text-white' : 'bg-[#e8edea] text-[#717971]'
             }`}>
               {s < step ? <Check className="w-4 h-4" /> : s}
             </div>
-            {s < 3 && <div className={`flex-1 h-0.5 rounded ${s < step ? 'bg-[#0d6683]' : 'bg-[#e5efff]'}`} />}
+            {s < 3 && <div className={`flex-1 h-0.5 rounded ${s < step ? 'bg-[#00B14F]' : 'bg-[#e8edea]'}`} />}
           </div>
         ))}
       </div>
@@ -1373,15 +1375,15 @@ function VendorCreateDealView() {
       {step === 1 && (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
           <div>
-            <Label className="font-semibold text-[#0d1c2d]">Food Name *</Label>
+            <Label className="font-semibold text-[#1a1c1e]">Food Name *</Label>
             <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})} placeholder="e.g. Nasi Lemak Bunga Telang" className="mt-1.5 h-12 rounded-xl" />
           </div>
           <div>
-            <Label className="font-semibold text-[#0d1c2d]">Description *</Label>
+            <Label className="font-semibold text-[#1a1c1e]">Description *</Label>
             <Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Describe your meal..." className="mt-1.5 rounded-xl min-h-[100px]" />
           </div>
           <div>
-            <Label className="font-semibold text-[#0d1c2d]">Category *</Label>
+            <Label className="font-semibold text-[#1a1c1e]">Category *</Label>
             <Select value={form.category} onValueChange={(v) => setForm({...form, category: v})}>
               <SelectTrigger className="h-12 rounded-xl mt-1.5"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -1391,7 +1393,7 @@ function VendorCreateDealView() {
               </SelectContent>
             </Select>
           </div>
-          <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+          <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white">
             Next: Pricing <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </motion.div>
@@ -1402,11 +1404,11 @@ function VendorCreateDealView() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="font-semibold text-[#0d1c2d]">Original Price (RM) *</Label>
+              <Label className="font-semibold text-[#1a1c1e]">Original Price (RM) *</Label>
               <Input type="number" value={form.originalPrice} onChange={(e) => setForm({...form, originalPrice: e.target.value})} placeholder="15.00" className="mt-1.5 h-12 rounded-xl" />
             </div>
             <div>
-              <Label className="font-semibold text-[#0d1c2d]">Deal Price (RM) *</Label>
+              <Label className="font-semibold text-[#1a1c1e]">Deal Price (RM) *</Label>
               <Input type="number" value={form.dealPrice} onChange={(e) => setForm({...form, dealPrice: e.target.value})} placeholder="8.00" className="mt-1.5 h-12 rounded-xl" />
             </div>
           </div>
@@ -1416,16 +1418,16 @@ function VendorCreateDealView() {
             </div>
           )}
           <div>
-            <Label className="font-semibold text-[#0d1c2d]">Available Quantity *</Label>
+            <Label className="font-semibold text-[#1a1c1e]">Available Quantity *</Label>
             <Input type="number" value={form.totalQuantity} onChange={(e) => setForm({...form, totalQuantity: e.target.value})} placeholder="20" className="mt-1.5 h-12 rounded-xl" />
           </div>
           <div>
-            <Label className="font-semibold text-[#0d1c2d]">Deal Expires At *</Label>
+            <Label className="font-semibold text-[#1a1c1e]">Deal Expires At *</Label>
             <Input type="datetime-local" value={form.expiresAt} onChange={(e) => setForm({...form, expiresAt: e.target.value})} className="mt-1.5 h-12 rounded-xl" />
           </div>
           <div className="flex gap-3">
             <Button onClick={() => setStep(1)} variant="outline" className="flex-1 h-12 rounded-xl font-bold">Back</Button>
-            <Button onClick={() => setStep(3)} className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+            <Button onClick={() => setStep(3)} className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white">
               Next: Review <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
@@ -1437,29 +1439,29 @@ function VendorCreateDealView() {
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
           <Card className="border-0 shadow-card rounded-2xl">
             <CardContent className="p-5 space-y-3">
-              <h3 className="font-bold text-lg text-[#0d1c2d]">{form.title || 'Untitled Deal'}</h3>
-              <p className="text-sm text-[#40484d]">{form.description}</p>
+              <h3 className="font-bold text-lg text-[#1a1c1e]">{form.title || 'Untitled Deal'}</h3>
+              <p className="text-sm text-[#414841]">{form.description}</p>
               <div className="flex items-center gap-2">
-                <Badge className="bg-[#0d6683]/10 text-[#0d6683] border-0 rounded-lg">{form.category}</Badge>
+                <Badge className="bg-[#00B14F]/10 text-[#00B14F] border-0 rounded-lg">{form.category}</Badge>
                 <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg">-{discountPercent}%</Badge>
               </div>
-              <Separator className="bg-[#d4e4fa]" />
+              <Separator className="bg-[#d7ddd9]" />
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-[#70787d]">Original</p>
-                  <p className="font-bold text-[#0d1c2d] line-through">RM{form.originalPrice}</p>
+                  <p className="text-[#717971]">Original</p>
+                  <p className="font-bold text-[#1a1c1e] line-through">RM{form.originalPrice}</p>
                 </div>
                 <div>
-                  <p className="text-[#70787d]">Deal Price</p>
-                  <p className="font-bold text-[#0d6683] text-lg">RM{form.dealPrice}</p>
+                  <p className="text-[#717971]">Deal Price</p>
+                  <p className="font-bold text-[#00B14F] text-lg">RM{form.dealPrice}</p>
                 </div>
                 <div>
-                  <p className="text-[#70787d]">Quantity</p>
-                  <p className="font-bold text-[#0d1c2d]">{form.totalQuantity}</p>
+                  <p className="text-[#717971]">Quantity</p>
+                  <p className="font-bold text-[#1a1c1e]">{form.totalQuantity}</p>
                 </div>
                 <div>
-                  <p className="text-[#70787d]">Pickup</p>
-                  <p className="font-bold text-[#0d1c2d]">Only</p>
+                  <p className="text-[#717971]">Pickup</p>
+                  <p className="font-bold text-[#1a1c1e]">Only</p>
                 </div>
               </div>
             </CardContent>
@@ -1469,7 +1471,7 @@ function VendorCreateDealView() {
             <Button
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white active:scale-95 transition-transform"
+              className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white active:scale-95 transition-transform"
             >
               {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <>
                 <Zap className="w-5 h-5 mr-1" /> Publish Deal
@@ -1502,18 +1504,18 @@ function VendorInventoryView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Inventory</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Inventory</h1>
       </div>
 
       {loading ? (
         Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl mb-3" />)
       ) : deals.length === 0 ? (
         <div className="text-center py-16">
-          <Package className="w-16 h-16 text-[#bfc8cd] mx-auto mb-4" />
-          <h3 className="text-lg font-bold text-[#0d1c2d]">No active inventory</h3>
+          <Package className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">No active inventory</h3>
         </div>
       ) : (
         <div className="space-y-3">
@@ -1522,31 +1524,31 @@ function VendorInventoryView() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <p className="font-bold text-[#0d1c2d]">{deal.title}</p>
-                    <p className="text-xs text-[#40484d]">RM{deal.dealPrice.toFixed(2)} per meal</p>
+                    <p className="font-bold text-[#1a1c1e]">{deal.title}</p>
+                    <p className="text-xs text-[#414841]">RM{deal.dealPrice.toFixed(2)} per meal</p>
                   </div>
                   <Badge className={`border-0 rounded-lg text-xs ${
-                    deal.status === 'active' ? 'bg-[#34D399]/10 text-[#059669]' : 'bg-[#70787d]/10 text-[#70787d]'
+                    deal.status === 'active' ? 'bg-[#34D399]/10 text-[#059669]' : 'bg-[#717971]/10 text-[#717971]'
                   }`}>
                     {deal.status}
                   </Badge>
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-center text-xs">
-                  <div className="bg-[#eef4ff] rounded-lg p-2">
-                    <p className="text-[#70787d]">Total</p>
-                    <p className="font-bold text-[#0d1c2d]">{deal.totalQuantity}</p>
+                  <div className="bg-[#f0f4f2] rounded-lg p-2">
+                    <p className="text-[#717971]">Total</p>
+                    <p className="font-bold text-[#1a1c1e]">{deal.totalQuantity}</p>
                   </div>
                   <div className="bg-[#FB923C]/10 rounded-lg p-2">
-                    <p className="text-[#70787d]">Reserved</p>
+                    <p className="text-[#717971]">Reserved</p>
                     <p className="font-bold text-[#FB923C]">{deal.reservedQuantity}</p>
                   </div>
                   <div className="bg-[#34D399]/10 rounded-lg p-2">
-                    <p className="text-[#70787d]">Sold</p>
+                    <p className="text-[#717971]">Sold</p>
                     <p className="font-bold text-[#059669]">{deal.soldQuantity}</p>
                   </div>
-                  <div className="bg-[#0d6683]/10 rounded-lg p-2">
-                    <p className="text-[#70787d]">Available</p>
-                    <p className="font-bold text-[#0d6683]">{deal.availableQuantity}</p>
+                  <div className="bg-[#00B14F]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Available</p>
+                    <p className="font-bold text-[#00B14F]">{deal.availableQuantity}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1608,17 +1610,17 @@ function VendorFulfillmentView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Fulfillment</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Fulfillment</h1>
       </div>
 
       {/* QR Verify */}
       <Card className="border-0 shadow-card rounded-2xl mb-5">
         <CardContent className="p-5">
-          <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
-            <QrCode className="w-5 h-5 text-[#0d6683]" /> Verify Pickup
+          <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
+            <QrCode className="w-5 h-5 text-[#00B14F]" /> Verify Pickup
           </h3>
           <div className="flex gap-2">
             <Input
@@ -1630,7 +1632,7 @@ function VendorFulfillmentView() {
             <Button
               onClick={handleVerify}
               disabled={verifying || !qrInput.trim()}
-              className="h-12 px-5 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white"
+              className="h-12 px-5 rounded-xl font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white"
             >
               {verifying ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Verify'}
             </Button>
@@ -1639,19 +1641,19 @@ function VendorFulfillmentView() {
       </Card>
 
       {/* Pending */}
-      <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+      <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
         <Clock className="w-4 h-4 text-[#FB923C]" /> Pending Pickup ({pendingPickup.length})
       </h3>
       {pendingPickup.length === 0 ? (
-        <p className="text-sm text-[#70787d] mb-6">No pending pickups</p>
+        <p className="text-sm text-[#717971] mb-6">No pending pickups</p>
       ) : (
         <div className="space-y-2 mb-6">
           {pendingPickup.map((order) => (
             <Card key={order.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex justify-between items-center">
                 <div>
-                  <p className="font-bold text-sm text-[#0d1c2d]">#{order.orderNumber}</p>
-                  <p className="text-xs text-[#40484d]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
+                  <p className="font-bold text-sm text-[#1a1c1e]">#{order.orderNumber}</p>
+                  <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
                 </div>
                 <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
               </CardContent>
@@ -1661,19 +1663,19 @@ function VendorFulfillmentView() {
       )}
 
       {/* Completed */}
-      <h3 className="font-bold text-[#0d1c2d] mb-3 flex items-center gap-2">
+      <h3 className="font-bold text-[#1a1c1e] mb-3 flex items-center gap-2">
         <CheckCircle className="w-4 h-4 text-[#34D399]" /> Completed ({completed.length})
       </h3>
       {completed.length === 0 ? (
-        <p className="text-sm text-[#70787d]">No completed orders yet</p>
+        <p className="text-sm text-[#717971]">No completed orders yet</p>
       ) : (
         <div className="space-y-2">
           {completed.map((order) => (
             <Card key={order.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex justify-between items-center">
                 <div>
-                  <p className="font-bold text-sm text-[#0d1c2d]">#{order.orderNumber}</p>
-                  <p className="text-xs text-[#40484d]">RM{order.totalPrice.toFixed(2)}</p>
+                  <p className="font-bold text-sm text-[#1a1c1e]">#{order.orderNumber}</p>
+                  <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)}</p>
                 </div>
                 <Badge className="bg-[#34D399]/10 text-[#059669] border-0 rounded-lg text-xs">Done</Badge>
               </CardContent>
@@ -1713,15 +1715,15 @@ function VendorSubscriptionView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Subscription</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Subscription</h1>
       </div>
 
       {/* Current Plan */}
       {vendor && vendor.subscriptionPlan !== 'none' && (
-        <Card className="border-0 shadow-card rounded-2xl mb-5 bg-gradient-to-br from-[#0d6683] to-[#005974]">
+        <Card className="border-0 shadow-card rounded-2xl mb-5 bg-gradient-to-br from-[#00B14F] to-[#008e3e]">
           <CardContent className="p-5 text-white">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-5 h-5" />
@@ -1734,52 +1736,52 @@ function VendorSubscriptionView() {
 
       {/* Plans */}
       <div className="space-y-4">
-        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_basic' ? 'ring-2 ring-[#0d6683]' : ''}`}>
+        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_basic' ? 'ring-2 ring-[#00B14F]' : ''}`}>
           <CardContent className="p-5">
             <div className="flex justify-between items-start mb-3">
               <div>
-                <h3 className="font-bold text-lg text-[#0d1c2d]">Basic</h3>
-                <p className="text-2xl font-extrabold text-[#0d6683]">RM99<span className="text-sm font-normal text-[#70787d]">/month</span></p>
+                <h3 className="font-bold text-lg text-[#1a1c1e]">Basic</h3>
+                <p className="text-2xl font-extrabold text-[#00B14F]">RM99<span className="text-sm font-normal text-[#717971]">/month</span></p>
               </div>
               {vendor?.subscriptionPlan === 'vendor_basic' && (
-                <Badge className="bg-[#0d6683] text-white border-0 rounded-lg">Active</Badge>
+                <Badge className="bg-[#00B14F] text-white border-0 rounded-lg">Active</Badge>
               )}
             </div>
-            <ul className="space-y-1.5 text-sm text-[#40484d]">
+            <ul className="space-y-1.5 text-sm text-[#414841]">
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Unlimited flash deals</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Inventory management</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> QR fulfillment</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Basic statistics</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_basic' && (
-              <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white">
+              <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white">
                 {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Basic'}
               </Button>
             )}
           </CardContent>
         </Card>
 
-        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_premium' ? 'ring-2 ring-[#0d6683]' : ''}`}>
+        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_premium' ? 'ring-2 ring-[#00B14F]' : ''}`}>
           <CardContent className="p-5">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg text-[#0d1c2d]">Premium</h3>
+                  <h3 className="font-bold text-lg text-[#1a1c1e]">Premium</h3>
                   <Sparkles className="w-4 h-4 text-[#FB923C]" />
                 </div>
-                <p className="text-2xl font-extrabold text-[#0d6683]">RM199<span className="text-sm font-normal text-[#70787d]">/month</span></p>
+                <p className="text-2xl font-extrabold text-[#00B14F]">RM199<span className="text-sm font-normal text-[#717971]">/month</span></p>
               </div>
               {vendor?.subscriptionPlan === 'vendor_premium' && (
-                <Badge className="bg-[#0d6683] text-white border-0 rounded-lg">Active</Badge>
+                <Badge className="bg-[#00B14F] text-white border-0 rounded-lg">Active</Badge>
               )}
             </div>
-            <ul className="space-y-1.5 text-sm text-[#40484d]">
+            <ul className="space-y-1.5 text-sm text-[#414841]">
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Everything in Basic</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Advanced analytics</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Priority ranking</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#34D399]" /> Marketing tools</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#70787d]" /> Siren Push (coming)</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#70787d]" /> Auto-Drop (coming)</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#717971]" /> Siren Push (coming)</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#717971]" /> Auto-Drop (coming)</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_premium' && (
               <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#FB923C] to-[#F97316] text-white">
@@ -1811,11 +1813,11 @@ function AdminDashboardView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-extrabold text-[#0d1c2d]">Admin Dashboard</h1>
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e]">Admin Dashboard</h1>
         <div className="flex items-center gap-2">
           <NotificationBell />
-          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors" aria-label="Account">
-            <User className="w-5 h-5 text-[#0d6683]" />
+          <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors" aria-label="Account">
+            <User className="w-5 h-5 text-[#00B14F]" />
           </button>
         </div>
       </div>
@@ -1829,30 +1831,30 @@ function AdminDashboardView() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <Users className="w-6 h-6 text-[#0d6683] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Total Users</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalUsers as number) || 0}</p>
+                <Users className="w-6 h-6 text-[#00B14F] mx-auto mb-1" />
+                <p className="text-xs text-[#414841]">Total Users</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalUsers as number) || 0}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
                 <Store className="w-6 h-6 text-[#34D399] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Vendors</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalVendors as number) || 0}</p>
+                <p className="text-xs text-[#414841]">Vendors</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalVendors as number) || 0}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
                 <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Active Deals</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.dealsByStatus as Record<string, number>)?.active || 0}</p>
+                <p className="text-xs text-[#414841]">Active Deals</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.dealsByStatus as Record<string, number>)?.active || 0}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <ShoppingBag className="w-6 h-6 text-[#4e6073] mx-auto mb-1" />
-                <p className="text-xs text-[#40484d]">Total Orders</p>
-                <p className="text-lg font-extrabold text-[#0d1c2d]">{(analytics?.overview?.totalOrders as number) || 0}</p>
+                <ShoppingBag className="w-6 h-6 text-[#506350] mx-auto mb-1" />
+                <p className="text-xs text-[#414841]">Total Orders</p>
+                <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalOrders as number) || 0}</p>
               </CardContent>
             </Card>
           </div>
@@ -1861,7 +1863,7 @@ function AdminDashboardView() {
           <div className="space-y-2">
             {[
               { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#34D399]' },
-              { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#0d6683]' },
+              { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#00B14F]' },
               { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#FB923C]' },
             ].map((item) => (
               <motion.button
@@ -1871,8 +1873,8 @@ function AdminDashboardView() {
                 className="w-full flex items-center gap-3 p-4 bg-white shadow-card rounded-2xl"
               >
                 <item.icon className={`w-5 h-5 ${item.color}`} />
-                <span className="font-bold text-sm text-[#0d1c2d]">{item.label}</span>
-                <ChevronRight className="w-4 h-4 text-[#70787d] ml-auto" />
+                <span className="font-bold text-sm text-[#1a1c1e]">{item.label}</span>
+                <ChevronRight className="w-4 h-4 text-[#717971] ml-auto" />
               </motion.button>
             ))}
           </div>
@@ -1919,10 +1921,10 @@ function AdminVendorsView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Vendor Management</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Vendor Management</h1>
       </div>
 
       {/* Filter Tabs */}
@@ -1932,7 +1934,7 @@ function AdminVendorsView() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize flex-shrink-0 transition-all ${
-              filter === f ? 'bg-[#0d6683] text-white' : 'bg-[#e5efff] text-[#40484d]'
+              filter === f ? 'bg-[#00B14F] text-white' : 'bg-[#e8edea] text-[#414841]'
             }`}
           >
             {f}
@@ -1943,7 +1945,7 @@ function AdminVendorsView() {
       {loading ? (
         Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl mb-3" />)
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-[#70787d] text-center py-8">No vendors found</p>
+        <p className="text-sm text-[#717971] text-center py-8">No vendors found</p>
       ) : (
         <div className="space-y-3">
           {filtered.map((v) => (
@@ -1951,15 +1953,15 @@ function AdminVendorsView() {
               <CardContent className="p-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="font-bold text-[#0d1c2d]">{v.businessName}</p>
-                    <p className="text-xs text-[#40484d]">{v.address}</p>
-                    <p className="text-xs text-[#70787d] mt-1">{v.contactEmail}</p>
+                    <p className="font-bold text-[#1a1c1e]">{v.businessName}</p>
+                    <p className="text-xs text-[#414841]">{v.address}</p>
+                    <p className="text-xs text-[#717971] mt-1">{v.contactEmail}</p>
                   </div>
                   <Badge className={`border-0 rounded-lg text-xs ${
                     v.verificationStatus === 'approved' ? 'bg-[#34D399]/10 text-[#059669]' :
                     v.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
                     v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
-                    'bg-[#70787d]/10 text-[#70787d]'
+                    'bg-[#717971]/10 text-[#717971]'
                   }`}>
                     {v.verificationStatus}
                   </Badge>
@@ -1980,7 +1982,7 @@ function AdminVendorsView() {
                   </Button>
                 )}
                 {v.verificationStatus === 'suspended' && (
-                  <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="mt-3 h-9 rounded-xl text-xs font-bold bg-[#0d6683] text-white">
+                  <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="mt-3 h-9 rounded-xl text-xs font-bold bg-[#00B14F] text-white">
                     <RefreshCw className="w-3 h-3 mr-1" /> Restore
                   </Button>
                 )}
@@ -2014,14 +2016,14 @@ function AdminUsersView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">User Management</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">User Management</h1>
       </div>
 
       <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#70787d]" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717971]" />
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9 h-10 rounded-xl" />
       </div>
 
@@ -2033,17 +2035,17 @@ function AdminUsersView() {
             <Card key={u.id} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex items-center gap-3">
                 <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-[#0d6683] text-white text-sm font-bold">
+                  <AvatarFallback className="bg-[#00B14F] text-white text-sm font-bold">
                     {u.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-[#0d1c2d] truncate">{u.name}</p>
-                  <p className="text-xs text-[#40484d] truncate">{u.email}</p>
+                  <p className="font-bold text-sm text-[#1a1c1e] truncate">{u.name}</p>
+                  <p className="text-xs text-[#414841] truncate">{u.email}</p>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   {u.roles.map((r) => (
-                    <Badge key={r} className="bg-[#e5efff] text-[#0d6683] border-0 rounded-md text-[10px] px-1.5">
+                    <Badge key={r} className="bg-[#e8edea] text-[#00B14F] border-0 rounded-md text-[10px] px-1.5">
                       {r}
                     </Badge>
                   ))}
@@ -2075,10 +2077,10 @@ function AdminAnalyticsView() {
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={goBack} className="p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff]">
-          <ArrowLeft className="w-5 h-5 text-[#0d1c2d]" />
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#0d1c2d]">Analytics</h1>
+        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Analytics</h1>
       </div>
 
       {loading ? (
@@ -2088,21 +2090,21 @@ function AdminAnalyticsView() {
       ) : (
         <div className="space-y-4">
           {[
-            { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#0d6683]' },
+            { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#00B14F]' },
             { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#34D399]' },
             { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#FB923C]' },
-            { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4e6073]' },
+            { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#506350]' },
             { label: 'Pending Vendors', value: (analytics?.dealsByStatus as Record<string, number>)?.pending || 0, icon: Clock, color: 'text-[#FB923C]' },
             { label: 'Meals Saved from Waste', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#34D399]' },
           ].map((item) => (
             <Card key={item.label} className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl bg-[#eef4ff] flex items-center justify-center ${item.color}`}>
+                <div className={`w-12 h-12 rounded-xl bg-[#f0f4f2] flex items-center justify-center ${item.color}`}>
                   <item.icon className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-sm text-[#40484d]">{item.label}</p>
-                  <p className="text-2xl font-extrabold text-[#0d1c2d]">{String(item.value)}</p>
+                  <p className="text-sm text-[#414841]">{item.label}</p>
+                  <p className="text-2xl font-extrabold text-[#1a1c1e]">{String(item.value)}</p>
                 </div>
               </CardContent>
             </Card>
@@ -2123,9 +2125,9 @@ const NotificationBell = memo(function NotificationBell() {
   return (
     <button
       onClick={() => navigate('orders')}
-      className="relative p-2 rounded-xl bg-[#eef4ff] hover:bg-[#dbe9ff] transition-colors"
+      className="relative p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors"
     >
-      <Bell className="w-5 h-5 text-[#0d6683]" />
+      <Bell className="w-5 h-5 text-[#00B14F]" />
       {unreadCount > 0 && (
         <motion.span
           initial={{ scale: 0 }}
@@ -2140,25 +2142,24 @@ const NotificationBell = memo(function NotificationBell() {
 })
 
 // ============================================
-// BOTTOM NAVIGATION - FOODIE
+// BOTTOM NAVIGATION - FOODIE (Grab Style)
 // ============================================
 function FoodieBottomNav() {
   const { currentView, navigate, setShowAuthModal } = useAppStore()
   const { isAuthenticated } = useAuthStore()
 
-  // Protected views that require authentication
   const protectedViews: AppView[] = ['orders', 'profile', 'subscriptions']
 
   const tabs = [
     { view: 'home' as AppView, icon: Home, label: 'Home' },
     { view: 'explore' as AppView, icon: Compass, label: 'Explore' },
     { view: 'orders' as AppView, icon: ShoppingBag, label: 'Orders' },
-    { view: 'profile' as AppView, icon: User, label: 'Profile' },
+    { view: 'profile' as AppView, icon: User, label: 'Me' },
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-40 safe-area-inset-bottom">
-      <div className="flex items-center justify-around max-w-lg mx-auto h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] z-40 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="flex items-center justify-around max-w-lg mx-auto h-14">
         {tabs.map((tab) => {
           const isActive = currentView === tab.view || (tab.view === 'home' && currentView === 'deal-detail')
           return (
@@ -2171,12 +2172,17 @@ function FoodieBottomNav() {
                   navigate(tab.view)
                 }
               }}
-              className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-[64px] ${
-                isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
+              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 transition-all min-w-[56px] ${
+                isActive ? 'text-[#00B14F]' : 'text-[#717971]'
               }`}
             >
-              <tab.icon className={`w-5 h-5 ${isActive ? 'text-[#0d6683]' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold ${isActive ? 'text-[#0d6683]' : ''}`}>{tab.label}</span>
+              <div className="relative">
+                <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
+                {isActive && (
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#00B14F]" />
+                )}
+              </div>
+              <span className={`text-[10px] font-semibold ${isActive ? 'text-[#00B14F]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -2200,20 +2206,23 @@ function VendorBottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-50 safe-area-inset-bottom">
-      <div className="flex items-center justify-around max-w-lg mx-auto h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] z-50 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="flex items-center justify-around max-w-lg mx-auto h-14">
         {tabs.map((tab) => {
           const isActive = currentView === tab.view
           return (
             <button
               key={tab.view}
               onClick={() => navigate(tab.view)}
-              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all min-w-[56px] ${
-                isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 transition-all min-w-[52px] ${
+                isActive ? 'text-[#00B14F]' : 'text-[#717971]'
               }`}
             >
-              <tab.icon className={`w-5 h-5 ${isActive ? 'text-[#0d6683]' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold ${isActive ? 'text-[#0d6683]' : ''}`}>{tab.label}</span>
+              <div className="relative">
+                <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
+                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#00B14F]" />}
+              </div>
+              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#00B14F]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -2237,20 +2246,23 @@ function AdminBottomNav() {
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-t border-[#d4e4fa] z-50 safe-area-inset-bottom">
-      <div className="flex items-center justify-around max-w-lg mx-auto h-16">
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] z-50 pb-[env(safe-area-inset-bottom,0px)]">
+      <div className="flex items-center justify-around max-w-lg mx-auto h-14">
         {tabs.map((tab) => {
           const isActive = currentView === tab.view
           return (
             <button
               key={tab.view}
               onClick={() => navigate(tab.view)}
-              className={`flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all min-w-[64px] ${
-                isActive ? 'text-[#0d6683]' : 'text-[#70787d]'
+              className={`flex flex-col items-center gap-0.5 px-2 py-1.5 transition-all min-w-[52px] ${
+                isActive ? 'text-[#00B14F]' : 'text-[#717971]'
               }`}
             >
-              <tab.icon className={`w-5 h-5 ${isActive ? 'text-[#0d6683]' : ''}`} strokeWidth={isActive ? 2.5 : 2} />
-              <span className={`text-[10px] font-bold ${isActive ? 'text-[#0d6683]' : ''}`}>{tab.label}</span>
+              <div className="relative">
+                <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
+                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#00B14F]" />}
+              </div>
+              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#00B14F]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -2400,12 +2412,12 @@ function AuthModal() {
     <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
       <DialogContent className="rounded-2xl max-w-sm p-0 overflow-hidden">
         {/* Header gradient */}
-        <div className="bg-gradient-to-br from-[#89cff0]/20 to-[#0d6683]/10 px-6 pt-6 pb-2">
+        <div className="bg-gradient-to-br from-[#66d99a]/20 to-[#00B14F]/10 px-6 pt-6 pb-2">
           <DialogHeader>
-            <DialogTitle className="text-xl font-extrabold text-[#0d1c2d]">
+            <DialogTitle className="text-xl font-extrabold text-[#1a1c1e]">
               {isLogin ? 'Welcome Back' : 'Join FlashBite'}
             </DialogTitle>
-            <DialogDescription className="text-[#40484d]">
+            <DialogDescription className="text-[#414841]">
               {isLogin ? 'Sign in to claim deals and track orders' : 'Create an account to start saving on food'}
             </DialogDescription>
           </DialogHeader>
@@ -2413,11 +2425,11 @@ function AuthModal() {
 
         <div className="px-6 pb-6">
           {/* Toggle */}
-          <div className="flex bg-[#e5efff] rounded-xl p-1 mb-5">
+          <div className="flex bg-[#e8edea] rounded-xl p-1 mb-5">
             <button
               onClick={() => setIsLogin(true)}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+                isLogin ? 'bg-white text-[#00B14F] shadow-chip' : 'text-[#414841]'
               }`}
             >
               Sign In
@@ -2425,7 +2437,7 @@ function AuthModal() {
             <button
               onClick={() => setIsLogin(false)}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                !isLogin ? 'bg-white text-[#0d6683] shadow-chip' : 'text-[#40484d]'
+                !isLogin ? 'bg-white text-[#00B14F] shadow-chip' : 'text-[#414841]'
               }`}
             >
               Sign Up
@@ -2436,7 +2448,7 @@ function AuthModal() {
           <form onSubmit={handleSubmit} className="space-y-3">
             {!isLogin && (
               <div>
-                <Label htmlFor="modal-name" className="text-sm font-semibold text-[#0d1c2d]">Full Name</Label>
+                <Label htmlFor="modal-name" className="text-sm font-semibold text-[#1a1c1e]">Full Name</Label>
                 <Input
                   id="modal-name"
                   value={name}
@@ -2448,7 +2460,7 @@ function AuthModal() {
               </div>
             )}
             <div>
-              <Label htmlFor="modal-email" className="text-sm font-semibold text-[#0d1c2d]">Email</Label>
+              <Label htmlFor="modal-email" className="text-sm font-semibold text-[#1a1c1e]">Email</Label>
               <Input
                 id="modal-email"
                 type="email"
@@ -2460,7 +2472,7 @@ function AuthModal() {
               />
             </div>
             <div>
-              <Label htmlFor="modal-password" className="text-sm font-semibold text-[#0d1c2d]">Password</Label>
+              <Label htmlFor="modal-password" className="text-sm font-semibold text-[#1a1c1e]">Password</Label>
               <Input
                 id="modal-password"
                 type="password"
@@ -2474,7 +2486,7 @@ function AuthModal() {
             </div>
             {!isLogin && (
               <div>
-                <Label htmlFor="modal-phone" className="text-sm font-semibold text-[#0d1c2d]">Phone (optional)</Label>
+                <Label htmlFor="modal-phone" className="text-sm font-semibold text-[#1a1c1e]">Phone (optional)</Label>
                 <Input
                   id="modal-phone"
                   value={phone}
@@ -2487,7 +2499,7 @@ function AuthModal() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl text-base font-bold bg-gradient-to-b from-[#89cff0] to-[#0d6683] text-white hover:opacity-90 active:scale-95 transition-all"
+              className="w-full h-11 rounded-xl text-base font-bold bg-gradient-to-b from-[#66d99a] to-[#00B14F] text-white hover:opacity-90 active:scale-95 transition-all"
             >
               {loading ? (
                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -2500,11 +2512,11 @@ function AuthModal() {
           </form>
 
           {/* Demo hint */}
-          <div className="mt-4 p-3 bg-[#eef4ff] rounded-xl text-center">
-            <p className="text-xs text-[#40484d]">
+          <div className="mt-4 p-3 bg-[#f0f4f2] rounded-xl text-center">
+            <p className="text-xs text-[#414841]">
               🎯 Demo: <span className="font-semibold">foodie@test.com</span> / <span className="font-semibold">vendor@test.com</span> / <span className="font-semibold">admin@test.com</span>
             </p>
-            <p className="text-xs text-[#70787d] mt-0.5">Password: <span className="font-semibold">password123</span></p>
+            <p className="text-xs text-[#717971] mt-0.5">Password: <span className="font-semibold">password123</span></p>
           </div>
         </div>
       </DialogContent>
@@ -2548,16 +2560,16 @@ export default function FlashBiteApp() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#eef4ff] to-white">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-[#f0f4f2] to-white">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#89cff0] to-[#0d6683] mb-4 shadow-card">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#66d99a] to-[#00B14F] mb-4 shadow-card">
             <Flame className="w-10 h-10 text-white" />
           </div>
-          <p className="text-[#40484d] text-sm">Loading FlashBite...</p>
+          <p className="text-[#414841] text-sm">Loading FlashBite...</p>
         </motion.div>
       </div>
     )

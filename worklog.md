@@ -402,3 +402,83 @@ Stage Summary:
 - Header is significantly more compact (~80px vs ~140px before)
 - Category filter moved to dropdown next to search
 - Claim deal success now has clear CTA to view QR code
+
+---
+Task ID: 15
+Agent: Main Orchestrator
+Task: Apply Grab/Foodpanda-inspired design system to FlashBite
+
+Work Log:
+- Analyzed the user-provided design direction: Grab/Foodpanda Super App style
+- Key design changes: Primary color #00B14F (Grab Green), compact headers, icon grid categories, 16:9 card images
+- Updated globals.css with complete new color system:
+  - Primary: #0d6683 → #00B14F (Grab Green)
+  - Primary dark: #008e3e
+  - Background: #F4F7F6 (neutral gray-green)
+  - Surface/container colors updated to green-gray tones
+  - Input focus styles updated to green accent
+  - Reduced shadow intensity for cleaner look
+  - Updated font stack to include system-ui fallback
+- Performed 250+ color replacements across page.tsx via automated search-and-replace:
+  - #0d6683 → #00B14F (74 replacements)
+  - #89cff0 → #66d99a (22 replacements)
+  - #eef4ff → #f0f4f2 (27 replacements)
+  - #dbe9ff → #dfe5e1 (13 replacements)
+  - #d4e4fa → #d7ddd9 (9 replacements)
+  - #e5efff → #e8edea (6 replacements)
+  - #0d1c2d → #1a1c1e (92 replacements)
+  - #40484d → #414841 (many replacements)
+  - #70787d → #717971 (many replacements)
+  - #4e6073 → #506350 (5 replacements)
+- Redesigned DealCard component (Grab/Foodpanda style):
+  - Removed framer-motion wrapper (performance: replaced with plain div + CSS hover)
+  - 16:9 dominant image aspect ratio (h-44 for featured, h-36 for large, h-28 for medium)
+  - "Promo" badge overlapping top-left of image
+  - Discount % badge below Promo badge
+  - Distance badge top-right with green MapPin icon
+  - CountdownTimer overlay below distance badge
+  - Sold Out overlay with rounded pill label
+  - Tight p-3 content padding with title, vendor, price row
+  - Heavy emphasis on deal price (font-black text-[#00B14F]) with minimized strikethrough price
+  - Group hover: scale-105 image zoom effect via CSS transition
+  - priority prop on featured card images
+- Redesigned FoodieHomeView (Grab/Foodpanda style):
+  - New sticky header with clean white background:
+    - "Deliver to" address bar with green MapPin circle, location text, chevron
+    - Prominent search bar (rounded-full, bg-[#F4F7F6])
+    - Sign In button (rounded-full, bg-[#00B14F])
+  - Category Icon Grid (grid-cols-4):
+    - 8 categories with colored icons and soft backgrounds
+    - Flash Deals, Malay, Chinese, Indian, Western, Japanese, Korean, Dessert
+    - Active state with green ring highlight
+  - "Flash Deals" section header with Flame icon and deal count
+  - Background changed to #F4F7F6 (neutral gray)
+  - Removed separate category dropdown (replaced by icon grid)
+- Updated all 3 bottom navs (Foodie, Vendor, Admin):
+  - Clean white bg with border-t (no blur)
+  - Compact h-14 (was h-16)
+  - Active indicator: thin green bar below icon + bolder stroke
+  - Font-semibold instead of font-bold for lighter feel
+  - Safe area bottom padding via env()
+  - Foodie nav: "Me" label instead of "Profile"
+- Updated DealDetailView sticky action bar:
+  - Clean border (no blur), safe area padding
+  - Green Claim Deal button (bg-[#00B14F] hover:bg-[#008e3e])
+  - Font-black price display
+- Performance optimizations (per design direction):
+  - Framer Motion page transitions: replaced spring physics with simple opacity fades (duration: 0.15, easeOut)
+  - Removed scale/y transforms from pageVariants
+  - DealCard: removed motion.div wrapper, using plain CSS hover/transition
+  - Image priority prop on featured cards
+  - Group hover effect via CSS transition instead of Framer Motion
+- Updated layout.tsx themeColor from #0d6683 to #00B14F
+- Lint passes clean with no errors
+
+Stage Summary:
+- Complete visual redesign from teal/blue (#0d6683) to Grab Green (#00B14F)
+- New Grab/Foodpanda-style homepage: delivery address header, search bar, icon grid categories
+- Deal cards with 16:9 image ratio, overlay badges, compact pricing, group hover zoom
+- All bottom navs updated with clean design and active indicators
+- Performance: lightweight Framer Motion transitions, CSS-based card interactions
+- 250+ color references updated across the entire codebase
+- Consistent green-gray color system matching Grab/Foodpanda aesthetic
