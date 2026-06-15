@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server'
 import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 
+/**
+ * Safely parse a timestamp from the database as UTC.
+ * PostgreSQL `timestamp without time zone` returns strings without 'Z',
+ * which JavaScript interprets as local time. This function ensures
+ * UTC interpretation by appending 'Z' when needed.
+ */
+function parseUTCDate(dateStr: string): Date {
+  if (!dateStr) return new Date(0)
+  // If already has timezone info (Z or +HH:MM), parse directly
+  if (dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
+    return new Date(dateStr)
+  }
+  // Otherwise treat as UTC
+  return new Date(dateStr + 'Z')
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -53,19 +69,24 @@ export async function POST(
       )
     }
 
-    // Verify reservation hasn't expired
-    if (new Date(reservation.expiresAt) < new Date()) {
+    // *** FIX: Use UTC-safe date comparison ***
+    // PostgreSQL timestamp without tz returns strings without 'Z',
+    // causing JavaScript to interpret them as local time instead of UTC
+    const reservationExpiry = parseUTCDate(reservation.expiresAt)
+    const now = new Date()
+
+    if (reservationExpiry < now) {
+      // Mark reservation as expired in the database
       await supabase.from('Reservation').update({ status: 'expired' }).eq('id', reservationId)
 
       // Return reserved quantity back to available
-      // Fetch current deal quantities
       const currentDeal = unwrap(
         await supabase.from('Deal').select('reservedQuantity, availableQuantity').eq('id', reservation.dealId).single(),
         'Fetch deal for expired reservation'
       )
       await supabase.from('Deal').update({
-        reservedQuantity: currentDeal.reservedQuantity - 1,
-        availableQuantity: currentDeal.availableQuantity + 1,
+        reservedQuantity: Math.max(0, currentDeal.reservedQuantity - reservation.quantity),
+        availableQuantity: currentDeal.availableQuantity + reservation.quantity,
       }).eq('id', reservation.dealId)
 
       return NextResponse.json(
@@ -122,18 +143,21 @@ export async function POST(
     )
 
     // 2. Update deal: soldQuantity++, reservedQuantity-- + check sold out
-    const newSoldQuantity = deal.soldQuantity + 1
-    const newReservedQuantity = deal.reservedQuantity - 1
+    const newSoldQuantity = deal.soldQuantity + reservation.quantity
+    const newReservedQuantity = deal.reservedQuantity - reservation.quantity
     const remainingAvailable = deal.totalQuantity - newSoldQuantity - newReservedQuantity
 
     const dealUpdateData: Record<string, unknown> = {
       soldQuantity: newSoldQuantity,
-      reservedQuantity: newReservedQuantity,
+      reservedQuantity: Math.max(0, newReservedQuantity),
     }
 
     // Check if sold out after this order
     if (remainingAvailable <= 0) {
       dealUpdateData.status = 'sold_out'
+      dealUpdateData.availableQuantity = 0
+    } else {
+      dealUpdateData.availableQuantity = remainingAvailable
     }
 
     await supabase.from('Deal').update(dealUpdateData).eq('id', deal.id)

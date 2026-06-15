@@ -88,6 +88,54 @@ export async function GET() {
     // Top vendors
     const topVendors = unwrap(topVendorsRes, 'Fetch top vendors')
 
+    // *** Historical Analysis: Daily active deals and total orders for the last 14 days ***
+    const dailyDeals: { date: string; count: number }[] = []
+    const dailyOrders: { date: string; count: number }[] = []
+
+    const now = new Date()
+    for (let i = 13; i >= 0; i--) {
+      const day = new Date(now)
+      day.setDate(day.getDate() - i)
+      const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate())
+      const dayEnd = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1)
+      const dateLabel = dayStart.toISOString().slice(0, 10) // YYYY-MM-DD
+
+      dailyDeals.push({ date: dateLabel, count: 0 })
+      dailyOrders.push({ date: dateLabel, count: 0 })
+    }
+
+    // Fetch all deals created in the last 14 days to count daily active
+    const fourteenDaysAgo = new Date(now)
+    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14)
+    const fourteenDaysAgoStr = fourteenDaysAgo.toISOString()
+
+    const [recentDealsRes, recentOrdersRes] = await Promise.all([
+      supabase
+        .from('Deal')
+        .select('createdAt, status')
+        .gte('createdAt', fourteenDaysAgoStr),
+      supabase
+        .from('Order')
+        .select('createdAt')
+        .gte('createdAt', fourteenDaysAgoStr),
+    ])
+
+    // Count deals per day
+    const recentDeals = unwrap(recentDealsRes, 'Fetch recent deals for chart')
+    recentDeals.forEach((deal) => {
+      const dateLabel = deal.createdAt.slice(0, 10)
+      const entry = dailyDeals.find(d => d.date === dateLabel)
+      if (entry) entry.count++
+    })
+
+    // Count orders per day
+    const recentOrders = unwrap(recentOrdersRes, 'Fetch recent orders for chart')
+    recentOrders.forEach((order) => {
+      const dateLabel = order.createdAt.slice(0, 10)
+      const entry = dailyOrders.find(d => d.date === dateLabel)
+      if (entry) entry.count++
+    })
+
     const analytics = {
       overview: {
         totalUsers,
@@ -103,6 +151,10 @@ export async function GET() {
         vendors: recentVendors,
       },
       topVendors,
+      historical: {
+        dailyDeals,
+        dailyOrders,
+      },
     }
 
     // Cache for 60 seconds

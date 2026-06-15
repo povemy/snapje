@@ -46,7 +46,7 @@ export async function POST(
     }
 
     // Check if expired
-    if (new Date(deal.expiresAt) <= new Date()) {
+    if (new Date(deal.expiresAt + 'Z') <= new Date()) {
       // Update deal status to expired
       await supabase.from('Deal').update({ status: 'expired' }).eq('id', id)
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function POST(
     }
 
     // Check public access time
-    if (deal.publicAccessAt && new Date(deal.publicAccessAt) > new Date()) {
+    if (deal.publicAccessAt && new Date(deal.publicAccessAt + 'Z') > new Date()) {
       return NextResponse.json(
         { success: false, error: 'This deal is not yet available' },
         { status: 400 }
@@ -73,19 +73,52 @@ export async function POST(
       )
     }
 
+    // *** FIX: Clean up any expired pending reservations for this user+deal ***
+    // This prevents stale reservations from blocking new claims
+    const now = new Date().toISOString()
+    const { data: expiredReservations } = await supabase
+      .from('Reservation')
+      .select('id, quantity')
+      .eq('dealId', id)
+      .eq('userId', authUser.userId)
+      .eq('status', 'pending')
+      .lt('expiresAt', now)
+
+    if (expiredReservations && expiredReservations.length > 0) {
+      // Mark them as expired
+      const expiredIds = expiredReservations.map((r: { id: string }) => r.id)
+      await supabase
+        .from('Reservation')
+        .update({ status: 'expired' })
+        .in('id', expiredIds)
+
+      // Return reserved quantities back to available
+      const totalExpiredQty = expiredReservations.reduce((sum: number, r: { quantity: number }) => sum + r.quantity, 0)
+      if (totalExpiredQty > 0) {
+        const currentDeal = unwrap(
+          await supabase.from('Deal').select('reservedQuantity, availableQuantity').eq('id', id).single(),
+          'Fetch deal for expired reservation cleanup'
+        )
+        await supabase.from('Deal').update({
+          reservedQuantity: Math.max(0, currentDeal.reservedQuantity - totalExpiredQty),
+          availableQuantity: currentDeal.availableQuantity + totalExpiredQty,
+        }).eq('id', id)
+      }
+    }
+
     // Run these checks in parallel to reduce latency
     const [existingReservationResponse, userClaimsCountResponse] = await Promise.all([
-      // Check if user already has a pending reservation for this deal
+      // Check if user already has a pending reservation for this deal (non-expired)
       supabase
         .from('Reservation')
         .select('*')
         .eq('dealId', id)
         .eq('userId', authUser.userId)
         .eq('status', 'pending')
-        .gt('expiresAt', new Date().toISOString())
+        .gt('expiresAt', now)
         .limit(1)
-        .single(),
-      // Check user's total claims for this deal
+        .maybeSingle(),
+      // Check user's total confirmed claims for this deal
       supabase
         .from('Reservation')
         .select('*', { count: 'exact', head: true })
@@ -94,13 +127,13 @@ export async function POST(
         .in('status', ['pending', 'confirmed']),
     ])
 
-    // existingReservation may return error if no rows found — that's the expected case
+    // existingReservation may return null if no rows found — that's the expected case
     const existingReservation = existingReservationResponse.error ? null : existingReservationResponse.data
     const userClaimsCount = userClaimsCountResponse.count ?? 0
 
     if (existingReservation) {
       return NextResponse.json(
-        { success: false, error: 'You already have a pending reservation for this deal', data: existingReservation },
+        { success: false, error: 'You already have a pending reservation for this deal', data: { reservationId: existingReservation.id } },
         { status: 409 }
       )
     }

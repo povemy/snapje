@@ -66,6 +66,7 @@ export type AdminView =
   | 'users'
   | 'user-detail'
   | 'analytics'
+  | 'admin-deals'
 
 export type AppView = FoodieView | VendorView | AdminView
 

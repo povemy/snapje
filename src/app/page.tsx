@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, memo } from 'react'
+import { useEffect, useState, useCallback, memo, useRef } from 'react'
 import Image from 'next/image'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppStore } from '@/stores/app-store'
@@ -1139,27 +1139,7 @@ function FoodieProfileView() {
     <div className="pb-28 px-5 pt-2">
       <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Profile</h1>
 
-      {/* User Card */}
-      <Card className="border-0 shadow-card rounded-2xl mb-4">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <Avatar className="w-14 h-14 border-2 border-[#8FC5E8]">
-              <AvatarFallback className="bg-[#6CB4EE] text-white text-lg font-bold">
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-[#1a1c1e] text-base truncate">{user?.name}</h2>
-              <p className="text-xs text-[#414841] truncate">{user?.email}</p>
-              <Badge className="mt-1 bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px]">
-                {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Role Switching */}
+      {/* Role Switching - MOVED TO TOP */}
       <h3 className="font-bold text-[#1a1c1e] text-sm mb-2">Switch Mode</h3>
       <div className="grid grid-cols-3 gap-2 mb-4">
         {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
@@ -1184,6 +1164,26 @@ function FoodieProfileView() {
           )
         })}
       </div>
+
+      {/* User Card - SMALLER and WIDER */}
+      <Card className="border-0 shadow-card rounded-xl mb-4">
+        <CardContent className="p-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-10 h-10 border-2 border-[#8FC5E8] flex-shrink-0">
+              <AvatarFallback className="bg-[#6CB4EE] text-white text-sm font-bold">
+                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <h2 className="font-bold text-[#1a1c1e] text-sm truncate">{user?.name}</h2>
+              <p className="text-[11px] text-[#414841] truncate">{user?.email}</p>
+            </div>
+            <Badge className="bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px] flex-shrink-0">
+              {user?.activeRole === 'foodie' ? '🍽️ Foodie' : user?.activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Quick Links */}
       <div className="space-y-2 mb-4">
@@ -2133,6 +2133,11 @@ function VendorFulfillmentView() {
   const [qrInput, setQrInput] = useState('')
   const [scanning, setScanning] = useState(false)
   const [completing, setCompleting] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false)
+
+  // Camera scanner refs
+  const scannerRef = useRef<HTMLDivElement>(null)
+  const html5QrcodeRef = useRef<unknown>(null)
 
   // Scan result modal
   const [scanResult, setScanResult] = useState<{
@@ -2160,7 +2165,79 @@ function VendorFulfillmentView() {
   const pickedUp = orders.filter(o => o.status === 'picked_up')
   const completed = orders.filter(o => o.status === 'completed')
 
-  // Scan QR code — lookup order
+  // Start camera scanner
+  const startScanner = async () => {
+    try {
+      const { Html5Qrcode } = await import('html5-qrcode')
+      const scannerId = 'qr-scanner-container'
+
+      const html5QrCode = new Html5Qrcode(scannerId)
+      html5QrcodeRef.current = html5QrCode
+
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        },
+        (decodedText: string) => {
+          // QR code detected — auto scan
+          handleScanFromCamera(decodedText)
+        },
+        () => {
+          // QR code not found (ignore - continuous scanning)
+        }
+      )
+      setCameraActive(true)
+    } catch (err) {
+      console.error('Camera error:', err)
+      toast.error('Camera access denied or not available. Use manual QR input instead.')
+      setCameraActive(false)
+    }
+  }
+
+  // Stop camera scanner
+  const stopScanner = async () => {
+    try {
+      const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void } | null
+      if (html5QrCode) {
+        await html5QrCode.stop()
+        html5QrCode.clear()
+      }
+    } catch {
+      // Ignore stop errors
+    }
+    html5QrcodeRef.current = null
+    setCameraActive(false)
+  }
+
+  // Handle scan from camera
+  const handleScanFromCamera = async (qrCode: string) => {
+    // Stop scanner while processing
+    await stopScanner()
+    setScanning(true)
+    try {
+      const res = await apiFetch<{
+        order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
+        deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
+        vendor: { id: string; businessName: string; address: string } | null
+        canComplete: boolean
+      }>('/api/orders/scan', {
+        method: 'POST',
+        body: JSON.stringify({ qrCode }),
+      })
+      if (res.success && res.data) {
+        setScanResult(res.data)
+      } else {
+        toast.error(res.error || 'QR code lookup failed')
+      }
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  // Scan QR code — lookup order (manual input)
   const handleScan = async () => {
     if (!qrInput.trim()) return
     setScanning(true)
@@ -2215,6 +2292,16 @@ function VendorFulfillmentView() {
     setQrInput(order.qrCode)
   }
 
+  // Cleanup scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrcodeRef.current) {
+        const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void }
+        html5QrCode.stop().catch(() => {})
+      }
+    }
+  }, [])
+
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
@@ -2232,7 +2319,39 @@ function VendorFulfillmentView() {
           </h3>
           <p className="text-xs text-[#414841] mt-0.5">Scan customer&apos;s QR to verify & complete pickup</p>
         </div>
-        <CardContent className="p-5">
+        <CardContent className="p-5 space-y-3">
+          {/* Camera Scanner Toggle */}
+          {!cameraActive ? (
+            <Button
+              onClick={startScanner}
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white flex items-center justify-center gap-2"
+            >
+              <Camera className="w-5 h-5" /> Open Camera Scanner
+            </Button>
+          ) : (
+            <div className="space-y-3">
+              <div
+                ref={scannerRef}
+                id="qr-scanner-container"
+                className="w-full rounded-xl overflow-hidden border-2 border-[#6CB4EE]/30"
+                style={{ minHeight: '250px' }}
+              />
+              <Button
+                onClick={stopScanner}
+                variant="outline"
+                className="w-full h-10 rounded-xl font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
+              >
+                <XCircle className="w-4 h-4 mr-1.5" /> Stop Scanner
+              </Button>
+            </div>
+          )}
+
+          {/* Manual Input Fallback */}
+          <div className="flex items-center gap-2 text-[10px] text-[#717971]">
+            <div className="flex-1 h-px bg-[#d7ddd9]" />
+            OR ENTER MANUALLY
+            <div className="flex-1 h-px bg-[#d7ddd9]" />
+          </div>
           <div className="flex gap-2">
             <Input
               value={qrInput}
@@ -2710,28 +2829,28 @@ function AdminDashboardView() {
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <Card className="border-0 shadow-card rounded-2xl">
+            <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('users')}>
               <CardContent className="p-4 text-center">
                 <Users className="w-6 h-6 text-[#6CB4EE] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Total Users</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalUsers as number) || 0}</p>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-card rounded-2xl">
+            <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('vendors')}>
               <CardContent className="p-4 text-center">
                 <Store className="w-6 h-6 text-[#7EC8E3] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Vendors</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalVendors as number) || 0}</p>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-card rounded-2xl">
+            <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('admin-deals')}>
               <CardContent className="p-4 text-center">
                 <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Active Deals</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.dealsByStatus as Record<string, number>)?.active || 0}</p>
               </CardContent>
             </Card>
-            <Card className="border-0 shadow-card rounded-2xl">
+            <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('analytics')}>
               <CardContent className="p-4 text-center">
                 <ShoppingBag className="w-6 h-6 text-[#4A6A8A] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Total Orders</p>
@@ -2766,22 +2885,262 @@ function AdminDashboardView() {
 }
 
 // ============================================
+// ADMIN: DEALS VIEW (Active Deals)
+// ============================================
+function AdminDealsView() {
+  const { goBack } = useAppStore()
+  const [deals, setDeals] = useState<(Deal & { vendor?: { businessName: string; address: string; contactEmail: string; verificationStatus: string } })[]>([])
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [selectedDeal, setSelectedDeal] = useState<(Deal & { vendor?: { businessName: string; address: string; contactEmail: string; verificationStatus: string } }) | null>(null)
+
+  const pageSize = 20
+
+  const fetchDeals = useCallback((p: number) => {
+    setLoading(true)
+    apiFetch<{ deals: Deal[]; total: number; page: number; pageSize: number; totalPages: number }>(`/api/deals?status=active&page=${p}&pageSize=${pageSize}`).then((res) => {
+      if (res.success && res.data) {
+        setDeals(res.data.deals || [])
+        setTotal(res.data.total || 0)
+        setTotalPages(res.data.totalPages || 1)
+        setPage(p)
+      }
+    }).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { fetchDeals(1) }, [fetchDeals])
+
+  return (
+    <div className="pb-28 px-5 pt-2">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <div>
+          <h1 className="text-xl font-extrabold text-[#1a1c1e]">Active Deals</h1>
+          <p className="text-xs text-[#717971]">{total} deals total</p>
+        </div>
+      </div>
+
+      {loading ? (
+        Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-lg mb-2" />)
+      ) : deals.length === 0 ? (
+        <div className="text-center py-16">
+          <Flame className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">No active deals</h3>
+          <p className="text-sm text-[#414841] mt-1">Check back later for new deals</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {deals.map((deal) => (
+              <motion.div
+                key={deal.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSelectedDeal(deal)}
+                className="cursor-pointer"
+              >
+                <div className="flex items-center gap-3 p-3 bg-white shadow-card rounded-xl hover:shadow-card-hover transition-shadow">
+                  <div className="w-10 h-10 rounded-lg bg-[#6CB4EE]/10 flex items-center justify-center flex-shrink-0">
+                    <Flame className="w-5 h-5 text-[#6CB4EE]" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-[#1a1c1e] truncate">{deal.title}</p>
+                    <p className="text-[11px] text-[#717971] truncate">
+                      {deal.vendor?.businessName || 'Unknown Vendor'} • RM{deal.dealPrice.toFixed(2)}
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
+                    <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-md text-[10px] px-1.5 py-0">
+                      -{deal.discountPercent}%
+                    </Badge>
+                    <span className="text-[10px] text-[#717971]">{deal.availableQuantity} left</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => fetchDeals(page - 1)}
+                className="h-8 px-3 rounded-lg text-xs"
+              >
+                Previous
+              </Button>
+              <span className="text-xs text-[#717971] font-medium">
+                {page} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => fetchDeals(page + 1)}
+                className="h-8 px-3 rounded-lg text-xs"
+              >
+                Next
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Deal Detail Modal */}
+      <Dialog open={!!selectedDeal} onOpenChange={() => setSelectedDeal(null)}>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
+          {selectedDeal && (
+            <>
+              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">{selectedDeal.title}</DialogTitle>
+                  <DialogDescription className="text-[#414841] text-xs">
+                    Deal Details • {selectedDeal.category}
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="px-5 pb-5 space-y-4">
+                {/* Status & Discount */}
+                <div className="flex items-center gap-2">
+                  <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg text-xs">Active</Badge>
+                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">-{selectedDeal.discountPercent}%</Badge>
+                </div>
+
+                {/* Description */}
+                <p className="text-sm text-[#414841]">{selectedDeal.description}</p>
+
+                {/* Vendor Info */}
+                {selectedDeal.vendor && (
+                  <div className="bg-[#f0f4f2] rounded-xl p-3 space-y-1.5">
+                    <p className="text-xs font-bold text-[#1a1c1e] flex items-center gap-1.5">
+                      <Store className="w-3.5 h-3.5 text-[#6CB4EE]" /> Vendor Details
+                    </p>
+                    <p className="text-xs text-[#414841]"><span className="font-semibold">Name:</span> {selectedDeal.vendor.businessName}</p>
+                    <p className="text-xs text-[#414841]"><span className="font-semibold">Address:</span> {selectedDeal.vendor.address}</p>
+                    <p className="text-xs text-[#414841]"><span className="font-semibold">Email:</span> {selectedDeal.vendor.contactEmail}</p>
+                    <Badge className={`border-0 rounded-md text-[10px] px-1.5 py-0 ${
+                      selectedDeal.vendor.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
+                      selectedDeal.vendor.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
+                      'bg-[#717971]/10 text-[#717971]'
+                    }`}>
+                      {selectedDeal.vendor.verificationStatus}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Pricing */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Original</p>
+                    <p className="font-bold text-[#1a1c1e] line-through">RM{selectedDeal.originalPrice.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                    <p className="text-xs text-[#717971]">Deal Price</p>
+                    <p className="font-bold text-[#6CB4EE]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
+                  </div>
+                </div>
+
+                {/* Inventory */}
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div className="bg-[#f0f4f2] rounded-lg p-2">
+                    <p className="text-[#717971]">Total</p>
+                    <p className="font-bold text-[#1a1c1e]">{selectedDeal.totalQuantity}</p>
+                  </div>
+                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Reserved</p>
+                    <p className="font-bold text-[#FB923C]">{selectedDeal.reservedQuantity}</p>
+                  </div>
+                  <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Sold</p>
+                    <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
+                  </div>
+                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2">
+                    <p className="text-[#717971]">Left</p>
+                    <p className="font-bold text-[#6CB4EE]">{selectedDeal.availableQuantity}</p>
+                  </div>
+                </div>
+
+                {/* Timing */}
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm text-[#414841]">
+                    <Timer className="w-4 h-4 text-[#FB923C]" />
+                    Expires: {new Date(selectedDeal.expiresAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-[#414841]">
+                    <Clock className="w-4 h-4 text-[#6CB4EE]" />
+                    Created: {new Date(selectedDeal.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ============================================
 // ADMIN: VENDOR MANAGEMENT VIEW
 // ============================================
 function AdminVendorsView() {
   const { goBack } = useAppStore()
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('new')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [editVendor, setEditVendor] = useState<Vendor | null>(null)
+  const [editForm, setEditForm] = useState({
+    businessName: '', description: '', contactEmail: '', contactPhone: '',
+    address: '', verificationStatus: 'pending', rejectionReason: '',
+  })
+  const [saving, setSaving] = useState(false)
 
+  const pageSize = 20
+
+  // Debounce search
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const fetchVendors = useCallback((p: number, f: string, s: string) => {
     setLoading(true)
-    apiFetch<{ vendors: Vendor[] }>('/api/admin/vendors').then((res) => {
-      if (res.success && res.data) setVendors(res.data.vendors || [])
+    const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
+    if (f === 'new') {
+      // New filter: registered within 3 days - we'll filter client-side
+    } else if (f !== 'all') {
+      params.set('status', f)
+    }
+    if (s) params.set('search', s)
+    apiFetch<{ vendors: Vendor[]; total: number; page: number; pageSize: number; totalPages: number }>(`/api/admin/vendors?${params}`).then((res) => {
+      if (res.success && res.data) {
+        let vList = res.data.vendors || []
+        // Client-side "new" filter
+        if (f === 'new') {
+          const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+          vList = vList.filter((v) => new Date(v.createdAt) >= threeDaysAgo)
+        }
+        setVendors(vList)
+        setTotal(res.data.total || 0)
+        setTotalPages(res.data.totalPages || 1)
+        setPage(p)
+      }
     }).finally(() => setLoading(false))
   }, [])
 
-  const filtered = filter === 'all' ? vendors : vendors.filter(v => v.verificationStatus === filter)
+  useEffect(() => { fetchVendors(1, filter, debouncedSearch) }, [filter, debouncedSearch, fetchVendors])
 
   const handleAction = async (vendorId: string, action: string, reason?: string) => {
     const res = await apiFetch(`/api/admin/vendors/${vendorId}/action`, {
@@ -2790,14 +3149,46 @@ function AdminVendorsView() {
     })
     if (res.success) {
       toast.success(`Vendor ${action} successful`)
-      // Refresh
-      apiFetch<{ vendors: Vendor[] }>('/api/admin/vendors').then((r) => {
-        if (r.success && r.data) setVendors(r.data.vendors || [])
-      })
+      fetchVendors(page, filter, debouncedSearch)
     } else {
       toast.error(res.error || 'Action failed')
     }
   }
+
+  const openEditModal = (v: Vendor) => {
+    setEditForm({
+      businessName: v.businessName,
+      description: v.description || '',
+      contactEmail: v.contactEmail,
+      contactPhone: v.contactPhone,
+      address: v.address,
+      verificationStatus: v.verificationStatus,
+      rejectionReason: v.rejectionReason || '',
+    })
+    setEditVendor(v)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editVendor) return
+    setSaving(true)
+    try {
+      const res = await apiFetch(`/api/admin/vendors/${editVendor.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(editForm),
+      })
+      if (res.success) {
+        toast.success('Vendor updated successfully!')
+        setEditVendor(null)
+        fetchVendors(page, filter, debouncedSearch)
+      } else {
+        toast.error(res.error || 'Failed to update vendor')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const filterTabs = ['new', 'all', 'pending', 'approved', 'rejected', 'suspended']
 
   return (
     <div className="pb-28 px-5 pt-2">
@@ -2805,12 +3196,21 @@ function AdminVendorsView() {
         <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
           <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#1a1c1e]">Vendor Management</h1>
+        <div>
+          <h1 className="text-xl font-extrabold text-[#1a1c1e]">Vendor Management</h1>
+          <p className="text-xs text-[#717971]">{total} vendors</p>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="relative mb-3">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717971]" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendors..." className="pl-9 h-10 rounded-xl text-sm" />
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        {['all', 'pending', 'approved', 'rejected', 'suspended'].map((f) => (
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1">
+        {filterTabs.map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -2818,60 +3218,153 @@ function AdminVendorsView() {
               filter === f ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#414841]'
             }`}
           >
-            {f}
+            {f === 'new' ? '🆕 New' : f}
           </button>
         ))}
       </div>
 
       {loading ? (
-        Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 rounded-xl mb-3" />)
-      ) : filtered.length === 0 ? (
+        Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg mb-2" />)
+      ) : vendors.length === 0 ? (
         <p className="text-sm text-[#717971] text-center py-8">No vendors found</p>
       ) : (
-        <div className="space-y-3">
-          {filtered.map((v) => (
-            <Card key={v.id} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-bold text-[#1a1c1e]">{v.businessName}</p>
-                    <p className="text-xs text-[#414841]">{v.address}</p>
-                    <p className="text-xs text-[#717971] mt-1">{v.contactEmail}</p>
-                  </div>
-                  <Badge className={`border-0 rounded-lg text-xs ${
-                    v.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
-                    v.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
-                    v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
-                    'bg-[#717971]/10 text-[#717971]'
-                  }`}>
-                    {v.verificationStatus}
-                  </Badge>
+        <>
+          <div className="space-y-1.5">
+            {vendors.map((v) => (
+              <div
+                key={v.id}
+                className="flex items-center gap-2.5 p-2.5 bg-white shadow-card rounded-lg hover:shadow-card-hover transition-shadow"
+              >
+                <div className="w-8 h-8 rounded-lg bg-[#7EC8E3]/10 flex items-center justify-center flex-shrink-0">
+                  <Store className="w-4 h-4 text-[#7EC8E3]" />
                 </div>
-                {v.verificationStatus === 'pending' && (
-                  <div className="flex gap-2 mt-3">
-                    <Button size="sm" onClick={() => handleAction(v.id, 'approve')} className="flex-1 h-9 rounded-xl bg-[#7EC8E3] hover:bg-[#3D8AC4] text-white text-xs font-bold">
-                      Approve
-                    </Button>
-                    <Button size="sm" onClick={() => handleAction(v.id, 'reject', 'Does not meet requirements')} variant="outline" className="flex-1 h-9 rounded-xl text-xs font-bold text-[#EF4444] border-[#EF4444]/30">
-                      Reject
-                    </Button>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-bold text-xs text-[#1a1c1e] truncate">{v.businessName}</p>
+                    <Badge className={`border-0 rounded-md text-[9px] px-1 py-0 flex-shrink-0 ${
+                      v.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
+                      v.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
+                      v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
+                      'bg-[#717971]/10 text-[#717971]'
+                    }`}>
+                      {v.verificationStatus}
+                    </Badge>
                   </div>
-                )}
-                {v.verificationStatus === 'approved' && (
-                  <Button size="sm" onClick={() => handleAction(v.id, 'suspend', 'Policy violation')} variant="outline" className="mt-3 h-9 rounded-xl text-xs font-bold text-[#EF4444] border-[#EF4444]/30">
-                    <Ban className="w-3 h-3 mr-1" /> Suspend
+                  <p className="text-[10px] text-[#717971] truncate">{v.contactEmail} • {v.address}</p>
+                </div>
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  {v.verificationStatus === 'pending' && (
+                    <>
+                      <Button size="sm" onClick={() => handleAction(v.id, 'approve')} className="h-7 px-2 rounded-lg bg-[#7EC8E3] hover:bg-[#3D8AC4] text-white text-[10px] font-bold">
+                        ✓
+                      </Button>
+                      <Button size="sm" onClick={() => handleAction(v.id, 'reject', 'Does not meet requirements')} variant="outline" className="h-7 px-2 rounded-lg text-[10px] font-bold text-[#EF4444] border-[#EF4444]/30">
+                        ✗
+                      </Button>
+                    </>
+                  )}
+                  {v.verificationStatus === 'suspended' && (
+                    <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="h-7 px-2 rounded-lg text-[10px] font-bold bg-[#6CB4EE] text-white">
+                      ↻
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => openEditModal(v)}
+                    className="h-7 px-2 rounded-lg text-[10px] font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                  >
+                    <Pencil className="w-3 h-3" />
                   </Button>
-                )}
-                {v.verificationStatus === 'suspended' && (
-                  <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="mt-3 h-9 rounded-xl text-xs font-bold bg-[#6CB4EE] text-white">
-                    <RefreshCw className="w-3 h-3 mr-1" /> Restore
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => fetchVendors(page - 1, filter, debouncedSearch)} className="h-8 px-3 rounded-lg text-xs">Prev</Button>
+              <span className="text-xs text-[#717971] font-medium">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => fetchVendors(page + 1, filter, debouncedSearch)} className="h-8 px-3 rounded-lg text-xs">Next</Button>
+            </div>
+          )}
+        </>
       )}
+
+      {/* Edit Vendor Modal */}
+      <Dialog open={!!editVendor} onOpenChange={() => setEditVendor(null)}>
+        <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
+          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Vendor</DialogTitle>
+              <DialogDescription className="text-[#414841] text-xs">
+                {editVendor?.businessName}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-5 pb-5 space-y-3">
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Business Name</Label>
+              <Input value={editForm.businessName} onChange={(e) => setEditForm({...editForm, businessName: e.target.value})} className="mt-1 h-10 rounded-xl text-sm" />
+            </div>
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Description</Label>
+              <Textarea value={editForm.description} onChange={(e) => setEditForm({...editForm, description: e.target.value})} className="mt-1 rounded-xl min-h-[60px] text-sm" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="font-semibold text-[#1a1c1e] text-sm">Contact Email</Label>
+                <Input value={editForm.contactEmail} onChange={(e) => setEditForm({...editForm, contactEmail: e.target.value})} className="mt-1 h-10 rounded-xl text-sm" />
+              </div>
+              <div>
+                <Label className="font-semibold text-[#1a1c1e] text-sm">Contact Phone</Label>
+                <Input value={editForm.contactPhone} onChange={(e) => setEditForm({...editForm, contactPhone: e.target.value})} className="mt-1 h-10 rounded-xl text-sm" />
+              </div>
+            </div>
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Address</Label>
+              <Input value={editForm.address} onChange={(e) => setEditForm({...editForm, address: e.target.value})} className="mt-1 h-10 rounded-xl text-sm" />
+            </div>
+            <div>
+              <Label className="font-semibold text-[#1a1c1e] text-sm">Verification Status</Label>
+              <Select value={editForm.verificationStatus} onValueChange={(v) => setEditForm({...editForm, verificationStatus: v})}>
+                <SelectTrigger className="h-10 rounded-xl mt-1 text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">⏳ Pending</SelectItem>
+                  <SelectItem value="approved">✅ Approved</SelectItem>
+                  <SelectItem value="rejected">❌ Rejected</SelectItem>
+                  <SelectItem value="suspended">🚫 Suspended</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(editForm.verificationStatus === 'rejected' || editForm.verificationStatus === 'suspended') && (
+              <div>
+                <Label className="font-semibold text-[#1a1c1e] text-sm">Rejection / Suspension Reason</Label>
+                <Input value={editForm.rejectionReason} onChange={(e) => setEditForm({...editForm, rejectionReason: e.target.value})} placeholder="Enter reason..." className="mt-1 h-10 rounded-xl text-sm" />
+              </div>
+            )}
+            {/* Suspend button inside edit modal */}
+            {editVendor?.verificationStatus === 'approved' && editForm.verificationStatus !== 'suspended' && (
+              <Button
+                variant="outline"
+                onClick={() => setEditForm({...editForm, verificationStatus: 'suspended', rejectionReason: 'Policy violation'})}
+                className="w-full h-10 rounded-xl text-sm font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
+              >
+                <Ban className="w-4 h-4 mr-1.5" /> Suspend Vendor
+              </Button>
+            )}
+            <Button
+              onClick={handleSaveEdit}
+              disabled={saving}
+              className="w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+            >
+              {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" /> Save Changes</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2884,15 +3377,41 @@ function AdminUsersView() {
   const [users, setUsers] = useState<AuthUser[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filter, setFilter] = useState('new')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
 
+  const pageSize = 20
+
+  // Debounce search
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const fetchUsers = useCallback((p: number, s: string) => {
     setLoading(true)
-    apiFetch<{ users: AuthUser[] }>('/api/admin/users').then((res) => {
-      if (res.success && res.data) setUsers(res.data.users || [])
+    const params = new URLSearchParams({ page: String(p), pageSize: String(pageSize) })
+    if (s) params.set('search', s)
+    apiFetch<{ users: AuthUser[]; total: number; page: number; pageSize: number; totalPages: number }>(`/api/admin/users?${params}`).then((res) => {
+      if (res.success && res.data) {
+        setUsers(res.data.users || [])
+        setTotal(res.data.total || 0)
+        setTotalPages(res.data.totalPages || 1)
+        setPage(p)
+      }
     }).finally(() => setLoading(false))
   }, [])
 
-  const filtered = search ? users.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())) : users
+  useEffect(() => { fetchUsers(1, debouncedSearch) }, [debouncedSearch, fetchUsers])
+
+  // Client-side filter for "new" (registered within 3 days)
+  const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+  const filteredUsers = filter === 'new'
+    ? users.filter(u => (u as AuthUser & { createdAt?: string }).createdAt && new Date((u as AuthUser & { createdAt?: string }).createdAt!) >= threeDaysAgo)
+    : users
 
   // Safely parse roles - handles both string and array
   const getRoles = (roles: string[] | string): string[] => {
@@ -2901,48 +3420,118 @@ function AdminUsersView() {
     return []
   }
 
+  const filterTabs = ['new', 'all']
+
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
         <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
           <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
         </button>
-        <h1 className="text-xl font-extrabold text-[#1a1c1e]">User Management</h1>
+        <div>
+          <h1 className="text-xl font-extrabold text-[#1a1c1e]">User Management</h1>
+          <p className="text-xs text-[#717971]">{total} users</p>
+        </div>
       </div>
 
-      <div className="relative mb-4">
+      {/* Search */}
+      <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#717971]" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9 h-10 rounded-xl" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search users..." className="pl-9 h-10 rounded-xl text-sm" />
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex gap-2 mb-4">
+        {filterTabs.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize flex-shrink-0 transition-all ${
+              filter === f ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#414841]'
+            }`}
+          >
+            {f === 'new' ? '🆕 New' : f}
+          </button>
+        ))}
       </div>
 
       {loading ? (
-        Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 rounded-xl mb-2" />)
+        Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12 rounded-lg mb-2" />)
+      ) : filteredUsers.length === 0 ? (
+        <p className="text-sm text-[#717971] text-center py-8">No users found</p>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((u) => (
-            <Card key={u.id} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-4 flex items-center gap-3">
-                <Avatar className="w-10 h-10">
-                  <AvatarFallback className="bg-[#6CB4EE] text-white text-sm font-bold">
-                    {u.name.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-[#1a1c1e] truncate">{u.name}</p>
-                  <p className="text-xs text-[#414841] truncate">{u.email}</p>
+        <>
+          <div className="space-y-1.5">
+            {filteredUsers.map((u) => {
+              const userWithDate = u as AuthUser & { createdAt?: string }
+              const isNew = userWithDate.createdAt && new Date(userWithDate.createdAt) >= threeDaysAgo
+              return (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-2.5 p-2.5 bg-white shadow-card rounded-lg"
+                >
+                  <div className="w-8 h-8 rounded-lg bg-[#6CB4EE]/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-[#6CB4EE]">{u.name.charAt(0).toUpperCase()}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-bold text-xs text-[#1a1c1e] truncate">{u.name}</p>
+                      {isNew && (
+                        <span className="text-[8px] font-bold text-[#6CB4EE] bg-[#6CB4EE]/10 px-1 py-0 rounded">NEW</span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-[#717971] truncate">{u.email}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    {getRoles(u.roles).map((r) => (
+                      <Badge key={r} className="bg-[#e8edea] text-[#6CB4EE] border-0 rounded-md text-[9px] px-1 py-0">
+                        {r}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex gap-1 flex-shrink-0">
-                  {getRoles(u.roles).map((r) => (
-                    <Badge key={r} className="bg-[#e8edea] text-[#6CB4EE] border-0 rounded-md text-[10px] px-1.5">
-                      {r}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              )
+            })}
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => fetchUsers(page - 1, debouncedSearch)} className="h-8 px-3 rounded-lg text-xs">Prev</Button>
+              <span className="text-xs text-[#717971] font-medium">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => fetchUsers(page + 1, debouncedSearch)} className="h-8 px-3 rounded-lg text-xs">Next</Button>
+            </div>
+          )}
+        </>
       )}
+    </div>
+  )
+}
+
+// Simple CSS bar chart component (defined outside render)
+function AdminBarChart({ data, label, color }: { data: { date: string; count: number }[]; label: string; color: string }) {
+  const maxCount = Math.max(...data.map(d => d.count), 1)
+  return (
+    <div className="bg-white shadow-card rounded-xl p-4">
+      <p className="font-bold text-sm text-[#1a1c1e] mb-3">{label}</p>
+      <div className="flex items-end gap-1 h-24">
+        {data.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1">
+            <span className="text-[8px] text-[#717971] font-bold">{d.count || ''}</span>
+            <div
+              className="w-full rounded-t-sm transition-all duration-300"
+              style={{
+                height: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 8 : 2)}%`,
+                backgroundColor: color,
+                opacity: d.count > 0 ? 1 : 0.2,
+              }}
+            />
+            <span className="text-[7px] text-[#717971]">
+              {d.date.slice(8, 10)}/{d.date.slice(5, 7)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -2952,7 +3541,12 @@ function AdminUsersView() {
 // ============================================
 function AdminAnalyticsView() {
   const { goBack } = useAppStore()
-  const [analytics, setAnalytics] = useState<{ overview: Record<string, number>; dealsByStatus: Record<string, number>; ordersByStatus: Record<string, number> } | null>(null)
+  const [analytics, setAnalytics] = useState<{
+    overview: Record<string, number>
+    dealsByStatus: Record<string, number>
+    ordersByStatus: Record<string, number>
+    historical?: { dailyDeals: { date: string; count: number }[]; dailyOrders: { date: string; count: number }[] }
+  } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -2972,31 +3566,47 @@ function AdminAnalyticsView() {
       </div>
 
       {loading ? (
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          </div>
+          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-40 rounded-xl" />
         </div>
       ) : (
         <div className="space-y-4">
-          {[
-            { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#6CB4EE]' },
-            { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#7EC8E3]' },
-            { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#FB923C]' },
-            { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4A6A8A]' },
-            { label: 'Pending Vendors', value: (analytics?.dealsByStatus as Record<string, number>)?.pending || 0, icon: Clock, color: 'text-[#FB923C]' },
-            { label: 'Meals Saved from Waste', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#7EC8E3]' },
-          ].map((item) => (
-            <Card key={item.label} className="border-0 shadow-card rounded-2xl">
-              <CardContent className="p-4 flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl bg-[#f0f4f2] flex items-center justify-center ${item.color}`}>
-                  <item.icon className="w-6 h-6" />
+          {/* Compact Stats Grid - 2 columns */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#6CB4EE]', bg: 'bg-[#6CB4EE]/10' },
+              { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
+              { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#FB923C]', bg: 'bg-[#FB923C]/10' },
+              { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4A6A8A]', bg: 'bg-[#4A6A8A]/10' },
+              { label: 'Total Revenue', value: `RM${(analytics?.overview?.totalRevenue || 0).toFixed(0)}`, icon: DollarSign, color: 'text-[#6CB4EE]', bg: 'bg-[#6CB4EE]/10' },
+              { label: 'Meals Saved', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
+            ].map((item) => (
+              <div key={item.label} className="bg-white shadow-card rounded-xl p-3 flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0`}>
+                  <item.icon className={`w-4 h-4 ${item.color}`} />
                 </div>
-                <div>
-                  <p className="text-sm text-[#414841]">{item.label}</p>
-                  <p className="text-2xl font-extrabold text-[#1a1c1e]">{String(item.value)}</p>
+                <div className="min-w-0">
+                  <p className="text-[10px] text-[#717971]">{item.label}</p>
+                  <p className="text-base font-extrabold text-[#1a1c1e] truncate">{String(item.value)}</p>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Historical Analysis */}
+          <div className="space-y-3">
+            <h3 className="font-bold text-sm text-[#1a1c1e]">Historical Analysis (14 days)</h3>
+            {analytics?.historical?.dailyDeals && (
+              <AdminBarChart data={analytics.historical.dailyDeals} label="Active Deals" color="#6CB4EE" />
+            )}
+            {analytics?.historical?.dailyOrders && (
+              <AdminBarChart data={analytics.historical.dailyOrders} label="Total Orders" color="#FB923C" />
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -3207,6 +3817,7 @@ function ViewRouter() {
         case 'vendors': return <AdminVendorsView />
         case 'users': return <AdminUsersView />
         case 'analytics': return <AdminAnalyticsView />
+        case 'admin-deals': return <AdminDealsView />
         case 'profile': return <FoodieProfileView />
         case 'register-vendor': return <VendorRegistrationView />
         default: return <AdminDashboardView />
