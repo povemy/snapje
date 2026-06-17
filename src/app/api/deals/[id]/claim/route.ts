@@ -19,6 +19,10 @@ export async function POST(
       )
     }
 
+    // Parse quantity from request body (clamp 1-99)
+    const body = await request.json().catch(() => ({} as { quantity?: number }))
+    const quantity = Math.max(1, Math.min(Math.floor(body.quantity || 1), 99))
+
     // Rate limit per user
     if (!rateLimiter.check(`claim:${authUser.userId}`, 10, 60_000)) {
       return NextResponse.json(
@@ -69,6 +73,22 @@ export async function POST(
       await supabase.from('Deal').update({ status: 'sold_out' }).eq('id', id)
       return NextResponse.json(
         { success: false, error: 'This deal is sold out' },
+        { status: 400 }
+      )
+    }
+
+    // Validate requested quantity against available stock
+    if (quantity > deal.availableQuantity) {
+      return NextResponse.json(
+        { success: false, error: `Only ${deal.availableQuantity} left in stock` },
+        { status: 400 }
+      )
+    }
+
+    // Validate requested quantity against per-user max
+    if (quantity > deal.maxClaimsPerUser) {
+      return NextResponse.json(
+        { success: false, error: `Maximum ${deal.maxClaimsPerUser} per user` },
         { status: 400 }
       )
     }
@@ -146,7 +166,7 @@ export async function POST(
     }
 
     // Acquire reservation lock
-    const acquired = reservationManager.acquire(id, authUser.userId, 1)
+    const acquired = reservationManager.acquire(id, authUser.userId, quantity)
     if (!acquired) {
       return NextResponse.json(
         { success: false, error: 'This deal is currently being claimed by someone else. Please try again in a moment.' },
@@ -163,7 +183,7 @@ export async function POST(
           id: genId('res'),
           dealId: id,
           userId: authUser.userId,
-          quantity: 1,
+          quantity: quantity,
           status: 'pending',
           expiresAt: expiresAt.toISOString(),
         }).select().single(),
@@ -178,8 +198,8 @@ export async function POST(
       )
 
       await supabase.from('Deal').update({
-        reservedQuantity: currentDeal.reservedQuantity + 1,
-        availableQuantity: currentDeal.availableQuantity - 1,
+        reservedQuantity: currentDeal.reservedQuantity + quantity,
+        availableQuantity: currentDeal.availableQuantity - quantity,
       }).eq('id', id)
 
       return NextResponse.json({
@@ -188,6 +208,8 @@ export async function POST(
           reservation,
           dealTitle: deal.title,
           dealPrice: deal.dealPrice,
+          quantity,
+          totalPrice: deal.dealPrice * quantity,
           vendorName: deal.vendor.businessName,
           expiresAt: expiresAt.toISOString(),
           message: 'Deal claimed! You have 5 minutes to confirm your order.',

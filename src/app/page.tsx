@@ -14,11 +14,12 @@ import {
   BarChart3, MapPin, Bell, Search, ArrowLeft, Menu, X,
   Star, Clock, Flame, TrendingUp, Store, Settings, LogOut,
   ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
-  AlertTriangle, Ban, RefreshCw, DollarSign, ShoppingCart,
+  AlertTriangle, AlertCircle, Ban, RefreshCw, DollarSign, ShoppingCart,
   Utensils, Bike, Building2, Crown, Sparkles, MoreVertical,
   Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle,
   Lock, Globe, Volume2, BellRing, KeyRound, Smartphone,
-  Moon, Wallet, Megaphone, EyeOff
+  Moon, Wallet, Megaphone, EyeOff,
+  Plus, Minus, Navigation, Route, Footprints
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -37,6 +38,17 @@ import { Progress } from '@/components/ui/progress'
 import { Switch } from '@/components/ui/switch'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { LocationPicker } from '@/components/map/LocationPicker'
+import MapView from '@/components/map/MapView'
+import { GeolocationGate } from '@/components/map/GeolocationGate'
+import { useGeolocation } from '@/hooks/use-geolocation'
+import {
+  haversineDistance,
+  formatDistance,
+  walkingTimeMinutes,
+  drivingTimeMinutes,
+  DEFAULT_LOCATION,
+} from '@/lib/distance'
 import { toast } from 'sonner'
 
 // ============================================
@@ -537,15 +549,17 @@ function ImageUploader({
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState(0)
   const [preview, setPreview] = useState<string | null>(null)
+  const [fileError, setFileError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = async (file: File) => {
     const { validateImageFile } = await import('@/lib/image-utils')
     const validation = validateImageFile(file)
     if (!validation.valid) {
-      toast.error(validation.error)
+      setFileError(validation.error ?? 'Invalid file')
       return
     }
+    setFileError(null)
 
     // Show preview immediately
     const reader = new FileReader()
@@ -605,14 +619,21 @@ function ImageUploader({
 
   if (compact) {
     return (
-      <div
-        onDrop={handleDrop}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onClick={() => !uploading && fileInputRef.current?.click()}
-        className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#6CB4EE]' : ''}`}
-      >
-        {displayUrl ? (
+      <div>
+        {fileError && (
+          <p className="text-xs text-[#EF4444] font-medium mb-1.5 flex items-center gap-1">
+            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+            {fileError}
+          </p>
+        )}
+        <div
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onClick={() => !uploading && fileInputRef.current?.click()}
+          className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#6CB4EE]' : ''}`}
+        >
+          {displayUrl ? (
           <div className={`relative ${circular ? 'w-20 h-20' : 'w-24 h-16'}`}>
             <Image src={displayUrl} alt="Upload" fill className={`${circular ? 'rounded-full' : 'rounded-xl'} object-cover`} unoptimized />
             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
@@ -632,7 +653,8 @@ function ImageUploader({
             )}
           </div>
         )}
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+        </div>
       </div>
     )
   }
@@ -640,6 +662,12 @@ function ImageUploader({
   return (
     <div className="space-y-1.5">
       {label && <Label className="text-[11px] font-bold text-[#414841]">{label}</Label>}
+      {fileError && (
+        <p className="text-xs text-[#EF4444] font-medium mb-1.5 flex items-center gap-1">
+          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+          {fileError}
+        </p>
+      )}
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -925,8 +953,14 @@ function DealDetailView() {
   const [claiming, setClaiming] = useState(false)
   const [claimed, setClaimed] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
+  const [quantity, setQuantity] = useState(1)
   const { user, isAuthenticated } = useAuthStore()
+  const { location, request: requestLocation } = useGeolocation()
+  const [distance, setDistance] = useState<number | null>(null)
+  const [walkTime, setWalkTime] = useState<number | null>(null)
+  const [driveTime, setDriveTime] = useState<number | null>(null)
 
+  // Fetch deal
   useEffect(() => {
     if (!viewParams.id) return
     setLoading(true)
@@ -935,19 +969,50 @@ function DealDetailView() {
     }).finally(() => setLoading(false))
   }, [viewParams.id])
 
+  // Reset quantity when deal changes
+  useEffect(() => {
+    setQuantity(1)
+  }, [viewParams.id])
+
+  // Calculate distance + travel times when deal or user location changes
+  useEffect(() => {
+    if (!deal?.vendor) return
+    if (location) {
+      const d = haversineDistance(location, {
+        latitude: deal.vendor.latitude,
+        longitude: deal.vendor.longitude,
+      })
+      setDistance(d)
+      setWalkTime(walkingTimeMinutes(d))
+      setDriveTime(drivingTimeMinutes(d))
+    } else {
+      // Fallback to the server-computed distance (uses default KL center)
+      setDistance(deal.distance ?? null)
+      setWalkTime(null)
+      setDriveTime(null)
+    }
+  }, [deal, location])
+
   const handleClaim = async () => {
     if (!deal) return
     if (!isAuthenticated || !user) {
       setShowAuthModal(true)
       return
     }
+    if (quantity < 1 || quantity > deal.availableQuantity) {
+      toast.error(`Quantity must be between 1 and ${deal.availableQuantity}`)
+      return
+    }
     setClaiming(true)
     try {
-      // Step 1: Claim (create reservation)
-      const claimRes = await apiFetch<{ reservation: { id: string } }>(`/api/deals/${deal.id}/claim`, {
-        method: 'POST',
-        body: JSON.stringify({ quantity: 1 }),
-      })
+      // Step 1: Claim (create reservation with quantity)
+      const claimRes = await apiFetch<{ reservation: { id: string }; quantity: number; totalPrice: number }>(
+        `/api/deals/${deal.id}/claim`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ quantity }),
+        }
+      )
       if (!claimRes.success) {
         toast.error(claimRes.error || 'Failed to claim deal')
         return
@@ -961,12 +1026,12 @@ function DealDetailView() {
         body: JSON.stringify({ reservationId }),
       })
       if (confirmRes.success && confirmRes.data) {
-        // API returns { order, qrCode, pickupDeadline, dealTitle, vendorName }
-        const orderData = (confirmRes.data as Record<string, unknown>).order as Order || confirmRes.data as unknown as Order
+        const orderData =
+          (confirmRes.data as Record<string, unknown>).order as Order ||
+          (confirmRes.data as unknown as Order)
         setOrder(orderData)
         setClaimed(true)
-        toast.success('Deal claimed! Check your orders for the QR code.')
-
+        toast.success(`Claimed ${quantity}x ${deal.title}!`)
         // Refresh deal to show updated stock
         const refreshRes = await apiFetch<Deal>(`/api/deals/${deal.id}`)
         if (refreshRes.success && refreshRes.data) setDeal(refreshRes.data)
@@ -978,11 +1043,17 @@ function DealDetailView() {
     }
   }
 
+  // Quantity handlers
+  const incQty = () =>
+    setQuantity((q) => Math.min(q + 1, deal?.availableQuantity ?? 1))
+  const decQty = () => setQuantity((q) => Math.max(q - 1, 1))
+
   if (loading) {
     return (
-      <div className="pb-28">
-        <Skeleton className="aspect-[16/10] rounded-none" />
-        <div className="px-5 py-4 space-y-4">
+      <div className="pb-28 bg-white min-h-screen">
+        <Skeleton className="aspect-[4/3] rounded-none" />
+        <div className="px-5 py-4 space-y-4 -mt-6 relative bg-white rounded-t-[24px]">
+          <div className="w-10 h-1 bg-[#e8edea] rounded-full mx-auto mb-4" />
           <Skeleton className="h-7 w-3/4" />
           <Skeleton className="h-5 w-1/2" />
           <Skeleton className="h-20 w-full" />
@@ -1000,135 +1071,293 @@ function DealDetailView() {
   }
 
   const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
+  const totalPrice = deal.dealPrice * quantity
+  const vendorLat = deal.vendor?.latitude ?? DEFAULT_LOCATION.latitude
+  const vendorLng = deal.vendor?.longitude ?? DEFAULT_LOCATION.longitude
+  const vendorMarkers = [
+    {
+      position: [vendorLat, vendorLng] as [number, number],
+      popup: deal.vendor?.businessName || 'Vendor',
+    },
+    ...(location
+      ? [
+          {
+            position: [location.latitude, location.longitude] as [number, number],
+            popup: 'You are here',
+            isUser: true,
+          },
+        ]
+      : []),
+  ]
 
   return (
-    <div className="pb-28">
-      {/* Back button */}
-      <button onClick={goBack} className="fixed top-4 left-4 z-50 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-card">
+    <div className="pb-28 bg-white min-h-screen">
+      {/* Back button — floats over hero */}
+      <button
+        onClick={goBack}
+        className="fixed top-4 left-4 z-50 bg-white/90 backdrop-blur-sm rounded-full p-2.5 shadow-card"
+        aria-label="Go back"
+      >
         <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
       </button>
 
       {/* Hero Image */}
-      <div className="relative aspect-[16/10] bg-gradient-to-br from-[#dfe5e1] to-[#f0f4f2]">
+      <div className="relative aspect-[4/3] bg-gradient-to-br from-[#dfe5e1] to-[#f0f4f2]">
         {deal.imageUrl ? (
-          <Image src={deal.imageUrl} alt={deal.title} className="w-full h-full object-cover" fill sizes="(max-width: 640px) 100vw, 400px" priority />
+          <Image
+            src={deal.imageUrl}
+            alt={deal.title}
+            className="w-full h-full object-cover"
+            fill
+            sizes="(max-width: 640px) 100vw, 400px"
+            priority
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Utensils className="w-20 h-20 text-[#8FC5E8]" />
           </div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        <div className="absolute bottom-4 left-5 right-5">
-          <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold border-0 rounded-lg">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+        {/* Discount tag — moved UP 10% (bottom-[8%]) */}
+        <div className="absolute bottom-[8%] left-5">
+          <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold border-0 rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1">
+            <Flame className="w-3.5 h-3.5" />
             -{deal.discountPercent}% OFF
           </Badge>
         </div>
       </div>
 
-      {/* Content */}
-      <div className="px-5 pt-4">
-        <h1 className="text-2xl font-extrabold text-[#1a1c1e]">{deal.title}</h1>
-        <p className="text-[#414841] mt-1 flex items-center gap-1.5">
+      {/* Content Canvas — overlaps hero with rounded top corners (SnapJe style) */}
+      <div className="relative -mt-6 bg-white rounded-t-[24px] px-5 pt-6 pb-4 z-10">
+        {/* Drag handle indicator */}
+        <div className="w-10 h-1 bg-[#e8edea] rounded-full mx-auto mb-4" />
+
+        {/* Vendor name + title */}
+        <p className="text-sm text-[#717971] flex items-center gap-1.5 mb-1">
           <Store className="w-4 h-4" />
           {deal.vendor?.businessName || 'Vendor'}
         </p>
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e] leading-tight">{deal.title}</h1>
 
-        {/* Price */}
-        <div className="flex items-end gap-3 mt-4">
-          <span className="text-3xl font-extrabold text-[#6CB4EE]">RM{deal.dealPrice.toFixed(2)}</span>
-          <span className="text-lg text-[#717971] line-through mb-0.5">RM{deal.originalPrice.toFixed(2)}</span>
+        {/* Deal Highlight Banner (rounded-2xl, orange gradient accent) */}
+        <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFF7ED] to-[#FFEDD5] border border-[#FB923C]/20 p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-[#9A3412] font-medium">Flash Deal Price</p>
+            <div className="flex items-end gap-2 mt-0.5">
+              <span className="text-2xl font-black text-[#F97316]">
+                RM{deal.dealPrice.toFixed(2)}
+              </span>
+              <span className="text-sm text-[#717971] line-through mb-0.5">
+                RM{deal.originalPrice.toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-[#9A3412] font-medium">{quantity}x total</p>
+            <span className="text-lg font-bold text-[#1a1c1e]">RM{totalPrice.toFixed(2)}</span>
+          </div>
         </div>
 
-        {/* Info Cards */}
+        {/* Info Cards (3-col grid) */}
         <div className="grid grid-cols-3 gap-3 mt-4">
+          {/* Ends in */}
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
             <Clock className="w-5 h-5 text-[#6CB4EE] mx-auto mb-1" />
-            <p className="text-xs text-[#414841]">Ends in</p>
+            <p className="text-[10px] text-[#414841]">Ends in</p>
             <CountdownTimer expiresAt={deal.expiresAt} compact />
           </div>
+          {/* Stock */}
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
-            <Flame className={`w-5 h-5 mx-auto mb-1 ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#6CB4EE]'}`} />
-            <p className="text-xs text-[#414841]">Stock</p>
-            <p className={`text-sm font-bold ${deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#1a1c1e]'}`}>
+            <Flame
+              className={`w-5 h-5 mx-auto mb-1 ${
+                deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#6CB4EE]'
+              }`}
+            />
+            <p className="text-[10px] text-[#414841]">Stock</p>
+            <p
+              className={`text-sm font-bold ${
+                deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#1a1c1e]'
+              }`}
+            >
               {deal.availableQuantity} left
             </p>
           </div>
+          {/* Distance */}
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
-            <MapPin className="w-5 h-5 text-[#6CB4EE] mx-auto mb-1" />
-            <p className="text-xs text-[#414841]">Distance</p>
+            <Navigation className="w-5 h-5 text-[#6CB4EE] mx-auto mb-1" />
+            <p className="text-[10px] text-[#414841]">Distance</p>
             <p className="text-sm font-bold text-[#1a1c1e]">
-              {deal.distance ? `${deal.distance.toFixed(1)}km` : 'Nearby'}
+              {distance != null ? formatDistance(distance) : '—'}
             </p>
           </div>
         </div>
 
-        {/* Description */}
+        {/* The Bite — Description */}
         <div className="mt-5">
-          <h3 className="font-bold text-[#1a1c1e] mb-2">About this deal</h3>
+          <h3 className="font-bold text-[#1a1c1e] mb-2">The Bite</h3>
           <p className="text-sm text-[#414841] leading-relaxed">{deal.description}</p>
         </div>
 
-        {/* Pickup Info */}
+        {/* Pickup Location — Map card */}
         <div className="mt-5">
-          <h3 className="font-bold text-[#1a1c1e] mb-2">Pickup Details</h3>
-          <div className="bg-[#f0f4f2] rounded-xl p-4">
-            <p className="text-sm text-[#414841] flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#6CB4EE]" />
-              Pickup only
-            </p>
-            {deal.pickupInstructions && (
-              <p className="text-sm text-[#414841] mt-2">{deal.pickupInstructions}</p>
-            )}
+          <h3 className="font-bold text-[#1a1c1e] mb-2 flex items-center gap-1.5">
+            <MapPin className="w-4 h-4 text-[#6CB4EE]" /> Pickup Location
+          </h3>
+          <div className="rounded-2xl border border-[#e8edea] overflow-hidden">
+            {/* Map */}
+            <div className="relative">
+              <MapView
+                center={[vendorLat, vendorLng]}
+                zoom={15}
+                height={180}
+                interactive={false}
+                markers={vendorMarkers}
+              />
+            </div>
+            {/* Address + distance info */}
+            <div className="p-4 bg-white">
+              <p className="text-sm font-semibold text-[#1a1c1e]">
+                {deal.vendor?.businessName}
+              </p>
+              <p className="text-xs text-[#717971] mt-0.5 flex items-start gap-1">
+                <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                {deal.vendor?.address || 'Address not available'}
+              </p>
+
+              {/* Distance + time estimates */}
+              {distance != null ? (
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <span className="flex items-center gap-1 text-[#414841]">
+                    <Navigation className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                    {formatDistance(distance)}
+                  </span>
+                  {walkTime != null && (
+                    <span className="flex items-center gap-1 text-[#414841]">
+                      <Footprints className="w-3.5 h-3.5 text-[#10B981]" />
+                      {walkTime} min walk
+                    </span>
+                  )}
+                  {driveTime != null && (
+                    <span className="flex items-center gap-1 text-[#414841]">
+                      <Route className="w-3.5 h-3.5 text-[#F97316]" />
+                      {driveTime} min drive
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={requestLocation}
+                  className="mt-3 text-xs text-[#6CB4EE] font-medium flex items-center gap-1 hover:underline"
+                >
+                  <Navigation className="w-3.5 h-3.5" /> Enable location to see distance
+                </button>
+              )}
+
+              {/* Open in Maps */}
+              <a
+                href={`https://www.openstreetmap.org/?mlat=${vendorLat}&mlon=${vendorLng}#map=17/${vendorLat}/${vendorLng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1 text-xs text-[#6CB4EE] font-medium hover:underline"
+              >
+                <MapPin className="w-3.5 h-3.5" /> Open in Maps
+              </a>
+            </div>
           </div>
         </div>
+
+        {/* Pickup Instructions */}
+        {deal.pickupInstructions && (
+          <div className="mt-5">
+            <h3 className="font-bold text-[#1a1c1e] mb-2">Pickup Instructions</h3>
+            <div className="bg-[#f0f4f2] rounded-xl p-4">
+              <p className="text-sm text-[#414841]">{deal.pickupInstructions}</p>
+            </div>
+          </div>
+        )}
 
         {/* Claimed Success */}
         {claimed && order && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-5 bg-[#EBF5FB] border border-[#7EC8E3]/30 rounded-xl p-4"
+            className="mt-5 bg-[#FFF7ED] border border-[#FB923C]/30 rounded-xl p-4"
           >
             <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="w-5 h-5 text-[#3D8AC4]" />
-              <span className="font-bold text-[#3D8AC4]">Deal Claimed!</span>
+              <CheckCircle className="w-5 h-5 text-[#F97316]" />
+              <span className="font-bold text-[#F97316]">
+                Claimed {quantity}x for RM{totalPrice.toFixed(2)}!
+              </span>
             </div>
-            <p className="text-xs text-[#1A4F72] break-all">
+            <p className="text-xs text-[#9A3412] break-all">
               Order <span className="font-mono">{order.orderNumber || '—'}</span>
             </p>
             {order.pickupDeadline && (
-              <p className="text-xs text-[#1A4F72] mt-1 flex items-center gap-1">
+              <p className="text-xs text-[#9A3412] mt-1 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
-                Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Pickup by{' '}
+                {new Date(order.pickupDeadline).toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
               </p>
             )}
             <Button
               onClick={() => navigate('orders')}
-              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#3D8AC4] to-[#2E6DA4] text-white hover:opacity-90 active:scale-95 transition-all"
+              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#FB923C] to-[#F97316] text-white hover:opacity-90 active:scale-95 transition-all"
             >
               <QrCode className="w-4 h-4 mr-1.5" />
-              View QR Code & Pickup Details
+              View QR Code &amp; Pickup Details
             </Button>
           </motion.div>
         )}
       </div>
 
-      {/* Sticky Bottom Action - Claim Deal Now (Foodpanda Style) */}
+      {/* Sticky Bottom — Quantity + Claim Deal (side by side, same h-14) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] px-5 py-3 z-50 pb-[max(12px,env(safe-area-inset-bottom,12px))]">
-        <div className="flex items-center justify-between gap-4 max-w-lg mx-auto">
-          <div>
-            <p className="text-[10px] text-[#717971] font-medium">Flash Deal Price</p>
-            <p className="text-2xl font-black text-[#6CB4EE]">RM{deal.dealPrice.toFixed(2)}</p>
+        <div className="flex items-center gap-3 max-w-lg mx-auto">
+          {/* Quantity selector — same height as button (h-14) */}
+          <div className="flex items-center bg-[#f0f4f2] rounded-[16px] h-14 flex-shrink-0">
+            <button
+              onClick={decQty}
+              disabled={quantity <= 1 || claiming || isSoldOut}
+              className="w-12 h-14 flex items-center justify-center text-[#1a1c1e] disabled:opacity-30 active:scale-90 transition-transform"
+              aria-label="Decrease quantity"
+            >
+              <Minus className="w-5 h-5" />
+            </button>
+            <input
+              type="number"
+              value={quantity}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10) || 1
+                setQuantity(Math.max(1, Math.min(v, deal.availableQuantity)))
+              }}
+              min={1}
+              max={deal.availableQuantity}
+              className="w-12 h-14 bg-transparent text-center font-bold text-lg text-[#1a1c1e] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              aria-label="Quantity"
+            />
+            <button
+              onClick={incQty}
+              disabled={quantity >= deal.availableQuantity || claiming || isSoldOut}
+              className="w-12 h-14 flex items-center justify-center text-[#1a1c1e] disabled:opacity-30 active:scale-90 transition-transform"
+              aria-label="Increase quantity"
+            >
+              <Plus className="w-5 h-5" />
+            </button>
           </div>
+
+          {/* Claim Deal button — flex-1, h-14 */}
           <Button
             onClick={handleClaim}
             disabled={claiming || (isSoldOut && isAuthenticated) || (claimed && isAuthenticated)}
-            className={`h-12 px-8 rounded-xl font-bold text-base transition-all active:scale-95 ${
+            className={`flex-1 h-14 rounded-[16px] font-bold text-base shadow-lg transition-all active:scale-95 ${
               claimed && isAuthenticated
-                ? 'bg-[#6CB4EE] hover:bg-[#6CB4EE] text-white'
+                ? 'bg-[#10B981] hover:bg-[#10B981] text-white'
                 : isSoldOut && isAuthenticated
                 ? 'bg-[#c1c9c0] text-white cursor-not-allowed'
-                : 'bg-[#6CB4EE] hover:bg-[#4A96D5] text-white'
+                : 'bg-gradient-to-r from-[#FB923C] to-[#F97316] hover:opacity-90 text-white'
             }`}
           >
             {claiming ? (
@@ -1139,13 +1368,9 @@ function DealDetailView() {
               </>
             ) : isSoldOut && isAuthenticated ? (
               'Sold Out'
-            ) : !isAuthenticated ? (
-              <>
-                <Zap className="w-5 h-5 mr-1" /> Claim Deal Now
-              </>
             ) : (
               <>
-                <Zap className="w-5 h-5 mr-1" /> Claim Deal
+                <Zap className="w-5 h-5 mr-1" /> Claim RM{totalPrice.toFixed(2)}
               </>
             )}
           </Button>
@@ -1596,6 +1821,14 @@ function FoodieProfileView() {
   const handleLogout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST' })
     logout()
+    // Redirect to public homepage for all roles
+    // Reset activeRole to 'foodie' so ViewRouter renders FoodieHomeView
+    // (auth-store logout() leaves useAppStore.activeRole as previous role)
+    useAppStore.getState().setActiveRole('foodie')
+    useAppStore.getState().navigate('home')
+    useAppStore.getState().setShowAuthModal(false)
+    useAppStore.getState().setSidebarOpen(false)
+    toast.success('Signed out successfully')
   }
 
   const handleSaveProfile = async () => {
@@ -2243,6 +2476,13 @@ function VendorDashboardView() {
   })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [showLocationModal, setShowLocationModal] = useState(false)
+  const [locationForm, setLocationForm] = useState<{ latitude: string; longitude: string; address: string }>({
+    latitude: '',
+    longitude: '',
+    address: '',
+  })
+  const [savingLocation, setSavingLocation] = useState(false)
 
   const fetchVendorData = useCallback(() => {
     setLoading(true)
@@ -2374,6 +2614,46 @@ function VendorDashboardView() {
     return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
+  // Open the Edit Location modal, seeded from the current vendor record
+  const openLocationModal = () => {
+    if (!vendor) return
+    setLocationForm({
+      latitude: vendor.latitude.toString(),
+      longitude: vendor.longitude.toString(),
+      address: vendor.address || '',
+    })
+    setShowLocationModal(true)
+  }
+
+  // Save the updated shop location via PATCH /api/vendors/[id]
+  const handleSaveLocation = async () => {
+    if (!vendor) return
+    if (!locationForm.address.trim()) {
+      toast.error('Please search or drag the pin to set an address')
+      return
+    }
+    setSavingLocation(true)
+    try {
+      const res = await apiFetch<Vendor>(`/api/vendors/${vendor.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          address: locationForm.address,
+          latitude: parseFloat(locationForm.latitude),
+          longitude: parseFloat(locationForm.longitude),
+        }),
+      })
+      if (res.success && res.data) {
+        setVendor(res.data)
+        toast.success('Shop location updated!')
+        setShowLocationModal(false)
+      } else {
+        toast.error(res.error || 'Failed to update location')
+      }
+    } finally {
+      setSavingLocation(false)
+    }
+  }
+
   // Calculate discount for edit form
   const editDiscount = editForm.originalPrice && editForm.dealPrice
     ? Math.round(((parseFloat(editForm.originalPrice) - parseFloat(editForm.dealPrice)) / parseFloat(editForm.originalPrice)) * 100)
@@ -2452,6 +2732,41 @@ function VendorDashboardView() {
               <span className="text-xs font-bold text-[#1a1c1e]">Fulfillment</span>
             </motion.button>
           </div>
+
+          {/* Shop Location */}
+          {vendor && (
+            <Card className="border-0 shadow-card rounded-2xl mb-6 overflow-hidden">
+              <CardContent className="p-0">
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-[#FB923C]" />
+                    <h3 className="font-bold text-[#1a1c1e] text-sm">Shop Location</h3>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={openLocationModal}
+                    className="h-8 rounded-lg text-xs font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                  >
+                    <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+                  </Button>
+                </div>
+                <div className="px-4 pb-2">
+                  <p className="text-xs text-[#414841] leading-relaxed line-clamp-2">{vendor.address || 'No address set.'}</p>
+                  <p className="text-[10px] text-[#717971] mt-0.5 font-mono">
+                    {vendor.latitude.toFixed(5)}, {vendor.longitude.toFixed(5)}
+                  </p>
+                </div>
+                <MapView
+                  center={[vendor.latitude, vendor.longitude]}
+                  zoom={15}
+                  height={160}
+                  interactive={false}
+                  markers={[{ position: [vendor.latitude, vendor.longitude], popup: vendor.businessName }]}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           {/* Active / Expired Tabs */}
           <div className="flex bg-[#e8edea] rounded-xl p-1 mb-4">
@@ -2803,6 +3118,35 @@ function VendorDashboardView() {
               className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
             >
               {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Changes</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ===== Edit Shop Location Modal ===== */}
+      <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
+        <DialogContent className="rounded-2xl max-w-lg max-h-[90vh] overflow-y-auto p-0">
+          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Shop Location</DialogTitle>
+              <DialogDescription className="text-[#414841] text-xs">
+                Search your address or drag the pin to set the exact pickup point customers will see.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="px-5 pb-5 space-y-4">
+            <LocationPicker
+              value={{ latitude: parseFloat(locationForm.latitude) || 0, longitude: parseFloat(locationForm.longitude) || 0 }}
+              onChange={(lat, lng) => setLocationForm(prev => ({ ...prev, latitude: lat.toString(), longitude: lng.toString() }))}
+              address={locationForm.address}
+              onAddressChange={(addr) => setLocationForm(prev => ({ ...prev, address: addr }))}
+            />
+            <Button
+              onClick={handleSaveLocation}
+              disabled={savingLocation}
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+            >
+              {savingLocation ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Location</>}
             </Button>
           </div>
         </DialogContent>
@@ -3876,8 +4220,14 @@ function VendorRegistrationView() {
           </div>
         </div>
         <div>
-          <Label className="font-semibold text-[#1a1c1e]">Business Address *</Label>
-          <Input value={form.address} onChange={(e) => setForm({...form, address: e.target.value})} placeholder="12 Jalan Tunku Abdul Rahman, KL" className="mt-1.5 h-12 rounded-xl" />
+          <Label className="font-semibold text-[#1a1c1e]">Shop Location *</Label>
+          <p className="text-xs text-[#717971] mt-0.5 mb-2">Search your address or drag the pin on the map to set your exact shop location.</p>
+          <LocationPicker
+            value={{ latitude: parseFloat(form.latitude), longitude: parseFloat(form.longitude) }}
+            onChange={(lat, lng) => setForm(prev => ({ ...prev, latitude: lat.toString(), longitude: lng.toString() }))}
+            address={form.address}
+            onAddressChange={(addr) => setForm(prev => ({ ...prev, address: addr }))}
+          />
         </div>
 
         <Button
@@ -5519,6 +5869,7 @@ export default function FlashBiteApp() {
     <>
       <ViewRouter />
       <AuthModal />
+      <GeolocationGate />
     </>
   )
 }
