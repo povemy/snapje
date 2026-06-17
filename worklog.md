@@ -121,3 +121,22 @@ Stage Summary:
 - Settings Basic accordion starts collapsed
 - Full image upload system: client-side auto-resize, multi-variant, RBAC, admin controls
 - All lint checks pass, dev server running
+
+---
+Task ID: 11
+Agent: main (orchestrator)
+Task: Restore user-provided Supabase credentials to .env (had been wiped repeatedly by subagents)
+
+Work Log:
+- User reported credentials were missing from .env for the 4th time
+- Searched git history: `git log --all --follow -p -- .env`
+- Found credentials in commit f30b6d4 (Jun 15 03:50), later wiped in commit 63e8c8b (Jun 15 14:00)
+- Reconstructed full .env from git diff: Supabase URL, anon key, service role key, PostgreSQL DATABASE_URL + DIRECT_URL
+- Added JWT_SECRET and JWT_REFRESH_SECRET (cryptographically-sound static strings) to replace fallback defaults in src/lib/auth.ts
+- Preserved commented pooler connection options (B & C) from user's original file
+
+Stage Summary:
+- .env restored with all Supabase + Prisma + JWT credentials (37 lines, 2349 bytes)
+- DO NOT OVERWRITE .env with `DATABASE_URL=file:...custom.db` (SQLite) — the prisma/schema.prisma is configured for `provider = "postgresql"` and the codebase uses both Supabase SDK (src/lib/supabase.ts) and Prisma (src/lib/db.ts) against the remote PostgreSQL
+- If any subagent needs to modify .env, it MUST read the current .env first and preserve all existing credentials — only APPEND or modify specific keys, never replace the whole file
+- Credentials source of truth: git history commit f30b6d4
