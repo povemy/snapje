@@ -140,3 +140,29 @@ Stage Summary:
 - DO NOT OVERWRITE .env with `DATABASE_URL=file:...custom.db` (SQLite) — the prisma/schema.prisma is configured for `provider = "postgresql"` and the codebase uses both Supabase SDK (src/lib/supabase.ts) and Prisma (src/lib/db.ts) against the remote PostgreSQL
 - If any subagent needs to modify .env, it MUST read the current .env first and preserve all existing credentials — only APPEND or modify specific keys, never replace the whole file
 - Credentials source of truth: git history commit f30b6d4
+
+---
+Task ID: 12
+Agent: main (orchestrator)
+Task: Create env.md with all credentials for future reference; verify database connection
+
+Work Log:
+- Read existing .env (already restored in Task ID 11)
+- Created /home/z/my-project/env.md with: Supabase URL, anon key, service role key, 3 DB connection options (direct/pooler-txn/pooler-session), DB credentials, JWT secrets, file locations, verification commands, recovery history
+- Verified DB connection via Supabase REST API (curl): HTTP 200 on all 10 tables, real data fetched
+- Discovered: sandbox exports system env var DATABASE_URL=file:/home/z/my-project/db/custom.db which OVERRIDES .env file (system env wins in Bun/Next.js). This is the TRUE root cause of the recurring .env wipes — even when .env had the Postgres URL, the system env silently forced SQLite.
+- Tested Prisma connection: direct port 5432 BLOCKED by sandbox firewall ("Network is unreachable")
+- Probed all 9 Supabase pooler regions (aws-0/1 across 8 AWS regions). Found correct region: aws-1-ap-southeast-1 (NOT aws-0-ap-southeast-1 as Supabase dashboard snippet suggests). All other regions returned "tenant/user not found".
+- Updated .env Option B to use correct region: aws-1-ap-southeast-1
+- Regenerated Prisma client (bunx prisma generate) — confirmed schema has 8 models (User, RefreshToken, Vendor, Deal, Reservation, Order, Notification, Subscription); Media and UploadSettings tables exist in DB but NOT in schema (pending Storage Adapter Pattern work)
+- Final verification: both Prisma AND Supabase SDK connect successfully. Counts: 11 users, 4 vendors, 12 deals, 8 orders, 17 notifications.
+- Created /home/z/my-project/scripts/db-ping.ts as a reusable connection test script
+
+Stage Summary:
+- env.md created at /home/z/my-project/env.md (full credential reference + verification results + troubleshooting history)
+- .env updated to use Option B pooler with correct region aws-1-ap-southeast-1
+- DB connection VERIFIED via 3 methods: REST API (curl), Supabase SDK, Prisma Client
+- CRITICAL FINDING for all future agents: system env var DATABASE_URL=file:/home/z/my-project/db/custom.db is set at sandbox startup and overrides .env. MUST run `unset DATABASE_URL DIRECT_URL` before any DB/Prisma/db:push command, OR change prisma/schema.prisma to use a non-colliding env var name like PRISMA_DATABASE_URL.
+- Correct pooler region: aws-1-ap-southeast-1 (not aws-0-)
+- Direct port 5432 is firewalled from sandbox; only pooler (port 6543 txn / 5432 session) works
+- Pending: add Media and UploadSettings models to prisma/schema.prisma (already exist in DB)
