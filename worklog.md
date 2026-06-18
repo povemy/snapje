@@ -498,3 +498,44 @@ Stage Summary:
 - Upload FIXED: created /api/upload route uploading to Supabase SnapJe bucket + logging to MediaFile table. Client now sends Bearer token.
 - Media Settings admin page built with monitoring dashboard, color-coded alerts (baby blue/orange/red), top 5 biggest files, 14-day activity chart, auto-refresh.
 - All files uploaded are tracked in the MediaFile table for monitoring.
+
+---
+Task ID: apply-sharp-media-pipeline
+Agent: Main Agent
+Task: Analyze user's previous media compression/storage tech and apply the best parts to FlashBite
+
+Work Log:
+- Analyzed user's previous app tech: (1) server-side sharp/libvips compression pipeline with auto-orient, WebP conversion, metadata stripping, DB-tunable quality, dynamic bypass; (2) atomic verification after write; (3) portable serving URL (/api/media/serve/{id}) that obscures storage backend.
+- Identified high-value applications for FlashBite: the existing /api/upload was uploading raw client-compressed files to Supabase with NO server-side processing — missing EXIF auto-orientation (sideways mobile photos), metadata stripping (GPS privacy leak on originals), DB-tunable quality, and dimension extraction (MediaFile.width/height were always null).
+- Installed sharp — the native binary wasn't loading under bun's module cache, but works correctly under Node (which is what next-server uses). Verified with `node -e` that sharp processes images.
+- Created src/lib/media/optimize.ts — adapted their pipeline:
+  * optimizeImage(): autoOrient() (EXIF rotation), WebP conversion, metadata stripped by default (no keepMetadata = privacy), DB-tunable quality, dynamic bypass when enableOptimization=false (still extracts dimensions).
+  * optimizeVariants(): generates resized variants (cover/crop) with the same pipeline.
+  * extractDimensions(): metadata-only extraction for bypass mode.
+  * Sharp 0.35 API fix: used autoOrient() not rotate(), and rely on default metadata stripping (no removeMetadata() which doesn't exist).
+- Created src/lib/media/storage.ts:
+  * uploadToBucket(): uploads buffer to SnapJe bucket + gets public URL.
+  * verifyUpload(): atomic HEAD request verification after upload (their pattern).
+  * buildServeUrl(): portable /api/media/serve/{id}/{fileName} URL.
+  * computeAlertLevel(): size-based alert levels (none/info/warning/critical).
+  * buildFilePath(): siloed paths {group}/{userId}/{ts}_{rand}/{file}.
+- Rewrote /api/upload route to run the sharp pipeline:
+  * Fetches admin UploadSettings (enableOptimization, compressionQuality, group-specific qualityProfile/qualityDeal/qualityVendor) — applies their "DB-tunable compression quality" + "dynamic bypass" features.
+  * Each uploaded file → optimizeImage (auto-orient, WebP, strip EXIF, quality) → uploadToBucket → verifyUpload → log to MediaFile with REAL dimensions + optimized size + alert level.
+  * Returns stats per file (originalSize, optimizedSize, reduction, dimensions, verified).
+- Created /api/media/serve/[...path]/route.ts — portable serving URL:
+  * Catch-all route matches /api/media/serve/{id} and /api/media/serve/{id}/{fileName}.
+  * Looks up MediaFile by id, 307-redirects to the Supabase public URL.
+  * Obscures the SnapJe bucket path from the frontend — migrating to S3/R2 later only changes this layer.
+  * Initial [id] route returned Next.js 404 page because the URL has a second path segment (fileName) — fixed by using [...path] catch-all.
+
+Verification:
+- Browser test: uploaded a 500x400 PNG (42.9KB) → sharp compressed to 4.9KB WebP (88.6% reduction), dimensions extracted (500x400), atomic verification passed, stored in SnapJe bucket.
+- curl test: /api/media/serve/{id}/file.webp → HTTP 307 redirect to https://xknkgtuctjmkpommcxfd.supabase.co/storage/v1/object/public/SnapJe/... ✅
+- Non-existent id → JSON 404 {"success":false,"error":"Media not found"} ✅
+- bun run lint: zero errors.
+
+Stage Summary:
+- Applied 5 key techniques from user's previous tech: (1) sharp server-side compression, (2) EXIF auto-orientation, (3) metadata stripping (privacy), (4) DB-tunable quality + dynamic bypass via UploadSettings, (5) atomic verification + portable serving URL.
+- Upload now: client sends file → server runs sharp pipeline → uploads optimized WebP to SnapJe → verifies → logs to MediaFile with real dimensions → returns portable stats.
+- 88.6% size reduction achieved on test image. All files now have correct dimensions and stripped metadata.
