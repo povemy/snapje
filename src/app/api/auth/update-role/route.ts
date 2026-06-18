@@ -102,6 +102,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(updatedUser.roles),
       },
+      tokens: { accessToken, refreshToken },
     })
   } catch (error) {
     console.error('Update role error:', error)

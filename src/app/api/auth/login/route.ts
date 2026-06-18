@@ -77,7 +77,8 @@ export async function POST(request: Request) {
     // Set cookies
     await setAuthCookies(accessToken, refreshToken)
 
-    // Return user data
+    // Return user data + tokens (tokens are also stored client-side in localStorage
+    // so auth works even when third-party cookies are blocked by the browser)
     const { passwordHash: _, ...userWithoutPassword } = user
     return NextResponse.json({
       success: true,
@@ -85,6 +86,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(user.roles),
       },
+      tokens: { accessToken, refreshToken },
     })
   } catch (error) {
     console.error('Login error:', error)

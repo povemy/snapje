@@ -3,11 +3,11 @@ import { clearAuthCookies, getAuthUser } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import { cookies } from 'next/headers'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     // Get current user to clean up refresh token
     const authUser = await getAuthUser()
-    
+
     if (authUser) {
       // Delete all refresh tokens for this user (logout all sessions)
       const { error: deleteError } = await supabase
@@ -20,8 +20,20 @@ export async function POST() {
       }
     } else {
       // Even if access token is expired, try to delete the specific refresh token
-      const cookieStore = await cookies()
-      const refreshToken = cookieStore.get('refresh_token')?.value
+      // Accept from request body (Bearer flow) OR cookie
+      let refreshToken: string | undefined
+      try {
+        const body = await request.json()
+        if (body?.refreshToken && typeof body.refreshToken === 'string') {
+          refreshToken = body.refreshToken
+        }
+      } catch {
+        // Body might be empty
+      }
+      if (!refreshToken) {
+        const cookieStore = await cookies()
+        refreshToken = cookieStore.get('refresh_token')?.value
+      }
       if (refreshToken) {
         const { error: deleteError } = await supabase
           .from('RefreshToken')

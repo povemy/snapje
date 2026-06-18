@@ -128,11 +128,25 @@ export async function clearAuthCookies() {
 }
 
 export async function getAuthUser(): Promise<TokenPayload | null> {
+  // 1) Check Authorization: Bearer <token> header (most robust — works in all
+  //    preview/iframe/third-party-cookie environments where cookies may be blocked)
+  const headerList = await headers()
+  const authHeader = headerList.get('authorization') || headerList.get('Authorization')
+  if (authHeader?.toLowerCase().startsWith('bearer ')) {
+    const token = authHeader.slice(7).trim()
+    const payload = await verifyAccessToken(token)
+    if (payload) return payload
+  }
+
+  // 2) Fall back to access_token cookie (for environments where cookies work)
   const cookieStore = await cookies()
   const accessToken = cookieStore.get('access_token')?.value
+  if (accessToken) {
+    const payload = await verifyAccessToken(accessToken)
+    if (payload) return payload
+  }
 
-  if (!accessToken) return null
-  return verifyAccessToken(accessToken)
+  return null
 }
 
 export function parseRoles(rolesStr: string): string[] {

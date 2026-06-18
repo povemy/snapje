@@ -1,11 +1,27 @@
 import { NextResponse } from 'next/server'
-import { verifyRefreshToken, rotateRefreshToken, generateAccessToken, setAuthCookies, parseRoles } from '@/lib/auth'
+import { rotateRefreshToken, generateAccessToken, setAuthCookies, parseRoles } from '@/lib/auth'
 import { cookies } from 'next/headers'
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
-    const cookieStore = await cookies()
-    const refreshToken = cookieStore.get('refresh_token')?.value
+    // Accept refresh token from request body (Bearer-token flow) OR cookie
+    let refreshToken: string | undefined
+
+    // 1) Try request body first ({ refreshToken: "..." })
+    try {
+      const body = await request.json()
+      if (body?.refreshToken && typeof body.refreshToken === 'string') {
+        refreshToken = body.refreshToken
+      }
+    } catch {
+      // Body might be empty (cookie-only flow) — that's fine
+    }
+
+    // 2) Fall back to cookie
+    if (!refreshToken) {
+      const cookieStore = await cookies()
+      refreshToken = cookieStore.get('refresh_token')?.value
+    }
 
     if (!refreshToken) {
       return NextResponse.json(
@@ -42,7 +58,7 @@ export async function POST() {
       activeRole: user.activeRole,
     })
 
-    // Set new cookies
+    // Set new cookies (for environments where cookies work)
     await setAuthCookies(accessToken, newRefreshToken)
 
     const { passwordHash: _, ...userWithoutPassword } = user
@@ -52,6 +68,8 @@ export async function POST() {
         ...userWithoutPassword,
         roles: parseRoles(user.roles),
       },
+      // Return new tokens so the client can update localStorage
+      tokens: { accessToken, refreshToken: newRefreshToken },
     })
   } catch (error) {
     console.error('Token refresh error:', error)

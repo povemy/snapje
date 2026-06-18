@@ -436,3 +436,33 @@ Verification:
 Stage Summary:
 - Two root causes fixed: (1) cookies not sent in HTTPS preview iframe (SameSite=Lax → None+Secure when HTTPS), (2) interceptor's destructive logout() caused login loop on background 401s.
 - After fix: login persists, dashboard stays, token refresh is transparent, profile/admin saves work even after the 15-min access token expires.
+
+---
+Task ID: fix-bearer-auth
+Agent: Main Agent
+Task: Fix "Session expired" loop — cookies not stored/sent in preview iframe environment
+
+Work Log:
+- Dev.log analysis confirmed: POST /api/auth/login 200 but immediately GET /api/notifications 401 and POST /api/auth/refresh 401. Both access_token AND refresh_token cookies were not being sent by the browser. The SameSite/Secure cookie fix from the previous attempt was insufficient because the preview environment blocks third-party cookies entirely (modern browser default for cross-origin iframe contexts).
+- Root cause: The preview serves the app in a cross-origin iframe. Modern browsers block ALL third-party cookies in this context, regardless of SameSite=None+Secure settings. So cookie-based auth is fundamentally unreliable in this environment.
+- Solution: Implemented dual auth — Bearer token (localStorage) as PRIMARY, cookies as fallback. This completely bypasses all cookie/SameSite/iframe/third-party issues.
+
+Changes made:
+1. src/lib/auth.ts getAuthUser(): now checks Authorization: Bearer <token> header FIRST (via headers()), then falls back to access_token cookie. This single change makes ALL ~20 authenticated endpoints accept Bearer tokens automatically.
+2. src/app/api/auth/login/route.ts: response now includes `tokens: { accessToken, refreshToken }` in JSON body
+3. src/app/api/auth/register/route.ts: same — includes tokens in JSON body
+4. src/app/api/auth/update-role/route.ts: same — includes tokens in JSON body
+5. src/app/api/auth/refresh/route.ts: now accepts refresh token from request body OR cookie; returns new tokens in JSON body
+6. src/app/api/auth/logout/route.ts: accepts refresh token from body OR cookie for deletion
+7. src/stores/auth-store.ts: added accessToken/refreshToken to the store, persisted to localStorage via Zustand persist. login() now accepts optional tokens param. Added setTokens(). logout() clears tokens.
+8. src/app/page.tsx apiFetch: reads accessToken from auth store, attaches `Authorization: Bearer <token>` header on every request. On 401, refreshAccessToken() sends refreshToken from store in the body, stores new tokens from response, and retries. Both login handlers updated to pass res.tokens to login(). Logout handler sends refreshToken in body.
+
+Verification:
+- Playwright test with ALL COOKIES BLOCKED (simulating preview): login → tokens stored in localStorage (accessToken len=251) → reload with cookies blocked → user STAYS LOGGED IN → /api/auth/me 200 → /api/notifications 200 → /api/admin/analytics 200 → PUT /api/auth/profile 200 ✅. No login loop.
+- Also tested: simulated expired access token (cleared from localStorage, kept refresh) → apiFetch interceptor auto-refreshed → profile save succeeded.
+- bun run lint: zero errors.
+
+Stage Summary:
+- Switched from cookie-only auth to Bearer-token-primary auth (localStorage) with cookie fallback.
+- Auth now works even when third-party cookies are completely blocked by the browser (the preview environment).
+- Login loop eliminated, profile/admin saves work reliably.

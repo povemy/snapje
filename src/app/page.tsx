@@ -52,21 +52,35 @@ import {
 import { toast } from 'sonner'
 
 // ============================================
-// API Helper (with transparent access-token refresh on 401)
+// API Helper (Bearer-token auth with transparent refresh on 401)
 // ============================================
-// The access token expires after 15 min while the refresh token lasts 7 days.
-// When any authenticated request gets a 401, we transparently call /api/auth/refresh
-// (deduplicated so concurrent 401s don't rotate the token multiple times) and retry
-// the original request once. If refresh also fails, we clear the stale local auth state.
+// Auth uses Bearer tokens stored in localStorage (via the auth store) as the
+// PRIMARY mechanism, because cookies are unreliable in preview iframes
+// (third-party cookie blocking). The server's getAuthUser() checks the
+// Authorization header first, then falls back to cookies.
+//
+// Flow: every request gets `Authorization: Bearer <accessToken>`. On 401 we
+// call /api/auth/refresh (sending the refresh token in the body), store the
+// new tokens, and retry once. Concurrent 401s share a single refresh.
 let refreshPromise: Promise<boolean> | null = null
 
 async function refreshAccessToken(): Promise<boolean> {
-  // Deduplicate: if a refresh is already in flight, wait for it
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     try {
-      const res = await fetch('/api/auth/refresh', { method: 'POST' })
-      return res.ok
+      const { refreshToken } = useAuthStore.getState()
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!res.ok) return false
+      const json = await res.json()
+      if (json.success && json.tokens) {
+        useAuthStore.getState().setTokens(json.tokens)
+        return true
+      }
+      return false
     } catch {
       return false
     } finally {
@@ -76,11 +90,19 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string }> {
-  const buildHeaders = (opts?: RequestInit) => ({
-    'Content-Type': 'application/json',
-    ...(opts?.headers as Record<string, string> | undefined),
-  })
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string; tokens?: { accessToken: string; refreshToken: string } }> {
+  const buildHeaders = (opts?: RequestInit) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(opts?.headers as Record<string, string> | undefined),
+    }
+    // Attach Bearer token from the auth store (localStorage-backed)
+    const { accessToken } = useAuthStore.getState()
+    if (accessToken && !headers['Authorization'] && !headers['authorization']) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
+    return headers
+  }
 
   try {
     let res = await fetch(path, { ...options, headers: buildHeaders(options) })
@@ -94,13 +116,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
     ) {
       const refreshed = await refreshAccessToken()
       if (refreshed) {
-        // Retry the original request with the fresh cookie set by /api/auth/refresh
+        // Retry the original request with the fresh Bearer token
         res = await fetch(path, { ...options, headers: buildHeaders(options) })
       } else {
-        // Refresh failed — return the error WITHOUT calling logout().
-        // Calling logout() here caused a login loop: any background request that
-        // 401'd (e.g. /api/notifications) would clobber an in-progress/just-completed
-        // login. Stale auth state is cleared in the page-load /api/auth/me check instead.
         return { success: false, error: 'Session expired. Please sign in again.' }
       }
     }
@@ -160,7 +178,7 @@ function AuthScreen() {
       })
 
       if (res.success && res.data) {
-        login(res.data)
+        login(res.data, res.tokens)
         toast.success(isLogin ? 'Welcome back!' : 'Account created!')
       } else {
         toast.error(res.error || 'Authentication failed')
@@ -1869,7 +1887,13 @@ function FoodieProfileView() {
   }
 
   const handleLogout = async () => {
-    await apiFetch('/api/auth/logout', { method: 'POST' })
+    // Send refresh token in body so the server can delete it even if the
+    // access token is expired (cookie may not be available in preview iframe)
+    const { refreshToken } = useAuthStore.getState()
+    await apiFetch('/api/auth/logout', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    })
     logout()
     // Redirect to public homepage for all roles
     // Reset activeRole to 'foodie' so ViewRouter renders FoodieHomeView
@@ -5705,7 +5729,7 @@ function AuthModal() {
       })
 
       if (res.success && res.data) {
-        login(res.data)
+        login(res.data, res.tokens)
         setShowAuthModal(false)
         toast.success(isLogin ? 'Welcome back!' : 'Account created!')
       } else {
