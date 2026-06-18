@@ -202,9 +202,24 @@ export async function uploadImageVariants(
 
   onProgress?.(60)
 
-  // Upload
+  // Upload — attach Bearer token from localStorage so auth works in preview
+  // iframes where third-party cookies are blocked. The token is persisted by
+  // the Zustand auth store under the 'flashbite-auth' key.
+  const headers: Record<string, string> = {}
+  try {
+    const raw = localStorage.getItem('flashbite-auth')
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      const accessToken = parsed?.state?.accessToken
+      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
+    }
+  } catch {
+    // localStorage unavailable (SSR) — skip
+  }
+
   const res = await fetch('/api/upload', {
     method: 'POST',
+    headers,
     body: formData,
   })
 
@@ -219,8 +234,8 @@ export async function uploadImageVariants(
   onProgress?.(100)
 
   return {
-    urls: data.urls || {},
-    originalUrl: data.originalUrl || '',
+    urls: data.data?.urls || data.urls || {},
+    originalUrl: data.data?.originalUrl || data.originalUrl || '',
   }
 }
 

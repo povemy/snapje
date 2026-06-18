@@ -37,6 +37,7 @@ model User {
   notifications Notification[]
   refreshTokens RefreshToken[]
   subscriptions Subscription[]
+  mediaFiles    MediaFile[]
 
   @@index([email])
 }
@@ -223,4 +224,31 @@ model Subscription {
 
   @@index([userId])
   @@index([status])
+}
+
+// ============================================
+// MEDIA FILE TRACKING (for Media Monitoring dashboard)
+// ============================================
+
+model MediaFile {
+  id           String   @id @default(cuid())
+  fileName     String
+  filePath     String   // full path in SnapJe bucket: {group}/{userId}/{timestamp}_{rand}.{ext}
+  publicUrl    String   // full public URL
+  bucketName   String   @default("SnapJe")
+  group        String   // profile, vendor_logo, vendor_banner, deal, notification
+  mimeType     String
+  fileSize     Int      // bytes
+  width        Int?
+  height       Int?
+  variantKey   String?  // null for original; 'avatar', 'thumb', 'medium', etc. for variants
+  uploaderId   String?
+  uploader     User?    @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  alertLevel   String   @default("none") // none, info (baby blue), warning (orange), critical (red)
+  createdAt    DateTime @default(now())
+
+  @@index([group])
+  @@index([uploaderId])
+  @@index([alertLevel])
+  @@index([fileSize])
 }

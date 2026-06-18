@@ -466,3 +466,35 @@ Stage Summary:
 - Switched from cookie-only auth to Bearer-token-primary auth (localStorage) with cookie fallback.
 - Auth now works even when third-party cookies are completely blocked by the browser (the preview environment).
 - Login loop eliminated, profile/admin saves work reliably.
+
+---
+Task ID: fix-upload-and-media
+Agent: Main Agent
+Task: Fix "Upload failed" (use Supabase SnapJe bucket) + build admin Media Settings page with monitoring/alerts + explain upload tech
+
+Work Log:
+- Root cause of upload failure: the /api/upload route DID NOT EXIST → 404. The client (image-utils.ts uploadImageVariants) POSTs FormData to /api/upload but no server route handled it. Confirmed in dev.log: "POST /api/upload 404".
+- Verified Supabase storage: the "SnapJe" bucket exists, is public, and already contains seeded images (profile/, deal/, vendor_logo/ folders). URL pattern: https://xknkgtuctjmkpommcxfd.supabase.co/storage/v1/object/public/SnapJe/{group}/{userId}/{ts}_{rand}/{file}.{ext}
+- Added MediaFile model to prisma/schema.prisma (id, fileName, filePath, publicUrl, bucketName, group, mimeType, fileSize, width, height, variantKey, uploaderId, alertLevel, createdAt) + back-relation on User. db:push timed out on interactive prompt, so created the table directly via the pg package (session-mode pooler on port 5432) — table created with all indexes.
+- Created /api/upload route: accepts multipart/form-data (group + original + variant_{key} files), uploads each to the SnapJe bucket at {group}/{userId}/{timestamp}_{rand}/{fileName}, gets the public URL, logs each file to the MediaFile table with an auto-computed alertLevel based on size (<200KB=none/green, 200-700KB=info/baby-blue, 700KB-1.5MB=warning/orange, >1.5MB=critical/red). Auth via getAuthUser() (Bearer or cookie).
+- Fixed image-utils.ts uploadImageVariants: now reads the accessToken from localStorage (flashbite-auth key persisted by Zustand) and attaches `Authorization: Bearer <token>` header to the /api/upload fetch. Without this, uploads 401'd in the preview iframe (cookies blocked). Also made response parsing robust to both {data:{urls}} and {urls} shapes.
+- Created /api/admin/media route (admin-only): returns overview stats (total files, total size, by group, by alert level), top 5 biggest files (with uploader name), recent alerts feed (critical+warning), and 14-day daily upload activity chart data.
+- Added 'media' to AdminView type + view router case → AdminMediaView.
+- Built AdminMediaView component in page.tsx:
+  * Sticky header with back button + manual refresh
+  * Overview cards: Total Files (baby blue icon), Total Size (orange icon)
+  * Push alert banner: red for critical, orange for warning, green "All Clear" when no oversized files — with pulsing BellRing icon
+  * Alert Level Breakdown card: progress bars for critical(red)/warning(orange)/info(baby-blue)/none(green) with counts + threshold legend
+  * Top 5 Biggest Files card: ranked list with thumbnail, rank badge (orange #1), file name, uploader, date, size, alert-level chip (color-coded)
+  * Files by Category card: grid of groups with counts
+  * Recent Alerts Feed: scrollable list of warning/critical files with pulsing dots
+  * 14-Day Upload Activity bar chart: baby-blue→orange gradient bars
+  * Auto-refreshes every 30s for live monitoring
+- Added Media Settings link to admin dashboard quick nav (orange ImageIcon).
+- Browser-verified end-to-end: login as admin → /api/upload returned 200 with URLs containing "SnapJe/profile/user_admin/..." → /api/admin/media returned 200 with 4 tracked files → navigated to Media Settings page → heading, Top 5 section, and Alert Breakdown all visible.
+- bun run lint: zero errors.
+
+Stage Summary:
+- Upload FIXED: created /api/upload route uploading to Supabase SnapJe bucket + logging to MediaFile table. Client now sends Bearer token.
+- Media Settings admin page built with monitoring dashboard, color-coded alerts (baby blue/orange/red), top 5 biggest files, 14-day activity chart, auto-refresh.
+- All files uploaded are tracked in the MediaFile table for monitoring.

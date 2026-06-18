@@ -19,7 +19,8 @@ import {
   Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle,
   Lock, Globe, Volume2, BellRing, KeyRound, Smartphone,
   Moon, Wallet, Megaphone, EyeOff,
-  Plus, Minus, Navigation, Route, Footprints
+  Plus, Minus, Navigation, Route, Footprints,
+  Image as ImageIcon, HardDrive, FileImage, AlertOctagon
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -4389,6 +4390,7 @@ function AdminDashboardView() {
               { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#6CB4EE]' },
               { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#FB923C]' },
               { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#8FC5E8]' },
+              { icon: ImageIcon, label: 'Media Settings', view: 'media' as AppView, color: 'text-[#FB923C]' },
             ].map((item) => (
               <motion.button
                 key={item.view}
@@ -5164,6 +5166,353 @@ const NotificationBell = memo(function NotificationBell() {
 })
 
 // ============================================
+// ADMIN: MEDIA MONITORING VIEW
+// ============================================
+interface MediaFile {
+  id: string
+  fileName: string
+  publicUrl: string
+  group: string
+  mimeType: string
+  fileSize: number
+  sizeKB: number
+  sizeMB: number
+  variantKey: string | null
+  uploaderId: string | null
+  uploader: { name: string; email: string } | null
+  createdAt: string
+  alertLevel: string
+}
+
+interface MediaData {
+  overview: {
+    totalFiles: number
+    totalSizeBytes: number
+    totalSizeMB: number
+    byGroup: Record<string, number>
+    byAlertLevel: Record<string, number>
+  }
+  top5Biggest: MediaFile[]
+  recentAlerts: MediaFile[]
+  dailyActivity: { date: string; count: number; size: number }[]
+}
+
+const ALERT_COLORS: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
+  none: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500', label: 'OK' },
+  info: { bg: 'bg-[#eaf4fb]', text: 'text-[#2563a8]', border: 'border-[#bfe0f5]', dot: 'bg-[#6CB4EE]', label: 'Info' },
+  warning: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500', label: 'Warning' },
+  critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: 'Critical' },
+}
+
+function AdminMediaView() {
+  const { goBack } = useAppStore()
+  const [data, setData] = useState<MediaData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  const fetchMedia = useCallback(() => {
+    setLoading(true)
+    apiFetch<{ overview: MediaData['overview']; top5Biggest: MediaFile[]; recentAlerts: MediaFile[]; dailyActivity: { date: string; count: number; size: number }[] }>('/api/admin/media').then((res) => {
+      if (res.success && res.data) {
+        setData(res.data as MediaData)
+      }
+    }).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => {
+    fetchMedia()
+    // Auto-refresh every 30s for live monitoring
+    const interval = setInterval(fetchMedia, 30000)
+    return () => clearInterval(interval)
+  }, [fetchMedia])
+
+  const fmtSize = (mb: number) => {
+    if (mb >= 1) return `${mb.toFixed(2)} MB`
+    return `${(mb * 1024).toFixed(0)} KB`
+  }
+
+  const alertLevels = data?.overview.byAlertLevel || { none: 0, info: 0, warning: 0, critical: 0 }
+  const hasAlerts = (alertLevels.warning || 0) + (alertLevels.critical || 0) > 0
+
+  return (
+    <div className="min-h-screen bg-[#f0f4f2] pb-28">
+      {/* Header */}
+      <div className="sticky top-0 z-30 bg-white border-b border-[#e8edea] px-5 py-3 flex items-center gap-3">
+        <button onClick={goBack} className="p-2 -ml-2 rounded-lg hover:bg-[#e8edea]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <div className="flex-1">
+          <h1 className="text-lg font-extrabold text-[#1a1c1e]">Media Settings</h1>
+          <p className="text-xs text-[#717971]">Storage monitoring & alerts</p>
+        </div>
+        <button onClick={fetchMedia} className="p-2 rounded-lg hover:bg-[#e8edea]">
+          <RefreshCw className={`w-5 h-5 text-[#1a1c1e] ${loading ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
+
+      <div className="px-5 py-4 space-y-4 max-w-2xl mx-auto">
+        {loading && !data ? (
+          <div className="space-y-3">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+            ))}
+          </div>
+        ) : data ? (
+          <>
+            {/* Overview Cards */}
+            <div className="grid grid-cols-2 gap-3">
+              <Card className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <FileImage className="w-4 h-4 text-[#6CB4EE]" />
+                    <span className="text-xs font-semibold text-[#717971] uppercase tracking-wide">Total Files</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-[#1a1c1e]">{data.overview.totalFiles}</p>
+                </CardContent>
+              </Card>
+              <Card className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <HardDrive className="w-4 h-4 text-[#FB923C]" />
+                    <span className="text-xs font-semibold text-[#717971] uppercase tracking-wide">Total Size</span>
+                  </div>
+                  <p className="text-2xl font-extrabold text-[#1a1c1e]">{fmtSize(data.overview.totalSizeMB)}</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Alert Banner (push alert) */}
+            {hasAlerts ? (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`rounded-2xl border p-4 ${alertLevels.critical ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${alertLevels.critical ? 'bg-red-500' : 'bg-orange-500'}`}>
+                    <AlertOctagon className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className={`font-bold text-sm ${alertLevels.critical ? 'text-red-700' : 'text-orange-700'}`}>
+                      {alertLevels.critical ? 'Critical Alert' : 'Warning Alert'}
+                    </h3>
+                    <p className={`text-xs mt-0.5 ${alertLevels.critical ? 'text-red-600' : 'text-orange-600'}`}>
+                      {alertLevels.critical || 0} critical file(s) over 1.5MB · {alertLevels.warning || 0} warning file(s) over 700KB
+                    </p>
+                  </div>
+                  <BellRing className={`w-5 h-5 ${alertLevels.critical ? 'text-red-400' : 'text-orange-400'} animate-pulse`} />
+                </div>
+              </motion.div>
+            ) : (
+              <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-sm text-green-700">All Clear</h3>
+                    <p className="text-xs text-green-600 mt-0.5">No oversized media files detected</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Alert Level Breakdown */}
+            <Card className="border-0 shadow-card rounded-2xl">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-bold text-[#1a1c1e] mb-3">Alert Level Breakdown</h3>
+                <div className="space-y-2">
+                  {(['critical', 'warning', 'info', 'none'] as const).map((level) => {
+                    const count = alertLevels[level] || 0
+                    const c = ALERT_COLORS[level]
+                    const total = data.overview.totalFiles || 1
+                    const pct = Math.round((count / total) * 100)
+                    return (
+                      <div key={level} className="flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full ${c.dot} flex-shrink-0`} />
+                        <span className={`text-xs font-semibold w-16 ${c.text}`}>{c.label}</span>
+                        <div className="flex-1 h-2 bg-[#e8edea] rounded-full overflow-hidden">
+                          <div
+                            className={`h-full ${c.dot} rounded-full transition-all`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-bold text-[#1a1c1e] w-8 text-right">{count}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-3 pt-3 border-t border-[#e8edea] flex items-center justify-between text-xs text-[#717971]">
+                  <span>Thresholds:</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-[#6CB4EE]">&lt;700KB</span>·
+                    <span className="text-orange-500">&gt;700KB</span>·
+                    <span className="text-red-500">&gt;1.5MB</span>
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Top 5 Biggest Files */}
+            <Card className="border-0 shadow-card rounded-2xl">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-[#1a1c1e]">Top 5 Biggest Files</h3>
+                  <TrendingUp className="w-4 h-4 text-[#717971]" />
+                </div>
+                {data.top5Biggest.length === 0 ? (
+                  <div className="text-center py-8 text-[#717971] text-sm">
+                    <FileImage className="w-10 h-10 mx-auto mb-2 text-[#c1c9c0]" />
+                    No media files yet
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {data.top5Biggest.map((file, idx) => {
+                      const c = ALERT_COLORS[file.alertLevel] || ALERT_COLORS.none
+                      const isLargest = idx === 0
+                      return (
+                        <div
+                          key={file.id}
+                          className={`flex items-center gap-3 p-2.5 rounded-xl border ${c.border} ${c.bg}`}
+                        >
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-extrabold text-xs ${
+                            isLargest ? 'bg-[#FB923C] text-white' : 'bg-white text-[#717971] border border-[#e8edea]'
+                          }`}>
+                            #{idx + 1}
+                          </div>
+                          <Image
+                            src={file.publicUrl}
+                            alt={file.fileName}
+                            width={40}
+                            height={40}
+                            className="w-10 h-10 rounded-lg object-cover flex-shrink-0 bg-[#e8edea]"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-[#1a1c1e] truncate">
+                              {file.fileName}
+                            </p>
+                            <p className="text-[10px] text-[#717971]">
+                              {file.group} · {file.uploader?.name || 'Unknown'} · {new Date(file.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className={`text-sm font-extrabold ${c.text}`}>
+                              {fmtSize(file.sizeMB)}
+                            </p>
+                            <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full ${c.bg} ${c.text} border ${c.border}`}>
+                              {c.label}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Files by Group */}
+            <Card className="border-0 shadow-card rounded-2xl">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-bold text-[#1a1c1e] mb-3">Files by Category</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {Object.entries(data.overview.byGroup).map(([group, count]) => (
+                    <div key={group} className="flex items-center justify-between p-2.5 bg-[#f5f8f5] rounded-xl">
+                      <span className="text-xs font-semibold text-[#414841] capitalize">{group.replace('_', ' ')}</span>
+                      <span className="text-sm font-extrabold text-[#1a1c1e]">{count}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Alerts Feed */}
+            {data.recentAlerts.length > 0 && (
+              <Card className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-bold text-[#1a1c1e]">Recent Alerts Feed</h3>
+                    <span className="text-xs text-[#717971]">{data.recentAlerts.length} alert(s)</span>
+                  </div>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {data.recentAlerts.map((file) => {
+                      const c = ALERT_COLORS[file.alertLevel] || ALERT_COLORS.warning
+                      return (
+                        <div key={file.id} className={`flex items-center gap-2.5 p-2 rounded-lg ${c.bg} border ${c.border}`}>
+                          <div className={`w-2 h-2 rounded-full ${c.dot} flex-shrink-0 animate-pulse`} />
+                          <Image
+                            src={file.publicUrl}
+                            alt={file.fileName}
+                            width={28}
+                            height={28}
+                            className="w-7 h-7 rounded object-cover flex-shrink-0 bg-white"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-[#1a1c1e] truncate">{file.fileName}</p>
+                            <p className="text-[10px] text-[#717971]">
+                              {file.group} · {new Date(file.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <span className={`text-xs font-bold ${c.text} flex-shrink-0`}>{fmtSize(file.sizeMB)}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 14-Day Upload Activity */}
+            <Card className="border-0 shadow-card rounded-2xl">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-bold text-[#1a1c1e] mb-3">Upload Activity (14 Days)</h3>
+                <div className="flex items-end justify-between gap-1 h-24">
+                  {data.dailyActivity.map((day) => {
+                    const maxCount = Math.max(...data.dailyActivity.map(d => d.count), 1)
+                    const h = Math.max((day.count / maxCount) * 100, 4)
+                    const hasAlert = day.count > 0
+                    return (
+                      <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                        <div
+                          className="w-full rounded-t-md transition-all"
+                          style={{
+                            height: `${h}%`,
+                            background: hasAlert
+                              ? 'linear-gradient(to top, #6CB4EE, #FB923C)'
+                              : '#e8edea',
+                          }}
+                          title={`${day.date}: ${day.count} uploads`}
+                        />
+                        <span className="text-[8px] text-[#717971]">
+                          {day.date.slice(5)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p className="text-[10px] text-[#717971] mt-2 text-center">
+                  Total: {data.dailyActivity.reduce((s, d) => s + d.count, 0)} uploads in 14 days
+                </p>
+              </CardContent>
+            </Card>
+
+            <p className="text-[10px] text-[#717971] text-center pt-2">
+              Auto-refreshes every 30s · SnapJe Storage Bucket
+            </p>
+          </>
+        ) : (
+          <div className="text-center py-16 text-[#717971]">
+            <p className="text-sm">Failed to load media data</p>
+            <Button onClick={fetchMedia} variant="outline" className="mt-3" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" /> Retry
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // ADMIN: UPLOAD SETTINGS VIEW
 // ============================================
 function AdminUploadSettingsView() {
@@ -5647,6 +5996,7 @@ function ViewRouter() {
         case 'analytics': return <AdminAnalyticsView />
         case 'admin-deals': return <AdminDealsView />
         case 'upload-settings': return <AdminUploadSettingsView />
+        case 'media': return <AdminMediaView />
         case 'profile': return <FoodieProfileView />
         case 'register-vendor': return <VendorRegistrationView />
         default: return <AdminDashboardView />
