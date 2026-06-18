@@ -79,6 +79,25 @@ function MapRecenter({
 }
 
 /**
+ * Fixes the `_leaflet_pos` TypeError that occurs when a map is rendered
+ * inside a Dialog/Sheet — the map container hasn't been laid out yet when
+ * Leaflet initializes, so pane positions are undefined. Calling
+ * invalidateSize() after a short delay forces Leaflet to recalculate.
+ */
+function MapResizeFix() {
+  const map = useMap()
+  useEffect(() => {
+    const t1 = setTimeout(() => map.invalidateSize(), 100)
+    const t2 = setTimeout(() => map.invalidateSize(), 300)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+    }
+  }, [map])
+  return null
+}
+
+/**
  * Attaches a click handler to the map when `onMapClick` is provided.
  */
 function MapClickHandler({
@@ -237,6 +256,7 @@ export function MapViewInner({
           />
 
           <MapRecenter center={center} zoom={zoom} />
+          <MapResizeFix />
 
           {onMapClick && <MapClickHandler onClick={onMapClick} />}
 

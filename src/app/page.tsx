@@ -3200,7 +3200,7 @@ function VendorDashboardView() {
 
       {/* ===== Edit Shop Location Modal ===== */}
       <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
-        <DialogContent className="rounded-2xl max-w-lg max-h-[90vh] overflow-y-auto p-0">
+        <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto p-0 mx-4 w-[calc(100%-2rem)]">
           <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Shop Location</DialogTitle>
@@ -3219,7 +3219,7 @@ function VendorDashboardView() {
             <Button
               onClick={handleSaveLocation}
               disabled={savingLocation}
-              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform relative z-[10000]"
             >
               {savingLocation ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Location</>}
             </Button>

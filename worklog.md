@@ -539,3 +539,40 @@ Stage Summary:
 - Applied 5 key techniques from user's previous tech: (1) sharp server-side compression, (2) EXIF auto-orientation, (3) metadata stripping (privacy), (4) DB-tunable quality + dynamic bypass via UploadSettings, (5) atomic verification + portable serving URL.
 - Upload now: client sends file → server runs sharp pipeline → uploads optimized WebP to SnapJe → verifies → logs to MediaFile with real dimensions → returns portable stats.
 - 88.6% size reduction achieved on test image. All files now have correct dimensions and stripped metadata.
+
+---
+Task ID: fix-5-issues
+Agent: Main Agent
+Task: Fix 5 issues: (1) auto-delete original after upload, (2) upload failed + Server Action + Leaflet error, (3) Save Location z-index, (4) modal smaller, (5) deal without photo not showing
+
+Work Log:
+- Issue 1 (auto-delete original): Modified /api/upload route — after all variants are processed and stored, the original file is automatically deleted from Supabase SnapJe bucket AND its MediaFile record is removed. The originalUrl fallback now points to the best available variant (medium > large > hero > avatar > etc). Response includes `originalDeleted: true` flag.
+
+- Issue 2 (upload failed + Server Action + Leaflet):
+  * /api/upload route was MISSING (deleted from filesystem) — recreated with sharp pipeline + auto-delete original.
+  * "Failed to find Server Action" — caused by stale .next cache. Deleted .next folder to fix.
+  * Leaflet `_leaflet_pos` TypeError — caused by map initializing inside Dialog before layout completes. Added MapResizeFix component in MapViewInner.tsx that calls map.invalidateSize() at 100ms and 300ms after mount, forcing Leaflet to recalculate pane positions.
+  * Also: node_modules was corrupted (next package + @next/swc binary had Bus error). Reinstalled via `bun install` + `bun add @next/swc-linux-x64-gnu`.
+
+- Issue 3 (Save Location z-index): Changed Dialog overlay and content z-index from z-50 to z-[9999] in src/components/ui/dialog.tsx. Also added `relative z-[10000]` to the Save Location button specifically. This ensures the button renders above the Leaflet map (which uses z-index up to ~700).
+
+- Issue 4 (modal smaller): Changed Edit Shop Location modal from `max-w-lg` (512px) to `max-w-md` (448px) with `mx-4 w-[calc(100%-2rem)]` for explicit margin. Verified: modal width is now 343px on mobile (375px viewport) with proper margin.
+
+- Issue 5 (deal without photo not showing): Two root causes found and fixed:
+  1. Cache invalidation bug: `cache.delete('deals:active')` didn't match the actual cache key format `deals:${status}:${category}:${search}:${page}:${pageSize}:${vendorId}`. Added `deleteByPrefix(prefix)` method to MemoryCache class, and changed all deal cache invalidation to `cache.deleteByPrefix('deals:')` in deals/route.ts (POST), deals/[id]/route.ts (PUT + DELETE).
+  2. Distance filtering bug: When no lat/lng was provided (Explore page), deals were still filtered by maxDistance=50km from DEFAULT_LOCATION (KL). This excluded deals from vendors >50km away. Fixed: distance filtering now ONLY applies when the user provides their location (lat/lng). The Explore page (no location) shows ALL active deals regardless of distance.
+
+Verification:
+- Browser test: Created deal without photo via API → deal appeared in /api/deals list ✅
+- Upload test: Uploaded image → status 200, original auto-deleted, variants stored ✅
+- Modal test: Edit Shop Location modal → z-index 9999, max-width 448px, Save Location button visible ✅
+- bun run lint: zero errors.
+
+Stage Summary:
+- All 5 issues fixed and verified.
+- Original files are now auto-deleted after upload processing (only variants kept).
+- Upload route recreated with sharp pipeline.
+- Leaflet map error fixed with invalidateSize() on mount.
+- Dialog z-index fixed to 9999 (above Leaflet panes).
+- Edit Shop Location modal is smaller (max-w-md) with margin.
+- Deals without photos now appear on Explore page (cache invalidation + distance filter fix).

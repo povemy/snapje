@@ -153,8 +153,8 @@ export async function PATCH(
       'Update deal'
     )
 
-    // Invalidate cache
-    cache.delete('deals:active')
+    // Invalidate cache — clear ALL deal cache entries
+    cache.deleteByPrefix('deals:')
 
     return NextResponse.json({
       success: true,
@@ -220,8 +220,8 @@ export async function DELETE(
       'Delete deal'
     )
 
-    // Invalidate cache
-    cache.delete('deals:active')
+    // Invalidate cache — clear ALL deal cache entries
+    cache.deleteByPrefix('deals:')
 
     return NextResponse.json({
       success: true,

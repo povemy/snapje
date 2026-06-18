@@ -38,6 +38,22 @@ class MemoryCache {
     return this.cache.delete(key)
   }
 
+  /**
+   * Delete all cache entries whose key starts with the given prefix.
+   * Useful for invalidating all variants of a cached query (e.g. all
+   * `deals:*` keys when a new deal is created).
+   */
+  deleteByPrefix(prefix: string): number {
+    let deleted = 0
+    for (const key of this.cache.keys()) {
+      if (key.startsWith(prefix)) {
+        this.cache.delete(key)
+        deleted++
+      }
+    }
+    return deleted
+  }
+
   has(key: string): boolean {
     return this.get(key) !== null
   }

@@ -93,8 +93,11 @@ export async function GET(request: Request) {
       }
     })
 
-    // Filter by maxDistance
-    if (!isNaN(maxDistance)) {
+    // Filter by maxDistance — ONLY when the user provided a location.
+    // When no lat/lng is provided (e.g. the Explore page), show ALL active deals
+    // regardless of distance, so newly created deals from any vendor appear.
+    const hasUserLocation = !isNaN(lat) && !isNaN(lng)
+    if (hasUserLocation && !isNaN(maxDistance)) {
       dealsWithDistance = dealsWithDistance.filter(
         (deal) => deal.distance <= maxDistance
       )
@@ -116,8 +119,9 @@ export async function GET(request: Request) {
       totalPages: Math.ceil(total / pageSize),
     }
 
-    // Cache for 30 seconds if no location and not a vendor query
-    if (!isVendorQuery && isNaN(lat) && isNaN(lng)) {
+    // Cache for 30 seconds if no location (explore page) and not a vendor query.
+    // Cache is properly invalidated via deleteByPrefix('deals:') on create/update/delete.
+    if (!isVendorQuery && !hasUserLocation) {
       cache.set(cacheKey, result, 30_000)
     }
 
@@ -247,8 +251,10 @@ export async function POST(request: Request) {
       'Create deal'
     )
 
-    // Invalidate cache
-    cache.delete('deals:active')
+    // Invalidate cache — clear ALL deal cache entries (the cache key format is
+    // `deals:${status}:${category}:${search}:${page}:${pageSize}:${vendorId}`,
+    // so a single delete('deals:active') would miss most keys).
+    cache.deleteByPrefix('deals:')
 
     return NextResponse.json({
       success: true,
