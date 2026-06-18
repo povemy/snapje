@@ -7,8 +7,10 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // NOTE: Sandbox exports a system-level DATABASE_URL=file:...sqlite that overrides .env.
+  // Using PRISMA_* env var names avoids the collision. See env.md for details.
+  url       = env("PRISMA_DATABASE_URL")
+  directUrl = env("PRISMA_DIRECT_URL")
 }
 
 // ============================================

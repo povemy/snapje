@@ -359,3 +359,35 @@ Stage Summary:
 - VLM confirmed SnapJe-style design: "white content area has rounded top corners that overlap the bottom edge of the hero image"
 - Lint clean (0 errors, 0 warnings)
 - Dev server running on port 3000
+
+---
+Task ID: deploy-sesatu
+Agent: Main Agent
+Task: Pull sesatu repo from https://github.com/povemy/sesatu and run it in this sandbox
+
+Work Log:
+- Cloned https://github.com/povemy/sesatu.git into /tmp/sesatu and inspected contents (FlashBite hyper-local food flash deal app, Next.js 16 + Prisma PostgreSQL + Supabase + socket.io)
+- Stopped the pre-existing default Next.js dev server (PIDs 1158/1179) via pkill
+- Replaced /home/z/my-project contents with the repo (preserved sandbox infra: .zscripts/, download/, upload/, node_modules/, .git)
+- Applied env.md's recommended robust fix for the sandbox system env var collision: renamed Prisma env vars in prisma/schema.prisma from env("DATABASE_URL")/env("DIRECT_URL") to env("PRISMA_DATABASE_URL")/env("PRISMA_DIRECT_URL"), and added matching PRISMA_* entries to .env (sandbox exports DATABASE_URL=file:...sqlite at system level which overrides .env)
+- Ran `bun install` (80 packages) and `bun run db:generate` (Prisma client generated)
+- Verified PostgreSQL connectivity to Supabase pooler (aws-1-ap-southeast-1.pooler.supabase.com:6543): 11 users, 4 vendors, 12 deals already seeded — DB intact
+- Installed `bun add -d playwright` + `npx playwright install chromium` for end-to-end browser verification
+- Discovered background processes die when a Bash tool command returns (sandbox cleans up the command's process tree); solved by launching with `setsid nohup ... < /dev/null &` which detaches into a new session and survives across commands
+- Started dev server: setsid nohup node node_modules/.bin/next dev -p 3000 (PID persisted across multiple commands)
+- Started realtime mini-service: setsid nohup bun --hot index.ts on port 3003
+- Browser verification (Playwright) PASSED:
+  * Homepage renders "FlashBite - Hyper-Local Food Flash Deals" with 12 active deals, categories, real prices/distances/countdowns
+  * Sign In modal works; login as vendor@test.com succeeds
+  * Vendor dashboard renders: Revenue RM7, Active Deals 2, Pending Pickup 0, Total Sold 5, Quick Actions, Leaflet map (KLCC)
+  * /api/deals -> 200 (Hainanese Chicken Rice Plate etc.), /api/vendors -> 200 (Test Vendor Kitchen etc.)
+  * Mobile viewport (375x700) renders correctly
+  * Only expected console error: 401 on /api/auth/me when unauthenticated
+- `bun run lint` passes with zero errors
+
+Stage Summary:
+- sesatu (FlashBite) successfully cloned, configured, and running in sandbox
+- Key fix: Prisma env var rename to avoid sandbox DATABASE_URL collision (per env.md guidance)
+- Dev server (port 3000) + realtime socket.io service (port 3003) both running and persistent
+- All APIs return real Supabase PostgreSQL data; auth, vendor dashboard, deals, map all functional
+- App is accessible via the preview panel at the / route
