@@ -97,8 +97,10 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
         // Retry the original request with the fresh cookie set by /api/auth/refresh
         res = await fetch(path, { ...options, headers: buildHeaders(options) })
       } else {
-        // Refresh failed (refresh token invalid/expired) — clear stale local auth state
-        useAuthStore.getState().logout()
+        // Refresh failed — return the error WITHOUT calling logout().
+        // Calling logout() here caused a login loop: any background request that
+        // 401'd (e.g. /api/notifications) would clobber an in-progress/just-completed
+        // login. Stale auth state is cleared in the page-load /api/auth/me check instead.
         return { success: false, error: 'Session expired. Please sign in again.' }
       }
     }
@@ -5865,7 +5867,7 @@ function AuthModal() {
 // MAIN APP
 // ============================================
 export default function FlashBiteApp() {
-  const { isAuthenticated, isLoading, login, setLoading } = useAuthStore()
+  const { isAuthenticated, isLoading, login, logout, setLoading } = useAuthStore()
 
   // Initialize socket connection
   useSocket()
@@ -5876,9 +5878,16 @@ export default function FlashBiteApp() {
     apiFetch<AuthUser>('/api/auth/me').then((res) => {
       if (res.success && res.data) {
         login(res.data)
+      } else {
+        // Canonical auth check: if /api/auth/me fails (even after a refresh
+        // attempt inside apiFetch), clear any stale rehydrated auth state so
+        // the user sees the sign-in screen. This is the ONLY place logout()
+        // is called on a 401 — never inside apiFetch itself (that caused a
+        // login loop where background requests clobbered active sessions).
+        logout()
       }
     }).finally(() => setLoading(false))
-  }, [login, setLoading])
+  }, [login, logout, setLoading])
 
   // Fetch notifications (only as fallback - socket.io handles real-time)
   useEffect(() => {

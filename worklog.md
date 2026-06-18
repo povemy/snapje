@@ -411,3 +411,28 @@ Stage Summary:
 - Root cause: missing client-side token-refresh logic — access token expires in 15 min but frontend never called the existing /api/auth/refresh endpoint.
 - Fix: transparent refresh-on-401 interceptor in apiFetch with deduplication, plus auto-logout when refresh also fails.
 - Verified: profile save + change password now work even after the 15-minute access token expires, as long as the 7-day refresh token is valid.
+
+---
+Task ID: fix-login-loop
+Agent: Main Agent
+Task: Fix login loop + "cannot save anything" + Profile re-showing login modal after admin login
+
+Work Log:
+- Reproduced via dev.log analysis: after `POST /api/auth/login 200`, the VERY NEXT request `GET /api/notifications` returned 401, and `POST /api/auth/refresh` also returned 401. Yet Playwright going DIRECTLY to 127.0.0.1:3000 worked perfectly (all 200s). The difference = the preview proxy environment.
+- Root cause #1 (cookies): The preview serves the page over HTTPS via Caddy proxy (sets `x-forwarded-proto: https`) inside a cross-origin iframe (`preview-chat-*.space-z.ai`). Cookies were set with `SameSite=Lax; Secure=false` (because `NODE_ENV=development`). Modern browsers block SameSite=Lax cookies in cross-origin iframe contexts, so the browser never sent the access_token/refresh_token on subsequent requests → every authenticated call 401'd.
+- Root cause #2 (login loop): My previous fix's `apiFetch` interceptor called `useAuthStore.getState().logout()` whenever a 401 + failed refresh occurred. Any background request (e.g. the 120s /api/notifications poll) that 401'd would clobber an active/just-completed login → the user saw the Sign In modal again (= "click Profile shows login modal").
+
+Fixes applied:
+1. src/lib/auth.ts `setAuthCookies` + `clearAuthCookies`: detect HTTPS via the `x-forwarded-proto` header (set by Caddy). When HTTPS, use `SameSite=None; Secure=true` (required for cookies to work in cross-origin iframe / third-party contexts). When plain localhost (direct dev), keep `SameSite=Lax; Secure=false`. `clearAuthCookies` uses matching attrs + `maxAge: 0` so the browser actually drops the cookie.
+2. src/app/page.tsx `apiFetch` interceptor: REMOVED the destructive `logout()` call from the refresh-failure branch. Now it just returns `{success: false, error: 'Session expired...'}`. This stops the login loop — background 401s no longer clobber the active session.
+3. src/app/page.tsx `FlashBiteApp` mount effect: moved the canonical stale-state cleanup here — if the page-load `/api/auth/me` fails (even after apiFetch's internal refresh attempt), call `logout()` ONCE to clear any rehydrated localStorage auth state. This is the only place logout() is called on a 401, eliminating race conditions with in-flight logins.
+4. next.config.ts: added `allowedDevOrigins: ['https://*.space-z.ai']` to silence the cross-origin dev warning and ensure HMR/_next resources load cleanly in the preview.
+
+Verification:
+- curl confirmed cookie attributes: direct localhost → `SameSite=Lax` (no Secure); simulated proxy (x-forwarded-proto: https) → `SameSite=None; Secure`. Both as expected.
+- Playwright browser test: logged in as admin@test.com → dashboard showed → waited 6s → NO login loop (Sign In modal did NOT reappear). Then simulated expired access token (deleted access_token cookie, kept refresh_token), reloaded the page. API trace showed: `GET /api/auth/me 401 → POST /api/auth/refresh 200 (auto) → GET /api/auth/me 200 → GET /api/notifications 200 → GET /api/admin/analytics 200 → PUT /api/auth/profile 200`. Profile save SUCCEEDED after token refresh with no loop.
+- `bun run lint` passes with zero errors.
+
+Stage Summary:
+- Two root causes fixed: (1) cookies not sent in HTTPS preview iframe (SameSite=Lax → None+Secure when HTTPS), (2) interceptor's destructive logout() caused login loop on background 401s.
+- After fix: login persists, dashboard stays, token refresh is transparent, profile/admin saves work even after the 15-min access token expires.

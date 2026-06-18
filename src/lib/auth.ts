@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { supabase, unwrap } from './supabase'
 
 const ACCESS_TOKEN_SECRET = new TextEncoder().encode(
@@ -87,27 +87,44 @@ export async function rotateRefreshToken(oldToken: string) {
 export async function setAuthCookies(accessToken: string, refreshToken: string) {
   const cookieStore = await cookies()
 
-  cookieStore.set('access_token', accessToken, {
+  // Detect HTTPS (preview proxy sets x-forwarded-proto). When served over HTTPS
+  // (often inside a cross-origin preview iframe), we MUST use SameSite=None + Secure
+  // so the browser actually persists & sends the cookies on subsequent requests.
+  // On plain localhost (direct dev access), SameSite=Lax + Secure=false is fine.
+  const headerList = await headers()
+  const isHttps = headerList.get('x-forwarded-proto') === 'https'
+
+  const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure: isHttps,
+    sameSite: isHttps ? ('none' as const) : ('lax' as const),
     path: '/',
+  }
+
+  cookieStore.set('access_token', accessToken, {
+    ...cookieOptions,
     maxAge: 15 * 60, // 15 minutes
   })
 
   cookieStore.set('refresh_token', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    path: '/',
+    ...cookieOptions,
     maxAge: 7 * 24 * 60 * 60, // 7 days
   })
 }
 
 export async function clearAuthCookies() {
   const cookieStore = await cookies()
-  cookieStore.delete('access_token')
-  cookieStore.delete('refresh_token')
+  const headerList = await headers()
+  const isHttps = headerList.get('x-forwarded-proto') === 'https'
+  // delete() must match the SameSite/Secure attrs used when setting, otherwise
+  // the browser won't drop the cookie.
+  const deleteOptions = {
+    secure: isHttps,
+    sameSite: isHttps ? ('none' as const) : ('lax' as const),
+    path: '/',
+  }
+  cookieStore.set('access_token', '', { ...deleteOptions, maxAge: 0 })
+  cookieStore.set('refresh_token', '', { ...deleteOptions, maxAge: 0 })
 }
 
 export async function getAuthUser(): Promise<TokenPayload | null> {
