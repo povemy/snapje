@@ -52,15 +52,63 @@ import {
 import { toast } from 'sonner'
 
 // ============================================
-// API Helper
+// API Helper (with transparent access-token refresh on 401)
 // ============================================
+// The access token expires after 15 min while the refresh token lasts 7 days.
+// When any authenticated request gets a 401, we transparently call /api/auth/refresh
+// (deduplicated so concurrent 401s don't rotate the token multiple times) and retry
+// the original request once. If refresh also fails, we clear the stale local auth state.
+let refreshPromise: Promise<boolean> | null = null
+
+async function refreshAccessToken(): Promise<boolean> {
+  // Deduplicate: if a refresh is already in flight, wait for it
+  if (refreshPromise) return refreshPromise
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch('/api/auth/refresh', { method: 'POST' })
+      return res.ok
+    } catch {
+      return false
+    } finally {
+      refreshPromise = null
+    }
+  })()
+  return refreshPromise
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string }> {
+  const buildHeaders = (opts?: RequestInit) => ({
+    'Content-Type': 'application/json',
+    ...(opts?.headers as Record<string, string> | undefined),
+  })
+
   try {
-    const res = await fetch(path, {
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
-      ...options,
-    })
-    return await res.json()
+    let res = await fetch(path, { ...options, headers: buildHeaders(options) })
+
+    // If the access token has expired, transparently refresh + retry once.
+    // Skip this for the refresh/logout endpoints themselves to avoid loops.
+    if (
+      res.status === 401 &&
+      !path.includes('/api/auth/refresh') &&
+      !path.includes('/api/auth/logout')
+    ) {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) {
+        // Retry the original request with the fresh cookie set by /api/auth/refresh
+        res = await fetch(path, { ...options, headers: buildHeaders(options) })
+      } else {
+        // Refresh failed (refresh token invalid/expired) — clear stale local auth state
+        useAuthStore.getState().logout()
+        return { success: false, error: 'Session expired. Please sign in again.' }
+      }
+    }
+
+    const text = await res.text()
+    try {
+      return JSON.parse(text)
+    } catch {
+      return { success: res.ok, error: res.ok ? undefined : 'Request failed' }
+    }
   } catch {
     return { success: false, error: 'Network error' }
   }

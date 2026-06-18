@@ -391,3 +391,23 @@ Stage Summary:
 - Dev server (port 3000) + realtime socket.io service (port 3003) both running and persistent
 - All APIs return real Supabase PostgreSQL data; auth, vendor dashboard, deals, map all functional
 - App is accessible via the preview panel at the / route
+
+---
+Task ID: fix-not-authenticated
+Agent: Main Agent
+Task: Fix "Not authenticated" error when saving changes on any account
+
+Work Log:
+- Reproduced the bug with curl: login sets access_token (15min) + refresh_token (7d) cookies. Profile PUT works with fresh token, returns 401 "Not authenticated" once access_token expires/is removed, while refresh_token is still valid.
+- Root cause: the `/api/auth/refresh` endpoint exists and works, but the frontend NEVER calls it. The `apiFetch` helper (src/app/page.tsx) had no refresh-on-401 interceptor. Access tokens expire after 15 min, so every authenticated write (profile save, change password, create deal, etc.) failed with 401 once the token aged past 15 min — even though the 7-day refresh token was still valid. The zustand store also persisted `isAuthenticated: true` in localStorage, so the UI showed the user as logged in while API calls silently failed.
+- Implemented fix in src/app/page.tsx `apiFetch`:
+  * Added module-level `refreshAccessToken()` with a `refreshPromise` deduplication guard (refresh rotates the token, so concurrent 401s must share one refresh call to avoid invalidating each other).
+  * On any 401 response (except to /api/auth/refresh and /api/auth/logout themselves), the interceptor calls /api/auth/refresh; if it succeeds it retries the original request once with the freshly-set cookie; if refresh fails it calls `useAuthStore.getState().logout()` to clear stale local auth state and returns a clear "Session expired" error.
+  * Also made response parsing robust to non-JSON bodies (read text first, then JSON.parse).
+- Ran `bun run lint` — passes with zero errors.
+- Browser-verified (Playwright): logged in as vendor@test.com, simulated access-token expiry by deleting the access_token cookie while keeping refresh_token, reloaded the page. The trace showed: GET /api/auth/me 401 → POST /api/auth/refresh 200 (auto) → GET /api/auth/me 200 (retry) → PUT /api/auth/profile 200 ✅ → POST /api/auth/change-password 200 ✅. Profile save and password change both succeeded after token expiry.
+
+Stage Summary:
+- Root cause: missing client-side token-refresh logic — access token expires in 15 min but frontend never called the existing /api/auth/refresh endpoint.
+- Fix: transparent refresh-on-401 interceptor in apiFetch with deduplication, plus auto-logout when refresh also fails.
+- Verified: profile save + change password now work even after the 15-minute access token expires, as long as the 7-day refresh token is valid.
