@@ -576,3 +576,22 @@ Stage Summary:
 - Dialog z-index fixed to 9999 (above Leaflet panes).
 - Edit Shop Location modal is smaller (max-w-md) with margin.
 - Deals without photos now appear on Explore page (cache invalidation + distance filter fix).
+
+---
+Task ID: fix-upload-final
+Agent: Main Agent
+Task: Fix "Media Upload failed" once and for all
+
+Work Log:
+- Root cause (recurring): The sandbox periodically resets .env to `DATABASE_URL=file:...sqlite` (the system env var leaks into the file) AND deletes the /api/upload route. Both happened again.
+- Fix applied:
+  1. Restored .env with all Supabase credentials (SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, DATABASE_URL, DIRECT_URL, PRISMA_DATABASE_URL, PRISMA_DIRECT_URL, JWT_SECRET, JWT_REFRESH_SECRET) from env.md.
+  2. Recreated /api/upload route with full sharp pipeline (auto-orient, WebP conversion, metadata stripping, DB-tunable quality, dynamic bypass) + atomic verification + auto-delete original after variants are processed.
+  3. Verified lib/media/optimize.ts, lib/media/storage.ts, /api/media/serve/[...path]/route.ts, /api/admin/media/route.ts all still exist.
+  4. Verified node_modules/next + @next/swc-linux-x64-gnu are installed and working.
+  5. Started dev server and ran Playwright upload test: status 200, 23.2KB PNG → 1.4KB WebP (94% reduction), original auto-deleted, avatar variant stored + verified.
+- bun run lint: zero errors.
+
+Stage Summary:
+- Upload fixed: .env restored + /api/upload route recreated with sharp pipeline.
+- Verified: 23.2KB → 1.4KB compression, original auto-deleted, file stored in SnapJe bucket.
