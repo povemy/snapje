@@ -3,7 +3,9 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
+    "predev": "bash scripts/restore-env.sh",
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
+    "prebuild": "bash scripts/restore-env.sh",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
@@ -11,7 +13,11 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "supabase:setup": "bun run scripts/setup-supabase.ts"
+    "supabase:setup": "bun run scripts/setup-supabase.ts",
+    "restore-env": "bash scripts/restore-env.sh"
+  },
+  "overrides": {
+    "sharp": "0.35.1"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

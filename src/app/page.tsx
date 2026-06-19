@@ -1857,6 +1857,13 @@ function FoodieProfileView() {
     }
   }, [settings])
 
+  // Sync avatarUrl from the user object (so it persists across refreshes)
+  useEffect(() => {
+    if (user?.avatarUrl) {
+      setAvatarUrl(user.avatarUrl)
+    }
+  }, [user?.avatarUrl])
+
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
   }
@@ -2010,10 +2017,16 @@ function FoodieProfileView() {
               currentUrl={avatarUrl}
               onUploadComplete={(url) => {
                 setAvatarUrl(url)
-                // Save to profile via API
+                // Save to profile via API — the route persists avatarUrl to
+                // the User table so it survives refreshes.
                 apiFetch('/api/auth/profile', {
                   method: 'PUT',
                   body: JSON.stringify({ avatarUrl: url }),
+                }).then((res) => {
+                  if (res.success && res.data) {
+                    // Update the auth store so the avatar persists immediately
+                    useAuthStore.getState().login(res.data as AuthUser)
+                  }
                 })
               }}
               circular

@@ -595,3 +595,32 @@ Work Log:
 Stage Summary:
 - Upload fixed: .env restored + /api/upload route recreated with sharp pipeline.
 - Verified: 23.2KB → 1.4KB compression, original auto-deleted, file stored in SnapJe bucket.
+
+---
+Task ID: fix-3-issues-v2
+Agent: Main Agent
+Task: (1) Force single sharp version via overrides, (2) Fix uploaded photo disappearing after refresh, (3) Prevent .env reset to sqlite
+
+Work Log:
+- Issue 1 (sharp version): Project uses bun (bun.lock). Added `"overrides": { "sharp": "0.35.1" }` to package.json — bun's equivalent of npm's "overrides" / yarn's "resolutions". This forces a single sharp version across the entire dependency tree, preventing version conflicts with the native libvips binary.
+
+- Issue 2 (photo disappears after refresh): Root cause found — the /api/auth/profile PUT route only extracted `name` and `phone` from the request body, completely IGNORING `avatarUrl`. So when the client uploaded an avatar and called PUT /api/auth/profile with `{ avatarUrl: url }`, the server silently dropped the field. The file WAS uploaded to Supabase storage and the MediaFile record WAS created (verified: 6.2KB avatar variant in DB), but the URL was never persisted to the User table — so it vanished on refresh.
+  Fix:
+  1. Updated /api/auth/profile PUT to extract and save `avatarUrl` to the User table.
+  2. Added useEffect in FoodieProfileView to sync `avatarUrl` state from `user.avatarUrl` on mount.
+  3. Updated the avatar upload handler to refresh the auth store after the profile PUT succeeds, so the avatar persists immediately in the UI.
+  Verified: uploaded avatar → profile PUT saved avatarUrl → after simulated refresh (re-fetch /api/auth/me), avatarUrl persisted ✅.
+
+- Issue 3 (.env reset to sqlite): Created scripts/restore-env.sh that regenerates .env with the correct Supabase PostgreSQL credentials from env.md. Added `predev` and `prebuild` hooks in package.json so it runs automatically before `bun run dev` and `bun run build`. Also added a `restore-env` script for manual runs. The script verifies the output (checks DATABASE_URL is not SQLite, checks Supabase pooler URL is present).
+  This ensures .env is ALWAYS restored to the correct Supabase credentials on every dev/build run, regardless of sandbox resets.
+
+Verification:
+- bun run lint: zero errors.
+- Avatar upload + persistence: uploaded → profile PUT saved → refresh → avatarUrl persisted ✅.
+- restore-env.sh: runs successfully, .env verified correct.
+- MediaFile records confirmed in DB (avatar variant at 6.2KB exists).
+
+Stage Summary:
+- sharp version pinned to 0.35.1 via bun overrides.
+- Avatar upload now persists — profile route saves avatarUrl to User table.
+- .env auto-restored from env.md on every dev/build via predev/prebuild hooks.

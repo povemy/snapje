@@ -13,12 +13,15 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json()
-    const { name, phone } = body
+    const { name, phone, avatarUrl } = body
 
     // Build update object with only provided fields
-    const updateData: Record<string, string> = {}
+    const updateData: Record<string, string | null> = {}
     if (name && name.trim()) updateData.name = name.trim()
     if (phone !== undefined) updateData.phone = phone.trim() || null
+    // avatarUrl — the upload route returns the optimized variant URL; save it
+    // to the User table so the avatar persists across refreshes/logins.
+    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl || null
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(
