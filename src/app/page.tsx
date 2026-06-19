@@ -836,9 +836,11 @@ function FoodieHomeView() {
     const params = new URLSearchParams({ status: 'active' })
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
     if (debouncedSearch) params.set('search', debouncedSearch)
-    params.set('lat', '3.1390')
-    params.set('lng', '101.6869')
-    params.set('maxDistance', '20')
+    // NOTE: Do NOT send lat/lng/maxDistance here. When no location is sent, the
+    // API returns ALL active deals (no distance filtering) — sorted by distance
+    // from DEFAULT_LOCATION (KL) for display only. This ensures newly created
+    // deals from ANY vendor appear immediately, regardless of how far they are.
+    // Distance is still calculated and shown on each deal card.
 
     const res = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${params}`)
     if (res.success && res.data) {

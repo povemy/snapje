@@ -624,3 +624,19 @@ Stage Summary:
 - sharp version pinned to 0.35.1 via bun overrides.
 - Avatar upload now persists — profile route saves avatarUrl to User table.
 - .env auto-restored from env.md on every dev/build via predev/prebuild hooks.
+
+---
+Task ID: fix-deals-not-on-homepage
+Agent: Main Agent
+Task: Fix created deals not showing on Homepage/Explore for foodie/public users
+
+Work Log:
+- Root cause: The homepage's fetchDeals (FoodieHomeView) was HARDCODING lat=3.1390, lng=101.6869 (KL coordinates) and maxDistance=20 in the API request. This triggered the distance filter in /api/deals GET, which excluded any deal >20km from KL. The "Test Vendor Kitchen" is at lat=3.055, lng=101.484 (Shah Alam area) — ~24.3km from KL — so all 3 of its deals were filtered out.
+- The Explore view renders FoodieHomeView (same component), so it had the same issue.
+- Fix: Removed the hardcoded lat/lng/maxDistance from fetchDeals in FoodieHomeView. Now the homepage sends only `status=active` (plus optional category/search). When no location is sent, the API returns ALL active deals with no distance filtering — sorted by distance from DEFAULT_LOCATION (KL) for display only. Distance is still calculated and shown on each deal card.
+- Verified: /api/deals?status=active now returns all 13 active deals, including the 3 from Test Vendor Kitchen at 24.3km. Deals are sorted by distance (closest first).
+- bun run lint: zero errors.
+
+Stage Summary:
+- Root cause was hardcoded KL coordinates + 20km maxDistance on the homepage, excluding deals >20km away.
+- Fix: removed hardcoded location params → all active deals now appear on homepage/explore.
