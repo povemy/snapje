@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION } from '@/lib/distance'
+import { cache } from '@/lib/cache'
 
 export async function GET(
   request: Request,
@@ -143,6 +144,10 @@ export async function PATCH(
         .single(),
       'Update vendor'
     )
+
+    // Invalidate deals cache — deals cache the vendor's businessName/logoUrl,
+    // so any vendor update must clear the cache to avoid stale names on cards.
+    cache.deleteByPrefix('deals:')
 
     return NextResponse.json({
       success: true,

@@ -1472,7 +1472,10 @@ function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
 
       const remaining = deadline - now
       if (remaining <= 0) {
-        setTimeLeft('Expired')
+        // Pickup window has passed — but the order may still be "active"
+        // (pending_pickup). Show a clear message instead of "Expired" which
+        // confuses users into thinking the deal/order is gone.
+        setTimeLeft('Pickup overdue')
       } else {
         const mins = Math.floor(remaining / 60000)
         const hrs = Math.floor(mins / 60)
@@ -1488,13 +1491,14 @@ function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
     return () => clearInterval(interval)
   }, [pickupDeadline])
 
-  const isUrgent = progress > 75
-  const isWarning = progress > 50
+  const isOverdue = timeLeft === 'Pickup overdue'
+  const isUrgent = !isOverdue && progress > 75
+  const isWarning = !isOverdue && progress > 50
 
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between mb-1">
-        <span className={`text-[10px] font-bold ${isUrgent ? 'text-red-500' : isWarning ? 'text-[#FB923C]' : 'text-[#6CB4EE]'}`}>
+        <span className={`text-[10px] font-bold ${isOverdue ? 'text-[#717971]' : isUrgent ? 'text-red-500' : isWarning ? 'text-[#FB923C]' : 'text-[#6CB4EE]'}`}>
           {timeLeft}
         </span>
       </div>
@@ -1504,10 +1508,12 @@ function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
           animate={{ width: `${progress}%` }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
           className={`h-full rounded-full ${
-            isUrgent ? 'bg-red-500' : isWarning ? 'bg-[#FB923C]' : 'bg-[#6CB4EE]'
+            isOverdue ? 'bg-[#c1c9c0]' : isUrgent ? 'bg-red-500' : isWarning ? 'bg-[#FB923C]' : 'bg-[#6CB4EE]'
           }`}
           style={{
-            background: isUrgent
+            background: isOverdue
+              ? '#c1c9c0'
+              : isUrgent
               ? 'linear-gradient(90deg, #FB923C, #EF4444)'
               : isWarning
               ? 'linear-gradient(90deg, #6CB4EE, #FB923C)'

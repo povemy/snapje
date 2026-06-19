@@ -640,3 +640,30 @@ Work Log:
 Stage Summary:
 - Root cause was hardcoded KL coordinates + 20km maxDistance on the homepage, excluding deals >20km away.
 - Fix: removed hardcoded location params → all active deals now appear on homepage/explore.
+
+---
+Task ID: fix-vendor-name-and-audit
+Agent: Main Agent
+Task: (1) Fix deal card showing wrong vendor name, (2) Fix active orders showing "Expired", (3) Full endpoint audit
+
+Work Log:
+- Issue 1 (vendor name mismatch): Audited DB — all deal→vendor joins are correct (13/13 deals have matching vendorId↔vendor.id). The user's perceived mismatch was caused by STALE CACHE: the deals API caches results for 30s, and the cache wasn't invalidated when a vendor's businessName/logoUrl changed. Fix: added cache.deleteByPrefix('deals:') to the vendor PUT route (/api/vendors/[id]) so any vendor update clears the deals cache.
+
+- Issue 2 (active orders showing "Expired"): Root cause — the PickupProgressSlider showed "Expired" text when the pickupDeadline (2h window from order creation) had passed, even though the order was still in pending_pickup status (active tab). This confused users into thinking the deal/order was gone. Fix: changed the text from "Expired" to "Pickup overdue" (gray color #717971, progress bar gray #c1c9c0) — clearly communicates the pickup window passed without implying the order is deleted.
+
+- Issue 3 (full endpoint audit): Ran slice-by-slice audit of all API endpoints:
+  * Verified all 34 API route files exist and map to frontend calls.
+  * Found 2 MISSING routes that the frontend was calling: /api/vendors/my/logo and /api/vendors/my/banner (returned 404). Created both routes — they find the vendor by userId, update logoUrl/coverImageUrl, and invalidate the deals cache.
+  * Verified all deal→vendor joins correct (0 mismatches).
+  * Verified all orders have valid dealId + vendorId (0 missing).
+  * Verified all 4 vendors are approved and have valid userId references.
+  * Verified all 11 users have correct roles.
+
+Verification:
+- Browser test: 13 deals with correct vendor names (no mismatches). Active order shows "Pickup overdue" (gray) instead of "Expired". All endpoints return 200. /api/vendors/my/logo returns 403 for foodie (route exists, correctly rejects non-vendor).
+- bun run lint: zero errors.
+
+Stage Summary:
+- Vendor name on deal cards: fixed via cache invalidation on vendor update.
+- Active orders "Expired" text: changed to "Pickup overdue" (gray, less alarming).
+- Full audit: all 34 endpoints connected. Created 2 missing routes (/api/vendors/my/logo, /api/vendors/my/banner). All joins verified correct.
