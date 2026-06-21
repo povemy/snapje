@@ -1,0 +1,802 @@
+     1→'use client'
+     2→
+     3→import { useEffect, useState, useCallback, memo, useRef } from 'react'
+     4→import Image from 'next/image'
+     5→import { useAuthStore } from '@/stores/auth-store'
+     6→import { useAppStore } from '@/stores/app-store'
+     7→import { useNotificationStore } from '@/stores/notification-store'
+     8→import { useSocket } from '@/hooks/use-socket'
+     9→import type { AuthUser, AppRole, AppView, Deal, Order, Vendor, AppNotification } from '@/types'
+    10→import { AnimatePresence, motion } from 'framer-motion'
+    11→import {
+    12→  Home, Compass, ShoppingBag, User, ChefHat, LayoutDashboard,
+    13→  PlusCircle, Package, CheckCircle, CreditCard, Shield, Users,
+    14→  BarChart3, MapPin, Bell, Search, ArrowLeft, Menu, X,
+    15→  Star, Clock, Flame, TrendingUp, Store, Settings, LogOut,
+    16→  ChevronRight, Heart, Filter, Zap, QrCode, Eye, Check,
+    17→  AlertTriangle, AlertCircle, Ban, RefreshCw, DollarSign, ShoppingCart,
+    18→  Utensils, Bike, Building2, Crown, Sparkles, MoreVertical,
+    19→  Pencil, Trash2, Timer, Save, ScanLine, Camera, XCircle,
+    20→  Lock, Globe, Volume2, BellRing, KeyRound, Smartphone,
+    21→  Moon, Wallet, Megaphone, EyeOff,
+    22→  Plus, Minus, Navigation, Route, Footprints,
+    23→  Image as ImageIcon, HardDrive, FileImage, AlertOctagon
+    24→} from 'lucide-react'
+    25→import { Button } from '@/components/ui/button'
+    26→import { Input } from '@/components/ui/input'
+    27→import { Badge } from '@/components/ui/badge'
+    28→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    29→import { Skeleton } from '@/components/ui/skeleton'
+    30→import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+    31→import { Separator } from '@/components/ui/separator'
+    32→import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+    33→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+    34→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    35→import { Textarea } from '@/components/ui/textarea'
+    36→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    37→import { Label } from '@/components/ui/label'
+    38→import { Progress } from '@/components/ui/progress'
+    39→import { Switch } from '@/components/ui/switch'
+    40→import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+    41→import { ScrollArea } from '@/components/ui/scroll-area'
+    42→import { LocationPicker } from '@/components/map/LocationPicker'
+    43→import MapView from '@/components/map/MapView'
+    44→import { GeolocationGate } from '@/components/map/GeolocationGate'
+    45→import { useGeolocation } from '@/hooks/use-geolocation'
+    46→import {
+    47→  haversineDistance,
+    48→  formatDistance,
+    49→  walkingTimeMinutes,
+    50→  drivingTimeMinutes,
+    51→  DEFAULT_LOCATION,
+    52→} from '@/lib/distance'
+    53→import { toast } from 'sonner'
+    54→
+    55→// ============================================
+    56→// API Helper (Bearer-token auth with transparent refresh on 401)
+    57→// ============================================
+    58→// Auth uses Bearer tokens stored in localStorage (via the auth store) as the
+    59→// PRIMARY mechanism, because cookies are unreliable in preview iframes
+    60→// (third-party cookie blocking). The server's getAuthUser() checks the
+    61→// Authorization header first, then falls back to cookies.
+    62→//
+    63→// Flow: every request gets `Authorization: Bearer <accessToken>`. On 401 we
+    64→// call /api/auth/refresh (sending the refresh token in the body), store the
+    65→// new tokens, and retry once. Concurrent 401s share a single refresh.
+    66→let refreshPromise: Promise<boolean> | null = null
+    67→
+    68→async function refreshAccessToken(): Promise<boolean> {
+    69→  if (refreshPromise) return refreshPromise
+    70→  refreshPromise = (async () => {
+    71→    try {
+    72→      const { refreshToken } = useAuthStore.getState()
+    73→      const res = await fetch('/api/auth/refresh', {
+    74→        method: 'POST',
+    75→        headers: { 'Content-Type': 'application/json' },
+    76→        body: JSON.stringify({ refreshToken }),
+    77→      })
+    78→      if (!res.ok) return false
+    79→      const json = await res.json()
+    80→      if (json.success && json.tokens) {
+    81→        useAuthStore.getState().setTokens(json.tokens)
+    82→        return true
+    83→      }
+    84→      return false
+    85→    } catch {
+    86→      return false
+    87→    } finally {
+    88→      refreshPromise = null
+    89→    }
+    90→  })()
+    91→  return refreshPromise
+    92→}
+    93→
+    94→async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string; tokens?: { accessToken: string; refreshToken: string } }> {
+    95→  const buildHeaders = (opts?: RequestInit) => {
+    96→    const headers: Record<string, string> = {
+    97→      'Content-Type': 'application/json',
+    98→      ...(opts?.headers as Record<string, string> | undefined),
+    99→    }
+   100→    // Attach Bearer token from the auth store (localStorage-backed)
+   101→    const { accessToken } = useAuthStore.getState()
+   102→    if (accessToken && !headers['Authorization'] && !headers['authorization']) {
+   103→      headers['Authorization'] = `Bearer ${accessToken}`
+   104→    }
+   105→    return headers
+   106→  }
+   107→
+   108→  try {
+   109→    let res = await fetch(path, { ...options, headers: buildHeaders(options) })
+   110→
+   111→    // If the access token has expired, transparently refresh + retry once.
+   112→    // Skip this for the refresh/logout endpoints themselves to avoid loops.
+   113→    if (
+   114→      res.status === 401 &&
+   115→      !path.includes('/api/auth/refresh') &&
+   116→      !path.includes('/api/auth/logout')
+   117→    ) {
+   118→      const refreshed = await refreshAccessToken()
+   119→      if (refreshed) {
+   120→        // Retry the original request with the fresh Bearer token
+   121→        res = await fetch(path, { ...options, headers: buildHeaders(options) })
+   122→      } else {
+   123→        return { success: false, error: 'Session expired. Please sign in again.' }
+   124→      }
+   125→    }
+   126→
+   127→    const text = await res.text()
+   128→    try {
+   129→      return JSON.parse(text)
+   130→    } catch {
+   131→      return { success: res.ok, error: res.ok ? undefined : 'Request failed' }
+   132→    }
+   133→  } catch {
+   134→    return { success: false, error: 'Network error' }
+   135→  }
+   136→}
+   137→
+   138→// ============================================
+   139→// Page Transition Variants
+   140→// ============================================
+   141→// Performance: lightweight scale & opacity fades (Grab style)
+   142→const pageVariants = {
+   143→  initial: { opacity: 0 },
+   144→  animate: { opacity: 1 },
+   145→  exit: { opacity: 0 },
+   146→}
+   147→
+   148→const pageTransition = {
+   149→  duration: 0.15,
+   150→  ease: 'easeOut',
+   151→}
+   152→
+   153→// ============================================
+   154→// AUTH SCREEN
+   155→// ============================================
+   156→function AuthScreen() {
+   157→  const [isLogin, setIsLogin] = useState(true)
+   158→  const [email, setEmail] = useState('')
+   159→  const [password, setPassword] = useState('')
+   160→  const [name, setName] = useState('')
+   161→  const [phone, setPhone] = useState('')
+   162→  const [role, setRole] = useState<'foodie' | 'vendor'>('foodie')
+   163→  const [loading, setLoading] = useState(false)
+   164→  const { login } = useAuthStore()
+   165→
+   166→  const handleSubmit = async (e: React.FormEvent) => {
+   167→    e.preventDefault()
+   168→    setLoading(true)
+   169→
+   170→    try {
+   171→      const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
+   172→      const body = isLogin
+   173→        ? { email, password }
+   174→        : { email, password, name, phone, role }
+   175→
+   176→      const res = await apiFetch<AuthUser>(endpoint, {
+   177→        method: 'POST',
+   178→        body: JSON.stringify(body),
+   179→      })
+   180→
+   181→      if (res.success && res.data) {
+   182→        login(res.data, res.tokens)
+   183→        toast.success(isLogin ? 'Welcome back!' : 'Account created!')
+   184→      } else {
+   185→        toast.error(res.error || 'Authentication failed')
+   186→      }
+   187→    } finally {
+   188→      setLoading(false)
+   189→    }
+   190→  }
+   191→
+   192→  return (
+   193→    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#f0f4f2] to-white px-5">
+   194→      <motion.div
+   195→        initial={{ opacity: 0, y: 20 }}
+   196→        animate={{ opacity: 1, y: 0 }}
+   197→        transition={{ stiffness: 300, damping: 25 }}
+   198→        className="w-full max-w-sm"
+   199→      >
+   200→        {/* Logo */}
+   201→        <div className="text-center mb-8">
+   202→          <motion.div
+   203→            initial={{ scale: 0.8 }}
+   204→            animate={{ scale: 1 }}
+   205→            transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+   206→            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#8FC5E8] to-[#6CB4EE] mb-4 shadow-card"
+   207→          >
+   208→            <Flame className="w-10 h-10 text-white" />
+   209→          </motion.div>
+   210→          <h1 className="text-3xl font-extrabold text-[#1a1c1e] tracking-tight">FlashBite</h1>
+   211→          <p className="text-[#414841] mt-1 text-sm">Hyper-local food flash deals</p>
+   212→        </div>
+   213→
+   214→        {/* Toggle */}
+   215→        <div className="flex bg-[#e8edea] rounded-xl p-1 mb-6">
+   216→          <button
+   217→            onClick={() => setIsLogin(true)}
+   218→            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+   219→              isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+   220→            }`}
+   221→          >
+   222→            Sign In
+   223→          </button>
+   224→          <button
+   225→            onClick={() => setIsLogin(false)}
+   226→            className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
+   227→              !isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+   228→            }`}
+   229→          >
+   230→            Sign Up
+   231→          </button>
+   232→        </div>
+   233→
+   234→        {/* Form */}
+   235→        <form onSubmit={handleSubmit} className="space-y-4">
+   236→          {!isLogin && (
+   237→            <div>
+   238→              <Label htmlFor="name" className="text-sm font-semibold text-[#1a1c1e]">Full Name</Label>
+   239→              <Input
+   240→                id="name"
+   241→                value={name}
+   242→                onChange={(e) => setName(e.target.value)}
+   243→                placeholder="Your name"
+   244→                className="mt-1.5 h-12 rounded-xl"
+   245→                required={!isLogin}
+   246→              />
+   247→            </div>
+   248→          )}
+   249→          <div>
+   250→            <Label htmlFor="email" className="text-sm font-semibold text-[#1a1c1e]">Email</Label>
+   251→            <Input
+   252→              id="email"
+   253→              type="email"
+   254→              value={email}
+   255→              onChange={(e) => setEmail(e.target.value)}
+   256→              placeholder="you@example.com"
+   257→              className="mt-1.5 h-12 rounded-xl"
+   258→              required
+   259→            />
+   260→          </div>
+   261→          <div>
+   262→            <Label htmlFor="password" className="text-sm font-semibold text-[#1a1c1e]">Password</Label>
+   263→            <Input
+   264→              id="password"
+   265→              type="password"
+   266→              value={password}
+   267→              onChange={(e) => setPassword(e.target.value)}
+   268→              placeholder="••••••••"
+   269→              className="mt-1.5 h-12 rounded-xl"
+   270→              required
+   271→              minLength={6}
+   272→            />
+   273→          </div>
+   274→          {!isLogin && (
+   275→            <div>
+   276→              <Label htmlFor="phone" className="text-sm font-semibold text-[#1a1c1e]">Phone (optional)</Label>
+   277→              <Input
+   278→                id="phone"
+   279→                value={phone}
+   280→                onChange={(e) => setPhone(e.target.value)}
+   281→                placeholder="+60 12 345 6789"
+   282→                className="mt-1.5 h-12 rounded-xl"
+   283→              />
+   284→            </div>
+   285→          )}
+   286→          {!isLogin && (
+   287→            <div>
+   288→              <Label className="text-sm font-semibold text-[#1a1c1e] mb-2 block">I want to...</Label>
+   289→              <div className="grid grid-cols-2 gap-3">
+   290→                <button
+   291→                  type="button"
+   292→                  onClick={() => setRole('foodie')}
+   293→                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+   294→                    role === 'foodie'
+   295→                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+   296→                      : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+   297→                  }`}
+   298→                >
+   299→                  <Utensils className={`w-6 h-6 ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+   300→                  <span className={`text-sm font-bold ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+   301→                    Find Deals
+   302→                  </span>
+   303→                  <span className="text-[10px] text-[#717971]">Browse & claim food</span>
+   304→                </button>
+   305→                <button
+   306→                  type="button"
+   307→                  onClick={() => setRole('vendor')}
+   308→                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
+   309→                    role === 'vendor'
+   310→                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+   311→                      : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
+   312→                  }`}
+   313→                >
+   314→                  <Store className={`w-6 h-6 ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
+   315→                  <span className={`text-sm font-bold ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+   316→                    Sell Food
+   317→                  </span>
+   318→                  <span className="text-[10px] text-[#717971]">Post flash deals</span>
+   319→                </button>
+   320→              </div>
+   321→            </div>
+   322→          )}
+   323→          <Button
+   324→            type="submit"
+   325→            disabled={loading}
+   326→            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
+   327→          >
+   328→            {loading ? (
+   329→              <RefreshCw className="w-5 h-5 animate-spin" />
+   330→            ) : isLogin ? (
+   331→              'Sign In'
+   332→            ) : (
+   333→              'Create Account'
+   334→            )}
+   335→          </Button>
+   336→        </form>
+   337→
+   338→        {/* Demo hint */}
+   339→        <div className="mt-6 p-3 bg-[#f0f4f2] rounded-xl text-center">
+   340→          <p className="text-xs text-[#414841]">
+   341→            🎯 Demo: <span className="font-semibold">foodie@test.com</span> / <span className="font-semibold">vendor@test.com</span> / <span className="font-semibold">admin@test.com</span>
+   342→          </p>
+   343→          <p className="text-xs text-[#717971] mt-0.5">Password: <span className="font-semibold">password123</span></p>
+   344→        </div>
+   345→      </motion.div>
+   346→    </div>
+   347→  )
+   348→}
+   349→
+   350→// ============================================
+   351→// CONSTANTS
+   352→// ============================================
+   353→const FOOD_CATEGORIES_LIST = ['All', 'Malay', 'Chinese', 'Indian', 'Western', 'Japanese', 'Korean', 'Thai', 'Vegan', 'Dessert', 'Beverage']
+   354→
+   355→// ============================================
+   356→// COUNTDOWN TIMER COMPONENT
+   357→// ============================================
+   358→const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false }: { expiresAt: string; compact?: boolean }) {
+   359→  const [timeLeft, setTimeLeft] = useState('')
+   360→
+   361→  useEffect(() => {
+   362→    const update = () => {
+   363→      const diff = new Date(expiresAt).getTime() - Date.now()
+   364→      if (diff <= 0) {
+   365→        setTimeLeft('Expired')
+   366→        return
+   367→      }
+   368→      const hours = Math.floor(diff / 3600000)
+   369→      const mins = Math.floor((diff % 3600000) / 60000)
+   370→      const secs = Math.floor((diff % 60000) / 1000)
+   371→
+   372→      if (hours > 0) {
+   373→        setTimeLeft(`${hours}h ${mins}m`)
+   374→      } else if (mins > 0) {
+   375→        setTimeLeft(`${mins}m ${secs}s`)
+   376→      } else {
+   377→        setTimeLeft(`${secs}s`)
+   378→      }
+   379→    }
+   380→    update()
+   381→    const interval = setInterval(update, 1000)
+   382→    return () => clearInterval(interval)
+   383→  }, [expiresAt])
+   384→
+   385→  const isUrgent = timeLeft !== 'Expired' && !timeLeft.includes('h')
+   386→
+   387→  return (
+   388→    <span className={`inline-flex items-center gap-1 ${compact ? 'text-xs' : 'text-sm'} font-bold ${
+   389→      timeLeft === 'Expired' ? 'text-[#717971]' : isUrgent ? 'text-[#FB923C] animate-pulse-urgent' : 'text-[#6CB4EE]'
+   390→    }`}>
+   391→      <Clock className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+   392→      {timeLeft}
+   393→    </span>
+   394→  )
+   395→})
+   396→
+   397→// ============================================
+   398→// DEAL CARD COMPONENT - Foodpanda Style
+   399→// ============================================
+   400→type CardSize = 'featured' | 'large' | 'medium' | 'small'
+   401→
+   402→const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: { 
+   403→  deal: Deal & { distance?: number; vendor?: { businessName: string; address: string; logoUrl: string | null } }; 
+   404→  onSelect: () => void;
+   405→  size?: CardSize;
+   406→}) {
+   407→  const isLowStock = deal.availableQuantity <= 5 && deal.availableQuantity > 0
+   408→  const isSoldOut = deal.availableQuantity <= 0 || deal.status === 'sold_out'
+   409→  const isHalfWidth = size === 'medium' || size === 'small'
+   410→
+   411→  return (
+   412→    <div
+   413→      onClick={onSelect}
+   414→      className="cursor-pointer group"
+   415→    >
+   416→      <div className="overflow-hidden rounded-xl bg-white shadow-card group-hover:shadow-card-hover transition-shadow duration-150">
+   417→        {/* Image - 16:9 dominant aspect ratio, h-44 for featured */}
+   418→        <div className={`relative overflow-hidden ${size === 'featured' ? 'h-44' : size === 'large' ? 'h-36' : isHalfWidth ? 'h-28' : 'h-32'} bg-[#f0f4f2]`}>
+   419→          {deal.imageUrl ? (
+   420→            <Image
+   421→              src={deal.imageUrl}
+   422→              alt={deal.title}
+   423→              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+   424→              fill
+   425→              sizes={isHalfWidth ? "(max-width: 640px) 50vw, 200px" : "(max-width: 640px) 100vw, 400px"}
+   426→              loading={size === 'featured' ? 'eager' : 'lazy'}
+   427→              priority={size === 'featured'}
+   428→            />
+   429→          ) : (
+   430→            <div className="w-full h-full flex items-center justify-center">
+   431→              <Utensils className={isHalfWidth ? 'w-8 h-8 text-[#c1c9c0]' : 'w-12 h-12 text-[#c1c9c0]'} />
+   432→            </div>
+   433→          )}
+   434→          
+   435→          {/* Promo Badge - Top Left, overlapping image */}
+   436→          <div className="absolute top-1.5 left-1.5">
+   437→            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#6CB4EE] text-white text-[10px] font-bold shadow-sm">
+   438→              Promo
+   439→            </span>
+   440→          </div>
+   441→          
+   442→          {/* Discount % Badge - Below Promo */}
+   443→          <div className="absolute top-7 left-1.5">
+   444→            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#FB923C] text-white text-[9px] font-bold">
+   445→              -{deal.discountPercent}%
+   446→            </span>
+   447→          </div>
+   448→          
+   449→          {/* Distance - Top Right */}
+   450→          {deal.distance !== undefined && (
+   451→            <div className="absolute top-1.5 right-1.5">
+   452→              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/90 text-[#1a1c1e] text-[10px] font-medium shadow-sm">
+   453→                <MapPin className="w-2.5 h-2.5 text-[#6CB4EE]" />
+   454→                {deal.distance.toFixed(1)}km
+   455→              </span>
+   456→            </div>
+   457→          )}
+   458→          
+   459→          {/* Countdown Timer Overlay - Below distance, right */}
+   460→          <div className="absolute top-7 right-1.5">
+   461→            <CountdownTimerOverlay expiresAt={deal.expiresAt} />
+   462→          </div>
+   463→          
+   464→          {/* Sold Out overlay */}
+   465→          {isSoldOut && (
+   466→            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10">
+   467→              <span className="text-white font-bold text-sm bg-black/60 px-3 py-1 rounded-lg">SOLD OUT</span>
+   468→            </div>
+   469→          )}
+   470→        </div>
+   471→        
+   472→        {/* Card Content - tight padding (p-4), Grab style */}
+   473→        <div className="p-3">
+   474→          {/* Title + Vendor */}
+   475→          <h3 className={`font-bold text-[#1a1c1e] truncate leading-tight ${isHalfWidth ? 'text-xs' : 'text-sm'}`}>
+   476→            {deal.title}
+   477→          </h3>
+   478→          <p className="text-[11px] text-[#717971] truncate mt-0.5">
+   479→            {deal.vendor?.businessName || 'Vendor'}
+   480→          </p>
+   481→          
+   482→          {/* Price Row - heavy emphasis on deal price, minimized original */}
+   483→          <div className="flex items-baseline gap-1.5 mt-1.5">
+   484→            <span className={`font-black text-[#6CB4EE] ${isHalfWidth ? 'text-sm' : 'text-lg'}`}>
+   485→              RM{deal.dealPrice.toFixed(2)}
+   486→            </span>
+   487→            <span className="text-[10px] text-[#717971] line-through">
+   488→              RM{deal.originalPrice.toFixed(2)}
+   489→            </span>
+   490→          </div>
+   491→          
+   492→          {/* Stock indicator */}
+   493→          <div className={`text-[10px] font-bold mt-1 ${isLowStock ? 'text-[#FB923C]' : isSoldOut ? 'text-[#717971]' : 'text-[#6CB4EE]'}`}>
+   494→            {isSoldOut ? 'Sold out' : isLowStock ? `🔥 ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
+   495→          </div>
+   496→        </div>
+   497→      </div>
+   498→    </div>
+   499→  )
+   500→})
+   501→
+   502→// ============================================
+   503→// COUNTDOWN TIMER OVERLAY (compact, for cards)
+   504→// ============================================
+   505→const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }: { expiresAt: string }) {
+   506→  const [timeLeft, setTimeLeft] = useState('')
+   507→
+   508→  useEffect(() => {
+   509→    const update = () => {
+   510→      const diff = new Date(expiresAt).getTime() - Date.now()
+   511→      if (diff <= 0) { setTimeLeft('Expired'); return }
+   512→      const hours = Math.floor(diff / 3600000)
+   513→      const mins = Math.floor((diff % 3600000) / 60000)
+   514→      const secs = Math.floor((diff % 60000) / 1000)
+   515→      if (hours > 0) setTimeLeft(`${hours}h ${mins}m`)
+   516→      else if (mins > 0) setTimeLeft(`${mins}m ${secs}s`)
+   517→      else setTimeLeft(`${secs}s`)
+   518→    }
+   519→    update()
+   520→    const interval = setInterval(update, 1000)
+   521→    return () => clearInterval(interval)
+   522→  }, [expiresAt])
+   523→
+   524→  const isUrgent = timeLeft !== 'Expired' && !timeLeft.includes('h')
+   525→
+   526→  return (
+   527→    <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md backdrop-blur-sm ${
+   528→      timeLeft === 'Expired' 
+   529→        ? 'bg-black/40 text-white/70' 
+   530→        : isUrgent 
+   531→        ? 'bg-[#FB923C]/90 text-white animate-pulse-urgent' 
+   532→        : 'bg-black/40 text-white/90'
+   533→    }`}>
+   534→      <Clock className="w-2.5 h-2.5" />
+   535→      {timeLeft}
+   536→    </span>
+   537→  )
+   538→})
+   539→
+   540→// ============================================
+   541→// QR CODE IMAGE COMPONENT (generates real QR from qrCode string)
+   542→// ============================================
+   543→function QRCodeImage({ qrCode }: { qrCode: string }) {
+   544→  const [src, setSrc] = useState<string | null>(null)
+   545→  const [error, setError] = useState(false)
+   546→
+   547→  useEffect(() => {
+   548→    let cancelled = false
+   549→    import('qrcode').then((QRCode) => {
+   550→      if (cancelled) return
+   551→      QRCode.toDataURL(qrCode, {
+   552→        width: 220,
+   553→        margin: 2,
+   554→        color: { dark: '#1a1c1e', light: '#ffffff' },
+   555→        errorCorrectionLevel: 'M',
+   556→      }).then((url: string) => {
+   557→        if (!cancelled) setSrc(url)
+   558→      }).catch(() => {
+   559→        if (!cancelled) setError(true)
+   560→      })
+   561→    }).catch(() => {
+   562→      if (!cancelled) setError(true)
+   563→    })
+   564→    return () => { cancelled = true }
+   565→  }, [qrCode])
+   566→
+   567→  if (error || !src) {
+   568→    return (
+   569→      <div className="w-[220px] h-[220px] flex items-center justify-center bg-[#f0f4f2] rounded-xl">
+   570→        <QrCode className="w-20 h-20 text-[#6CB4EE]" />
+   571→      </div>
+   572→    )
+   573→  }
+   574→
+   575→  return (
+   576→    <Image
+   577→      src={src}
+   578→      alt="QR Code for order pickup"
+   579→      width={220}
+   580→      height={220}
+   581→      className="rounded-lg"
+   582→      unoptimized
+   583→    />
+   584→  )
+   585→}
+   586→
+   587→// ============================================
+   588→// IMAGE UPLOADER COMPONENT
+   589→// High-tech drag-and-drop + camera upload with auto-resize
+   590→// ============================================
+   591→interface ImageUploaderProps {
+   592→  /** Which preset group to use for auto-sizing */
+   593→  group: 'profile' | 'vendor_logo' | 'vendor_banner' | 'deal' | 'notification'
+   594→  /** Current image URL (for preview) */
+   595→  currentUrl?: string | null
+   596→  /** Called with the new URL after successful upload */
+   597→  onUploadComplete: (url: string, urls: Record<string, string>) => void
+   598→  /** Optional label */
+   599→  label?: string
+   600→  /** Optional size hint */
+   601→  sizeHint?: string
+   602→  /** Circle crop for avatars */
+   603→  circular?: boolean
+   604→  /** Compact mode (no label, smaller) */
+   605→  compact?: boolean
+   606→}
+   607→
+   608→function ImageUploader({
+   609→  group,
+   610→  currentUrl,
+   611→  onUploadComplete,
+   612→  label,
+   613→  sizeHint,
+   614→  circular = false,
+   615→  compact = false,
+   616→}: ImageUploaderProps) {
+   617→  const [dragging, setDragging] = useState(false)
+   618→  const [uploading, setUploading] = useState(false)
+   619→  const [progress, setProgress] = useState(0)
+   620→  const [preview, setPreview] = useState<string | null>(null)
+   621→  const [fileError, setFileError] = useState<string | null>(null)
+   622→  const fileInputRef = useRef<HTMLInputElement>(null)
+   623→
+   624→  const handleFile = async (file: File) => {
+   625→    const { validateImageFile } = await import('@/lib/image-utils')
+   626→    const validation = validateImageFile(file)
+   627→    if (!validation.valid) {
+   628→      setFileError(validation.error ?? 'Invalid file')
+   629→      return
+   630→    }
+   631→    setFileError(null)
+   632→
+   633→    // Show preview immediately
+   634→    const reader = new FileReader()
+   635→    reader.onload = (e) => setPreview(e.target?.result as string)
+   636→    reader.readAsDataURL(file)
+   637→
+   638→    setUploading(true)
+   639→    setProgress(0)
+   640→
+   641→    try {
+   642→      const { quickUpload } = await import('@/lib/image-utils')
+   643→      const { uploadImageVariants } = await import('@/lib/image-utils')
+   644→      const result = await uploadImageVariants(file, group, {
+   645→        onProgress: setProgress,
+   646→      })
+   647→
+   648→      // Get the primary URL for this group
+   649→      const primaryKey: Record<string, string> = {
+   650→        profile: 'avatar',
+   651→        vendor_logo: 'logo',
+   652→        vendor_banner: 'banner',
+   653→        deal: 'medium',
+   654→        notification: 'notif',
+   655→      }
+   656→      const primaryUrl = result.urls[primaryKey[group]] || result.originalUrl
+   657→      onUploadComplete(primaryUrl, result.urls)
+   658→      toast.success('Image uploaded!')
+   659→    } catch (err) {
+   660→      toast.error(err instanceof Error ? err.message : 'Upload failed')
+   661→      setPreview(null)
+   662→    } finally {
+   663→      setUploading(false)
+   664→      setProgress(0)
+   665→    }
+   666→  }
+   667→
+   668→  const handleDrop = (e: React.DragEvent) => {
+   669→    e.preventDefault()
+   670→    setDragging(false)
+   671→    const file = e.dataTransfer.files?.[0]
+   672→    if (file) handleFile(file)
+   673→  }
+   674→
+   675→  const handleDragOver = (e: React.DragEvent) => {
+   676→    e.preventDefault()
+   677→    setDragging(true)
+   678→  }
+   679→
+   680→  const handleDragLeave = () => setDragging(false)
+   681→
+   682→  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   683→    const file = e.target.files?.[0]
+   684→    if (file) handleFile(file)
+   685→  }
+   686→
+   687→  const displayUrl = preview || currentUrl
+   688→
+   689→  if (compact) {
+   690→    return (
+   691→      <div>
+   692→        {fileError && (
+   693→          <p className="text-xs text-[#EF4444] font-medium mb-1.5 flex items-center gap-1">
+   694→            <AlertCircle className="w-3 h-3 flex-shrink-0" />
+   695→            {fileError}
+   696→          </p>
+   697→        )}
+   698→        <div
+   699→          onDrop={handleDrop}
+   700→          onDragOver={handleDragOver}
+   701→          onDragLeave={handleDragLeave}
+   702→          onClick={() => !uploading && fileInputRef.current?.click()}
+   703→          className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#6CB4EE]' : ''}`}
+   704→        >
+   705→          {displayUrl ? (
+   706→          <div className={`relative ${circular ? 'w-20 h-20' : 'w-24 h-16'}`}>
+   707→            <Image src={displayUrl} alt="Upload" fill className={`${circular ? 'rounded-full' : 'rounded-xl'} object-cover`} unoptimized />
+   708→            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+   709→              {uploading ? (
+   710→                <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin" />
+   711→              ) : (
+   712→                <Camera className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+   713→              )}
+   714→            </div>
+   715→          </div>
+   716→        ) : (
+   717→          <div className={`${circular ? 'w-20 h-20' : 'w-24 h-16'} flex items-center justify-center bg-[#f0f4f2] ${circular ? 'rounded-full' : 'rounded-xl'} border-2 border-dashed border-[#c1c9c0]`}>
+   718→            {uploading ? (
+   719→              <div className="w-6 h-6 rounded-full border-2 border-[#6CB4EE] border-t-transparent animate-spin" />
+   720→            ) : (
+   721→              <PlusCircle className="w-5 h-5 text-[#717971]" />
+   722→            )}
+   723→          </div>
+   724→        )}
+   725→          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+   726→        </div>
+   727→      </div>
+   728→    )
+   729→  }
+   730→
+   731→  return (
+   732→    <div className="space-y-1.5">
+   733→      {label && <Label className="text-[11px] font-bold text-[#414841]">{label}</Label>}
+   734→      {fileError && (
+   735→        <p className="text-xs text-[#EF4444] font-medium mb-1.5 flex items-center gap-1">
+   736→          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+   737→          {fileError}
+   738→        </p>
+   739→      )}
+   740→      <div
+   741→        onDrop={handleDrop}
+   742→        onDragOver={handleDragOver}
+   743→        onDragLeave={handleDragLeave}
+   744→        onClick={() => !uploading && fileInputRef.current?.click()}
+   745→        className={`relative cursor-pointer group border-2 border-dashed rounded-xl transition-all ${
+   746→          dragging ? 'border-[#6CB4EE] bg-[#6CB4EE]/5' : 'border-[#d7ddd9] bg-[#f8faf9] hover:border-[#8FC5E8]'
+   747→        } ${displayUrl ? 'p-0 overflow-hidden' : 'p-6'}`}
+   748→      >
+   749→        {displayUrl ? (
+   750→          <div className="relative">
+   751→            <div className={`${circular ? 'w-24 h-24 mx-auto rounded-full' : 'w-full h-40'} overflow-hidden`}>
+   752→              <Image src={displayUrl} alt="Preview" fill className={`${circular ? 'rounded-full' : ''} object-cover`} unoptimized />
+   753→            </div>
+   754→            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+   755→              {uploading ? (
+   756→                <div className="flex flex-col items-center">
+   757→                  <div className="w-8 h-8 rounded-full border-2 border-white border-t-transparent animate-spin mb-2" />
+   758→                  <span className="text-white text-xs font-bold">{progress}%</span>
+   759→                </div>
+   760→              ) : (
+   761→                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+   762→                  <Camera className="w-5 h-5 text-white" />
+   763→                  <span className="text-white text-sm font-bold">Change Photo</span>
+   764→                </div>
+   765→              )}
+   766→            </div>
+   767→          </div>
+   768→        ) : (
+   769→          <div className="text-center">
+   770→            {uploading ? (
+   771→              <div className="flex flex-col items-center">
+   772→                <div className="w-10 h-10 rounded-full border-3 border-[#6CB4EE] border-t-transparent animate-spin mb-2" />
+   773→                <p className="text-xs text-[#717971]">Uploading... {progress}%</p>
+   774→                <Progress value={progress} className="w-32 h-1.5 mt-2" />
+   775→              </div>
+   776→            ) : (
+   777→              <>
+   778→                <div className="w-12 h-12 rounded-full bg-[#6CB4EE]/10 flex items-center justify-center mx-auto mb-2">
+   779→                  <Camera className="w-6 h-6 text-[#6CB4EE]" />
+   780→                </div>
+   781→                <p className="text-sm font-bold text-[#1a1c1e]">
+   782→                  {dragging ? 'Drop image here' : 'Tap to upload'}
+   783→                </p>
+   784→                <p className="text-[11px] text-[#717971] mt-0.5">
+   785→                  Drag & drop or tap to browse
+   786→                </p>
+   787→                {sizeHint && (
+   788→                  <p className="text-[10px] text-[#717971] mt-1">{sizeHint}</p>
+   789→                )}
+   790→              </>
+   791→            )}
+   792→          </div>
+   793→        )}
+   794→        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleInputChange} className="hidden" />
+   795→      </div>
+   796→      {uploading && !displayUrl && (
+   797→        <Progress value={progress} className="h-1.5" />
+   798→      )}
+   799→    </div>
+   800→  )
+
+[showing lines 1-800 of 6328; use offset=801 with limit to continue reading]
