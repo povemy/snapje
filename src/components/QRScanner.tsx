@@ -4,47 +4,31 @@
  * QRScanner — Continuous live camera QR code scanner
  * ================================================
  *
- * A dedicated Client Component that uses html5-qrcode's
- * Html5QrcodeScanner for a continuous, live camera feed that
- * auto-detects QR codes on hover — no manual photo snapping.
+ * Uses html5-qrcode's Html5Qrcode class (NOT Html5QrcodeScanner) for
+ * a lightweight continuous camera feed that auto-detects QR codes
+ * on hover — no manual photo snapping required.
  *
- * Next.js requirements followed:
- * 1. 'use client' at the very top (this file is a Client Component).
- * 2. Html5QrcodeScanner is dynamically imported inside useEffect,
- *    so its execution is completely isolated from SSR.
- * 3. The scanner is initialized ONLY after mount (inside useEffect).
- * 4. A unique ID "qr-reader" is passed to Html5QrcodeScanner, and a
- *    matching <div id="qr-reader"> is rendered directly in the return
- *    statement — NOT hidden behind any isLoading / if (!mounted) guard.
- * 5. Scanner config: { fps: 10, qrbox: { width: 250, height: 250 } }.
- * 6. Cleanup calls scanner.clear().catch(...) to properly unmount the
- *    video track and prevent double-initialization during Fast Refresh.
- * 7. A success callback fires when a QR code is detected.
+ * The scanner tries multiple camera configurations in order:
+ *   1. Back camera (facingMode: 'environment') — preferred for scanning
+ *   2. Front camera (facingMode: 'user')
+ *   3. Any available camera (true)
  *
- * CRITICAL — "Element not found" prevention:
- * The <div id="qr-reader"> is ALWAYS rendered in the JSX return. It is
- * never conditionally hidden. The scanner initializes inside useEffect
- * after mount, at which point the div is guaranteed to be in the DOM.
+ * Next.js requirements:
+ * 1. 'use client' at the very top
+ * 2. Html5Qrcode dynamically imported (SSR-isolated)
+ * 3. useEffect initializes scanner after mount
+ * 4. Unique element ID "qr-reader" with matching <div>
+ * 5. Config: { fps: 10, qrbox: { width: 250, height: 250 } }
+ * 6. Cleanup: scanner.stop().then(clear).catch() on unmount
+ * 7. Success callback with duplicate-fire guard
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { Camera, XCircle, RefreshCw, AlertCircle } from 'lucide-react'
-
-// --- Types for the dynamically-imported scanner ---
-interface Html5QrcodeScannerInstance {
-  render: (
-    onSuccess: (decodedText: string, decodedResult: unknown) => void,
-    onError: (errorMessage: string) => void
-  ) => void
-  clear: () => Promise<void>
-  getState: () => number
-}
 
 interface QRScannerProps {
   /** Called when a QR code is successfully decoded. */
   onScan: (decodedText: string) => void
-  /** Called when the user clicks the "Stop Scanner" button. */
-  onStop?: () => void
   /** Whether the parent is currently processing a scan result. */
   processing?: boolean
 }
@@ -52,130 +36,144 @@ interface QRScannerProps {
 // Unique element ID — must match the <div id="qr-reader"> in the JSX.
 const READER_ID = 'qr-reader'
 
-export default function QRScanner({ onScan, onStop, processing }: QRScannerProps) {
-  const scannerRef = useRef<Html5QrcodeScannerInstance | null>(null)
+// Camera configurations to try, in order of preference.
+const CAMERA_CONFIGS = [
+  { facingMode: 'environment' }, // back camera (preferred)
+  { facingMode: 'user' },        // front camera
+  true,                           // any camera (last resort)
+]
+
+export default function QRScanner({ onScan, processing }: QRScannerProps) {
+  const scannerRef = useRef<unknown>(null)
   const [active, setActive] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [starting, setStarting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const alreadyFiredRef = useRef(false)
 
   /**
-   * Initialize the scanner when the user clicks "Start Scanner".
-   * We do NOT auto-start on mount because:
-   *   - Browser permission prompts should be user-initiated
-   *   - getUserMedia requires a secure context + user gesture
-   *
-   * Once started, the scanner renders a live camera feed inside
-   * the <div id="qr-reader"> and continuously scans for QR codes.
+   * Start the live camera scanner with continuous auto-detection.
+   * Tries multiple camera configs until one works.
    */
-  const startScanner = async () => {
+  const startScanner = useCallback(async () => {
     if (scannerRef.current || starting) return // idempotency guard
     setStarting(true)
     setError(null)
+    alreadyFiredRef.current = false
 
     try {
-      // Dynamically import — keeps html5-qrcode out of the SSR bundle.
-      const { Html5QrcodeScanner } = await import('html5-qrcode')
+      const { Html5Qrcode } = await import('html5-qrcode')
 
-      // Guard again after the async import — a double-click could race.
+      // Guard again after async import
       if (scannerRef.current) {
         setStarting(false)
         return
       }
 
-      // Create the scanner with the unique element ID and config.
-      // Html5QrcodeScanner renders its own UI (camera view + scan region
-      // + result display) inside the target div.
-      const scanner = new Html5QrcodeScanner(
-        READER_ID,
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          // Use the back camera on mobile (environment), fall back to any.
-          // rememberLastUsedCamera: true saves the permission for next time.
-        },
-        /* verbose= */ false
-      ) as unknown as Html5QrcodeScannerInstance
+      const html5QrCode = new Html5Qrcode(READER_ID)
+      scannerRef.current = html5QrCode
 
-      scannerRef.current = scanner
+      // QR code detected callback — fires continuously, so we guard duplicates
+      const onSuccess = (decodedText: string) => {
+        if (alreadyFiredRef.current || processing) return
+        alreadyFiredRef.current = true
+        onScan(decodedText)
+      }
 
-      // Render the scanner UI + start the camera.
-      // The success callback fires on EVERY detection — we stop after the
-      // first valid one to avoid duplicate processing.
-      let alreadyFired = false
-      scanner.render(
-        (decodedText: string) => {
-          // Guard against duplicate callbacks (html5-qrcode can fire
-          // multiple times rapidly for the same code).
-          if (alreadyFired || processing) return
-          alreadyFired = true
-          onScan(decodedText)
-        },
-        (errorMessage: string) => {
-          // Per-frame "no QR found" errors are expected and harmless.
-          // Only log actual camera/permission errors.
-          if (errorMessage.includes('NotAllowedError') || errorMessage.includes('NotFoundError')) {
-            setError('Camera access denied. Please allow camera permissions and try again.')
-          }
-          // Silently ignore other errors (normal scan-miss noise).
+      // Per-frame "no QR found" — ignore (normal scanning noise)
+      const onError = () => {}
+
+      // Try each camera config until one works
+      let started = false
+      let lastError: unknown = null
+
+      for (const config of CAMERA_CONFIGS) {
+        try {
+          await html5QrCode.start(
+            config,
+            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+            onSuccess,
+            onError
+          )
+          started = true
+          break // success — stop trying configs
+        } catch (err) {
+          lastError = err
+          // This config failed — try the next one
         }
-      )
+      }
+
+      if (!started) {
+        // All camera configs failed
+        throw lastError || new Error('No camera available')
+      }
 
       setActive(true)
     } catch (err) {
-      console.error('QRScanner init error:', err)
-      setError(
-        err instanceof Error && err.message.includes('NotAllowed')
-          ? 'Camera access denied. Please allow camera permissions in your browser settings.'
-          : 'Could not start camera. Make sure you are on HTTPS and have granted camera permission.'
-      )
+      console.error('QRScanner camera error:', err)
+      const errMsg = err instanceof Error
+        ? (err.name === 'NotAllowedError'
+            ? 'Camera permission denied. Please allow camera access in your browser settings and try again.'
+            : err.name === 'NotFoundError'
+            ? 'No camera found on this device.'
+            : 'Could not start camera. Make sure you are on HTTPS and have granted camera permission.')
+        : 'Could not start camera.'
+      setError(errMsg)
+      // Clean up the scanner instance
+      const scanner = scannerRef.current as { clear: () => void } | null
+      if (scanner) {
+        try { scanner.clear() } catch { /* ignore */ }
+      }
       scannerRef.current = null
       setActive(false)
     } finally {
       setStarting(false)
     }
-  }
+  }, [onScan, processing, starting])
 
   /**
    * Stop the scanner and release the camera.
-   * Calls scanner.clear() which stops the video track and removes the UI.
    */
-  const stopScanner = async () => {
-    const scanner = scannerRef.current
-    if (!scanner) {
+  const stopScanner = useCallback(async () => {
+    const html5QrCode = scannerRef.current as {
+      stop: () => Promise<void>
+      clear: () => void
+    } | null
+
+    if (!html5QrCode) {
       setActive(false)
       return
     }
+
     try {
-      // clear() is the official teardown method for Html5QrcodeScanner.
-      // It stops the camera, removes the video element, and cleans up
-      // event listeners. MUST be called to release the webcam.
-      await scanner.clear()
+      // stop() turns off the camera; clear() removes the DOM elements
+      await html5QrCode.stop()
+      html5QrCode.clear()
     } catch (err) {
-      console.warn('QRScanner clear error (non-fatal):', err)
+      // If stop() fails, still try to clear
+      try { html5QrCode.clear() } catch { /* ignore */ }
     } finally {
       scannerRef.current = null
       setActive(false)
-      onStop?.()
     }
-  }
+  }, [])
 
   /**
    * CRITICAL cleanup on unmount.
-   * This runs when the component is removed from the DOM (navigation away,
-   * Fast Refresh/hot-reload, conditional unmount). Without this, the camera
-   * stays on and the webcam indicator stays lit — a memory leak + privacy
-   * concern. scanner.clear() is async; we call .catch() to prevent
-   * unhandled rejections during Fast Refresh.
+   * Prevents memory leaks and camera staying on during Fast Refresh.
    */
   useEffect(() => {
     return () => {
-      const scanner = scannerRef.current
-      if (scanner) {
-        // .clear() returns a Promise; .catch() prevents unhandled rejection
-        // during Next.js Fast Refresh / hot-reloading.
-        scanner.clear().catch(() => {
-          /* ignore — component is already unmounting */
-        })
+      const html5QrCode = scannerRef.current as {
+        stop: () => Promise<void>
+        clear: () => void
+      } | null
+      if (html5QrCode) {
+        // .catch() prevents unhandled rejection during Fast Refresh
+        html5QrCode.stop()
+          .then(() => html5QrCode.clear())
+          .catch(() => {
+            try { html5QrCode.clear() } catch { /* ignore */ }
+          })
         scannerRef.current = null
       }
     }
@@ -183,11 +181,10 @@ export default function QRScanner({ onScan, onStop, processing }: QRScannerProps
 
   return (
     <div className="w-full">
-      {/* The scanner target div — ALWAYS rendered, never conditionally hidden.
-          Html5QrcodeScanner injects the camera view + UI into this div.
-          If this div were hidden behind an isLoading guard, the scanner
-          would throw "Element not found" on initialization. */}
-      <div id={READER_ID} className="w-full max-w-md mx-auto" />
+      {/* The scanner target div — ALWAYS rendered, never hidden.
+          Html5Qrcode injects the <video> element into this div.
+          If hidden behind a conditional, the scanner throws "Element not found". */}
+      <div id={READER_ID} className="w-full rounded-xl overflow-hidden" style={{ minHeight: active ? '200px' : '0' }} />
 
       {/* Controls */}
       {!active ? (

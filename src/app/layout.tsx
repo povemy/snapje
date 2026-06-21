@@ -57,66 +57,127 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
         {/* ================================================================
-            HMR Reload Suppressor — MUST run in <head> BEFORE Next.js's HMR
-            client script so we can override location.reload before it's used.
+            HMR Auto-Refresh Killer — Multi-layer defense
             ================================================================
+            PROBLEM: Next.js dev mode injects an HMR client that connects
+            via WebSocket to /_next/webpack-hmr. When accessed through ngrok
+            or a preview proxy, the WebSocket can't connect. After repeated
+            failures, the HMR client triggers a FULL PAGE RELOAD — causing
+            the app to "keep refreshing itself".
 
-            WHY: Next.js dev mode uses HMR via a WebSocket at
-            /_next/webpack-hmr. When accessed through ngrok or a preview
-            proxy, this WebSocket can't connect. After repeated failures,
-            the HMR client calls location.reload() to recover — causing the
-            app to "keep refreshing itself".
+            The refresh happens via multiple paths:
+              1. location.reload()
+              2. location.href = location.href
+              3. location.replace(location.href)
+              4. history.go(0)
+              5. The HMR client's internal reload logic
 
-            FIX: Override window.location.reload to be a no-op for 30s after
-            page load. User-initiated refreshes (Ctrl+R, pull-to-refresh) are
-            NOT affected because they use the browser's native reload mechanism,
-            not window.location.reload() from JS.
+            Previous attempts to override location.reload() didn't work
+            because Turbopack's HMR client uses multiple reload paths.
+
+            NEW APPROACH — Kill it at the source:
+              A. Override WebSocket to silently fail for HMR URLs. The HMR
+                 client gets a fake "connected" socket that does nothing.
+                 It never detects a failure → never triggers a reload.
+              B. Block ALL programmatic reload mechanisms permanently
+                 (not just 30s) — user refreshes (Ctrl+R, pull-to-refresh)
+                 still work because they use the browser's native reload,
+                 not the JS API.
             ================================================================ */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             if (typeof window === 'undefined') return;
 
-            var pageLoadTime = Date.now();
-            var BLOCK_DURATION = 30000; // 30 seconds — covers the HMR retry window
+            // ── LAYER 1: Neuter the HMR WebSocket ──────────────────────
+            // Override WebSocket so HMR connections get a silent no-op
+            // socket instead of a real connection. The HMR client thinks
+            // it's "connected" and never triggers a reload.
+            var OrigWebSocket = window.WebSocket;
+            window.WebSocket = function(url, protocols) {
+              // Check if this is an HMR connection
+              var isHMR = false;
+              try {
+                isHMR = typeof url === 'string' && (
+                  url.indexOf('webpack-hmr') !== -1 ||
+                  url.indexOf('_next/webpack') !== -1 ||
+                  url.indexOf('/_next/') !== -1 && url.indexOf('hmr') !== -1
+                );
+              } catch(e) {}
 
-            // Override location.reload on the PROTOTYPE (not the instance)
-            // so it catches ALL calls — including from HMR client code that
-            // captured a reference to location.reload before our script ran.
+              if (isHMR) {
+                // Return a FAKE WebSocket that silently does nothing.
+                // The HMR client gets a "connected" socket that never
+                // sends or receives data → no reload trigger.
+                var fake = {
+                  readyState: 1, // OPEN
+                  CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3,
+                  binaryType: 'blob',
+                  bufferedAmount: 0,
+                  extensions: '',
+                  protocol: '',
+                  url: url,
+                  onopen: null, onclose: null, onerror: null, onmessage: null,
+                  addEventListener: function() {},
+                  removeEventListener: function() {},
+                  dispatchEvent: function() { return false; },
+                  send: function() {},
+                  close: function() {
+                    this.readyState = 3; // CLOSED
+                  },
+                };
+                // Fire onopen asynchronously (like a real WebSocket)
+                setTimeout(function() {
+                  if (fake.onopen) fake.onopen({ type: 'open', target: fake });
+                }, 0);
+                return fake;
+              }
+
+              // Real WebSocket for everything else (socket.io, etc.)
+              return protocols !== undefined
+                ? new OrigWebSocket(url, protocols)
+                : new OrigWebSocket(url);
+            };
+            // Copy static properties
+            window.WebSocket.CONNECTING = 0;
+            window.WebSocket.OPEN = 1;
+            window.WebSocket.CLOSING = 2;
+            window.WebSocket.CLOSED = 3;
+            window.WebSocket.prototype = OrigWebSocket.prototype;
+
+            // ── LAYER 2: Block ALL programmatic reloads ────────────────
+            // Permanently block JS-initiated reloads. User-initiated
+            // refreshes (Ctrl+R, pull-to-refresh, address bar) still work
+            // because they bypass the JS API entirely.
             try {
               var locProto = window.Location.prototype;
               var origReload = locProto.reload;
               locProto.reload = function() {
-                if (Date.now() - pageLoadTime < BLOCK_DURATION) {
-                  console.warn('[FlashBite] Blocked auto-reload (HMR recovery). App stays stable.');
+                console.warn('[FlashBite] Blocked location.reload() — app stays stable.');
+              };
+            } catch(e) {}
+
+            // Block location.replace(self) — another reload path
+            try {
+              var origReplace = locProto.replace;
+              locProto.replace = function(url) {
+                if (url === window.location.href || url === window.location.pathname) {
+                  console.warn('[FlashBite] Blocked location.replace(self) — app stays stable.');
                   return;
                 }
-                return origReload.call(this);
+                return origReplace.call(this, url);
               };
-            } catch(e) {
-              console.warn('[FlashBite] Could not override Location.prototype.reload:', e);
-            }
+            } catch(e) {}
 
-            // Also override on the instance for browsers that don't use the prototype
+            // Block location.href self-assignment
             try {
-              var origInstReload = window.location.reload;
-              window.location.reload = function() {
-                if (Date.now() - pageLoadTime < BLOCK_DURATION) {
-                  console.warn('[FlashBite] Blocked auto-reload (instance). App stays stable.');
-                  return;
-                }
-                return origInstReload.call(window.location);
-              };
-            } catch(e) { /* ignore */ }
-
-            // Block location.href self-assignment (another HMR reload trick)
-            try {
-              var origHref = Object.getOwnPropertyDescriptor(window.Location.prototype, 'href');
+              var origHref = Object.getOwnPropertyDescriptor(locProto, 'href');
               if (origHref && origHref.set) {
-                Object.defineProperty(window.Location.prototype, 'href', {
+                Object.defineProperty(locProto, 'href', {
                   get: origHref.get,
                   set: function(val) {
-                    if (val === window.location.href && Date.now() - pageLoadTime < BLOCK_DURATION) {
-                      console.warn('[FlashBite] Blocked href self-assign reload (HMR recovery).');
+                    var current = window.location.href;
+                    if (val === current || val === window.location.pathname) {
+                      console.warn('[FlashBite] Blocked href self-assign — app stays stable.');
                       return;
                     }
                     origHref.set.call(this, val);
@@ -124,19 +185,21 @@ export default function RootLayout({
                   configurable: true,
                 });
               }
-            } catch(e) { /* some browsers restrict this */ }
+            } catch(e) {}
 
-            // Intercept setTimeout with string args containing 'reload'
-            var origSetTimeout = window.setTimeout;
-            window.setTimeout = function(fn, delay) {
-              if (typeof fn === 'string' && fn.indexOf('reload') !== -1 && Date.now() - pageLoadTime < BLOCK_DURATION) {
-                console.warn('[FlashBite] Blocked setTimeout reload.');
-                return 0;
-              }
-              return origSetTimeout.call(window, fn, delay);
-            };
+            // Block history.go(0) — another reload trick
+            try {
+              var origGo = window.history.go;
+              window.history.go = function(delta) {
+                if (delta === 0 || delta === undefined) {
+                  console.warn('[FlashBite] Blocked history.go(0) — app stays stable.');
+                  return;
+                }
+                return origGo.call(window.history, delta);
+              };
+            } catch(e) {}
 
-            // Service Worker Registration (PWA) — only on non-localhost
+            // ── LAYER 3: Service Worker (PWA) ──────────────────────────
             if ('serviceWorker' in navigator) {
               window.addEventListener('load', function() {
                 var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
