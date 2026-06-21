@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap, genId } from '@/lib/supabase'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
 
 export async function POST(
   request: Request,
@@ -8,9 +8,9 @@ export async function POST(
 ) {
   try {
     const { id } = await params
-    const authUser = await getAuthUser()
+    const authUser = await requireAdmin()
 
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+    if (!authUser) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

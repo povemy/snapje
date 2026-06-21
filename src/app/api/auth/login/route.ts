@@ -77,8 +77,12 @@ export async function POST(request: Request) {
     // Set cookies
     await setAuthCookies(accessToken, refreshToken)
 
-    // Return user data + tokens (tokens are also stored client-side in localStorage
-    // so auth works even when third-party cookies are blocked by the browser)
+    // CRITICAL FIX (tokens in localStorage): do NOT return the refresh token
+    // in the JSON body. The refresh token is only sent via the httpOnly
+    // cookie (Secure + SameSite) so it can never be exfiltrated from JS.
+    // The short-lived access token (15 min) is returned in the body so the
+    // client can persist it in localStorage for the Bearer-token flow used
+    // in the preview iframe where third-party cookies are blocked.
     const { passwordHash: _, ...userWithoutPassword } = user
     return NextResponse.json({
       success: true,
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(user.roles),
       },
-      tokens: { accessToken, refreshToken },
+      tokens: { accessToken },
     })
   } catch (error) {
     console.error('Login error:', error)

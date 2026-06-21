@@ -1,9 +1,28 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap, genId } from '@/lib/supabase'
+import { getAuthUser, hasRole } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
 export async function POST() {
   try {
+    // CRITICAL FIX (dev endpoint gating): never allow seeding in production,
+    // and require an authenticated admin in all other environments so an
+    // unauthenticated user cannot wipe/repopulate the database.
+    if (process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        { success: false, error: 'Seed endpoint is disabled in production' },
+        { status: 403 }
+      )
+    }
+
+    const authUser = await getAuthUser()
+    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+      return NextResponse.json(
+        { success: false, error: 'Admin authentication required to seed the database' },
+        { status: 403 }
+      )
+    }
+
     // Check if data already seeded
     const existingRes = await supabase
       .from('User')

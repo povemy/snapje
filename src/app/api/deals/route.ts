@@ -3,6 +3,8 @@ import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION, getDistanceTier } from '@/lib/distance'
 import { cache } from '@/lib/cache'
+import { isAllowedMediaUrl } from '@/lib/media/storage'
+import { clampPagination, escapeLike } from '@/lib/pagination'
 
 export async function GET(request: Request) {
   try {
@@ -14,8 +16,10 @@ export async function GET(request: Request) {
     const lng = parseFloat(searchParams.get('lng') || '')
     const maxDistance = parseFloat(searchParams.get('maxDistance') || '50')
     const search = searchParams.get('search')
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { page, pageSize } = clampPagination(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    )
 
     // Check cache (skip if vendorId or all status - vendor-specific data)
     const isVendorQuery = !!vendorId || status === 'all'
@@ -61,10 +65,11 @@ export async function GET(request: Request) {
       countQuery = countQuery.eq('category', category)
     }
 
-    // Apply search filter
+    // Apply search filter (LOW 6: escape LIKE wildcards)
     if (search) {
-      dealsQuery = dealsQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
-      countQuery = countQuery.or(`title.ilike.%${search}%,description.ilike.%${search}%`)
+      const s = escapeLike(search)
+      dealsQuery = dealsQuery.or(`title.ilike.%${s}%,description.ilike.%${s}%`)
+      countQuery = countQuery.or(`title.ilike.%${s}%,description.ilike.%${s}%`)
     }
 
     const [dealsResponse, countResponse] = await Promise.all([
@@ -201,14 +206,48 @@ export async function POST(request: Request) {
       )
     }
 
-    if (dealPrice >= originalPrice) {
+    // HIGH 6: URL allowlist — block arbitrary external image URLs.
+    if (imageUrl && !isAllowedMediaUrl(imageUrl)) {
+      return NextResponse.json(
+        { success: false, error: 'imageUrl must be a valid media URL hosted on FlashBite storage' },
+        { status: 400 }
+      )
+    }
+
+    // CRITICAL FIX: validate prices and quantities as positive finite numbers
+    // before any comparison/storage. Prevents negative/zero/NaN/non-finite
+    // inputs from being silently stored.
+    const origPriceNum = Number(originalPrice)
+    const dealPriceNum = Number(dealPrice)
+    const totalQtyNum = Number(totalQuantity)
+
+    if (!Number.isFinite(origPriceNum) || !Number.isFinite(dealPriceNum) || !Number.isFinite(totalQtyNum)) {
+      return NextResponse.json(
+        { success: false, error: 'originalPrice, dealPrice, and totalQuantity must be valid finite numbers' },
+        { status: 400 }
+      )
+    }
+    if (origPriceNum <= 0 || dealPriceNum <= 0) {
+      return NextResponse.json(
+        { success: false, error: 'originalPrice and dealPrice must be greater than 0' },
+        { status: 400 }
+      )
+    }
+    if (!Number.isInteger(totalQtyNum) || totalQtyNum < 1) {
+      return NextResponse.json(
+        { success: false, error: 'totalQuantity must be a positive integer (>= 1)' },
+        { status: 400 }
+      )
+    }
+
+    if (dealPriceNum >= origPriceNum) {
       return NextResponse.json(
         { success: false, error: 'Deal price must be less than original price' },
         { status: 400 }
       )
     }
 
-    if (totalQuantity < 1) {
+    if (totalQtyNum < 1) {
       return NextResponse.json(
         { success: false, error: 'Total quantity must be at least 1' },
         { status: 400 }
@@ -224,7 +263,7 @@ export async function POST(request: Request) {
     }
 
     // Calculate discount percent
-    const discountPercent = Math.round(((originalPrice - dealPrice) / originalPrice) * 100)
+    const discountPercent = Math.round(((origPriceNum - dealPriceNum) / origPriceNum) * 100)
 
     const deal = unwrap(
       await supabase.from('Deal').insert({
@@ -234,13 +273,13 @@ export async function POST(request: Request) {
         description: description.trim(),
         category,
         imageUrl: imageUrl || null,
-        originalPrice: parseFloat(originalPrice),
-        dealPrice: parseFloat(dealPrice),
+        originalPrice: origPriceNum,
+        dealPrice: dealPriceNum,
         discountPercent,
-        totalQuantity: parseInt(totalQuantity),
+        totalQuantity: totalQtyNum,
         reservedQuantity: 0,
         soldQuantity: 0,
-        availableQuantity: parseInt(totalQuantity),
+        availableQuantity: totalQtyNum,
         maxClaimsPerUser: maxClaimsPerUser || 1,
         status: 'active',
         pickupOnly: true,

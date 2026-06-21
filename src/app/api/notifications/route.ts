@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
+import { clampPagination } from '@/lib/pagination'
 
 export async function GET(request: Request) {
   try {
@@ -14,8 +15,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { page, pageSize } = clampPagination(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    )
     const skip = (page - 1) * pageSize
 
     let query = supabase

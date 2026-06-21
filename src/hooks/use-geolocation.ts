@@ -82,6 +82,11 @@ export function useGeolocation(): GeolocationState {
       setLocalLocation(cached)
     }
 
+    // HIGH 9: a `cancelled` flag guards the async .then() below. If the
+    // component unmounts before the Promise resolves, we MUST NOT touch
+    // statusRef or attach an onchange handler — doing so would leak a
+    // listener that fires setState on an unmounted component.
+    let cancelled = false
     let statusRef: PermissionStatus | null = null
     if (
       typeof navigator !== 'undefined' &&
@@ -92,6 +97,12 @@ export function useGeolocation(): GeolocationState {
         navigator.permissions
           .query({ name: 'geolocation' as PermissionName })
           .then((status) => {
+            if (cancelled) {
+              // Component already unmounted — detach the handler we never
+              // attached and bail out. No state updates, no listener leak.
+              status.onchange = null
+              return
+            }
             statusRef = status
             setPermission(status.state as GeolocationPermission)
             status.onchange = () => {
@@ -103,14 +114,15 @@ export function useGeolocation(): GeolocationState {
           })
           .catch(() => {
             // Some browsers (Safari) don't support `geolocation` permission name.
-            setPermission('unknown')
+            if (!cancelled) setPermission('unknown')
           })
       } catch {
-        setPermission('unknown')
+        if (!cancelled) setPermission('unknown')
       }
     }
 
     return () => {
+      cancelled = true
       // Detach the onchange handler to avoid stale state updates after unmount.
       if (statusRef) {
         statusRef.onchange = null

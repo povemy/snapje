@@ -202,6 +202,11 @@ export async function POST(
         availableQuantity: currentDeal.availableQuantity - quantity,
       }).eq('id', id)
 
+      // CRITICAL FIX: release the in-memory reservation lock on the success
+      // path too — previously it was only released on DB error, leaking the
+      // lock on every successful claim and eventually wedging all claims.
+      reservationManager.release(id)
+
       return NextResponse.json({
         success: true,
         data: {

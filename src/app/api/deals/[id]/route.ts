@@ -3,6 +3,7 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION } from '@/lib/distance'
 import { cache } from '@/lib/cache'
+import { isAllowedMediaUrl } from '@/lib/media/storage'
 
 export async function GET(
   request: Request,
@@ -109,18 +110,64 @@ export async function PATCH(
     if (title !== undefined) updateData.title = title.trim()
     if (description !== undefined) updateData.description = description.trim()
     if (category !== undefined) updateData.category = category
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl
+    if (imageUrl !== undefined) {
+      // HIGH 6: URL allowlist for media URLs.
+      if (imageUrl && !isAllowedMediaUrl(imageUrl)) {
+        return NextResponse.json(
+          { success: false, error: 'imageUrl must be a valid media URL hosted on FlashBite storage' },
+          { status: 400 }
+        )
+      }
+      updateData.imageUrl = imageUrl
+    }
     if (pickupInstructions !== undefined) updateData.pickupInstructions = pickupInstructions
-    if (status !== undefined) updateData.status = status
     if (expiresAt !== undefined) updateData.expiresAt = new Date(expiresAt).toISOString()
 
-    if (originalPrice !== undefined) updateData.originalPrice = parseFloat(originalPrice)
-    if (dealPrice !== undefined) updateData.dealPrice = parseFloat(dealPrice)
+    // MEDIUM FIX: status enum validation. Without this, clients could set
+    // arbitrary status strings.
+    if (status !== undefined) {
+      const validStatuses = ['active', 'paused', 'expired', 'sold_out', 'cancelled']
+      if (!validStatuses.includes(status)) {
+        return NextResponse.json(
+          { success: false, error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400 }
+        )
+      }
+      updateData.status = status
+    }
+
+    // CRITICAL FIX: validate price/quantity positivity when provided.
+    if (originalPrice !== undefined) {
+      const n = Number(originalPrice)
+      if (!Number.isFinite(n) || n <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'originalPrice must be a positive finite number' },
+          { status: 400 }
+        )
+      }
+      updateData.originalPrice = n
+    }
+    if (dealPrice !== undefined) {
+      const n = Number(dealPrice)
+      if (!Number.isFinite(n) || n <= 0) {
+        return NextResponse.json(
+          { success: false, error: 'dealPrice must be a positive finite number' },
+          { status: 400 }
+        )
+      }
+      updateData.dealPrice = n
+    }
 
     // Recalculate discount if prices changed
     if (originalPrice !== undefined || dealPrice !== undefined) {
-      const origP = parseFloat(originalPrice ?? deal.originalPrice.toString())
-      const dealP = parseFloat(dealPrice ?? deal.dealPrice.toString())
+      const origP = Number(originalPrice ?? deal.originalPrice)
+      const dealP = Number(dealPrice ?? deal.dealPrice)
+      if (!Number.isFinite(origP) || !Number.isFinite(dealP)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid price values' },
+          { status: 400 }
+        )
+      }
       if (dealP >= origP) {
         return NextResponse.json(
           { success: false, error: 'Deal price must be less than original price' },
@@ -132,7 +179,14 @@ export async function PATCH(
 
     // Recalculate availableQuantity if totalQuantity changed
     if (totalQuantity !== undefined) {
-      const newTotal = parseInt(totalQuantity)
+      // MEDIUM FIX: validate totalQuantity is a positive integer
+      const newTotal = Number(totalQuantity)
+      if (!Number.isInteger(newTotal) || newTotal < 1) {
+        return NextResponse.json(
+          { success: false, error: 'totalQuantity must be a positive integer (>= 1)' },
+          { status: 400 }
+        )
+      }
       if (newTotal < deal.soldQuantity + deal.reservedQuantity) {
         return NextResponse.json(
           { success: false, error: 'Cannot reduce total quantity below sold + reserved items' },

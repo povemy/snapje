@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAuthUser } from '@/lib/auth'
+import { getAuthUser, generateAccessToken, generateRefreshToken, setAuthCookies, parseRoles } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 import bcrypt from 'bcryptjs'
 import { rateLimiter } from '@/lib/cache'
@@ -79,9 +79,42 @@ export async function POST(request: Request) {
       )
     }
 
+    // MEDIUM FIX (session invalidation): delete ALL existing refresh tokens for
+    // this user so any other logged-in sessions (other browsers, stolen tokens)
+    // are immediately invalidated. Then issue a fresh access + refresh token
+    // pair for THIS session so the caller stays logged in.
+    await supabase.from('RefreshToken').delete().eq('userId', authUser.userId)
+
+    // Fetch the full user record so we can sign tokens with current roles
+    const { data: fullUser } = await supabase
+      .from('User')
+      .select('*')
+      .eq('id', authUser.userId)
+      .single()
+
+    if (fullUser) {
+      const roles = parseRoles(fullUser.roles)
+      const accessToken = await generateAccessToken({
+        userId: fullUser.id,
+        email: fullUser.email,
+        roles,
+        activeRole: fullUser.activeRole,
+      })
+      const refreshToken = await generateRefreshToken(fullUser.id)
+      await setAuthCookies(accessToken, refreshToken)
+
+      // CRITICAL FIX: do NOT return the refresh token in the JSON body — it
+      // lives only in the httpOnly cookie.
+      return NextResponse.json({
+        success: true,
+        message: 'Password changed successfully. All other sessions have been signed out.',
+        tokens: { accessToken },
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Password changed successfully',
+      message: 'Password changed successfully. All other sessions have been signed out.',
     })
   } catch (error) {
     console.error('Change password error:', error)

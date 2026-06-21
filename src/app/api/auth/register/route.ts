@@ -107,8 +107,8 @@ export async function POST(request: Request) {
     // Set cookies
     await setAuthCookies(accessToken, refreshToken)
 
-    // Return user data + tokens (tokens are also stored client-side in localStorage
-    // so auth works even when third-party cookies are blocked by the browser)
+    // CRITICAL FIX (tokens in localStorage): do NOT return the refresh token
+    // in the JSON body. The refresh token is only sent via the httpOnly cookie.
     const { passwordHash: _, ...userWithoutPassword } = user
     return NextResponse.json({
       success: true,
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(user.roles),
       },
-      tokens: { accessToken, refreshToken },
+      tokens: { accessToken },
     }, { status: 201 })
   } catch (error) {
     console.error('Registration error:', error)

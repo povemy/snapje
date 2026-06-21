@@ -3,6 +3,7 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { haversineDistance, DEFAULT_LOCATION } from '@/lib/distance'
 import { cache } from '@/lib/cache'
+import { isAllowedMediaUrl } from '@/lib/media/storage'
 
 export async function GET(
   request: Request,
@@ -11,11 +12,17 @@ export async function GET(
   try {
     const { id } = await params
 
-    // Split into two queries: vendor with user, and active deals
+    // HIGH 4 (PII leak): split into two queries — the vendor row is public, but
+    // we MUST NOT join the user table and leak the vendor owner's personal
+    // email/phone to anonymous visitors. We also strip contactEmail/contactPhone
+    // from the public payload; those are surfaced only via the vendor's own
+    // authenticated endpoints (`?my=true`).
     const [vendorRes, dealsRes] = await Promise.all([
       supabase
         .from('Vendor')
-        .select('*, user:User(id, name, email, phone, avatarUrl)')
+        .select(
+          'id, businessName, description, address, latitude, longitude, logoUrl, coverImageUrl, rating, totalSales, foodCategories, operatingHours, verificationStatus, createdAt, userId'
+        )
         .eq('id', id)
         .single(),
       supabase
@@ -128,12 +135,50 @@ export async function PATCH(
     if (contactEmail !== undefined) updateData.contactEmail = contactEmail.trim()
     if (contactPhone !== undefined) updateData.contactPhone = contactPhone.trim()
     if (address !== undefined) updateData.address = address.trim()
-    if (latitude !== undefined) updateData.latitude = parseFloat(latitude)
-    if (longitude !== undefined) updateData.longitude = parseFloat(longitude)
+    if (latitude !== undefined) {
+      // LOW 7: validate latitude range
+      const latNum = Number(latitude)
+      if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
+        return NextResponse.json(
+          { success: false, error: 'latitude must be a number in [-90, 90]' },
+          { status: 400 }
+        )
+      }
+      updateData.latitude = latNum
+    }
+    if (longitude !== undefined) {
+      const lngNum = Number(longitude)
+      if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
+        return NextResponse.json(
+          { success: false, error: 'longitude must be a number in [-180, 180]' },
+          { status: 400 }
+        )
+      }
+      updateData.longitude = lngNum
+    }
     if (operatingHours !== undefined) updateData.operatingHours = JSON.stringify(operatingHours)
     if (foodCategories !== undefined) updateData.foodCategories = JSON.stringify(foodCategories)
-    if (logoUrl !== undefined) updateData.logoUrl = logoUrl
-    if (coverImageUrl !== undefined) updateData.coverImageUrl = coverImageUrl
+    // HIGH 6: URL allowlist — only allow media URLs hosted on our Supabase
+    // bucket or our portable /api/media/serve/ path. Blocks SSRF / arbitrary
+    // external image injection.
+    if (logoUrl !== undefined) {
+      if (logoUrl && !isAllowedMediaUrl(logoUrl)) {
+        return NextResponse.json(
+          { success: false, error: 'logoUrl must be a valid media URL' },
+          { status: 400 }
+        )
+      }
+      updateData.logoUrl = logoUrl
+    }
+    if (coverImageUrl !== undefined) {
+      if (coverImageUrl && !isAllowedMediaUrl(coverImageUrl)) {
+        return NextResponse.json(
+          { success: false, error: 'coverImageUrl must be a valid media URL' },
+          { status: 400 }
+        )
+      }
+      updateData.coverImageUrl = coverImageUrl
+    }
 
     const updatedVendor = unwrap(
       await supabase

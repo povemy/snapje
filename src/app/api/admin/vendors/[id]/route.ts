@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
 
 /**
  * PATCH /api/admin/vendors/[id]
@@ -13,9 +13,9 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params
-    const authUser = await getAuthUser()
+    const authUser = await requireAdmin()
 
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+    if (!authUser) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -69,22 +69,18 @@ export async function PATCH(
     if (body.subscriptionPlan !== undefined) vendorUpdate.subscriptionPlan = body.subscriptionPlan
     if (body.subscriptionStatus !== undefined) vendorUpdate.subscriptionStatus = body.subscriptionStatus
 
-    // Update vendor
+    // MEDIUM 5 FIX: previously the route returned early after updating the
+    // vendor row, so any linked User fields (userName/userEmail/userPhone)
+    // sent in the same PATCH were silently dropped. Apply BOTH updates before
+    // returning.
     if (Object.keys(vendorUpdate).length > 0) {
-      const updatedVendorRes = await supabase
-        .from('Vendor')
-        .update(vendorUpdate)
-        .eq('id', id)
-        .select('*, user:User(id, name, email, phone, isBanned, createdAt)')
-        .single()
-
-      const updatedVendor = unwrap(updatedVendorRes, 'Update vendor')
-
-      return NextResponse.json({
-        success: true,
-        data: updatedVendor,
-        message: 'Vendor updated successfully',
-      })
+      unwrap(
+        await supabase
+          .from('Vendor')
+          .update(vendorUpdate)
+          .eq('id', id),
+        'Update vendor'
+      )
     }
 
     // Also update linked user fields if provided
@@ -94,14 +90,24 @@ export async function PATCH(
     if (body.userPhone !== undefined) userUpdate.phone = body.userPhone?.trim() || null
 
     if (Object.keys(userUpdate).length > 0) {
-      await supabase.from('User').update(userUpdate).eq('id', vendor.userId)
+      unwrap(
+        await supabase.from('User').update(userUpdate).eq('id', vendor.userId),
+        'Update vendor user'
+      )
     }
 
-    // Return current vendor data if nothing to update
+    // Re-fetch the updated vendor + user so the response reflects both changes
+    const finalVendorRes = await supabase
+      .from('Vendor')
+      .select('*, user:User(id, name, email, phone, isBanned, createdAt)')
+      .eq('id', id)
+      .single()
+    const finalVendor = finalVendorRes.data ?? vendorRes.data
+
     return NextResponse.json({
       success: true,
-      data: vendorRes.data,
-      message: 'No changes to update',
+      data: finalVendor,
+      message: 'Vendor updated successfully',
     })
   } catch (error) {
     console.error('Admin vendor edit error:', error)

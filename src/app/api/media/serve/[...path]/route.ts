@@ -20,6 +20,16 @@ import { supabase } from '@/lib/supabase'
  *
  * Auth: public (no auth required) — these are public images served from a
  * public bucket. Access control can be added here later if needed.
+ *
+ * MEDIUM 6 (IDOR audit note): this route is INTENTIONALLY public. The SnapJe
+ * Supabase bucket is configured as a public bucket — every file in it is
+ * world-readable by design (food deal photos, vendor logos, etc. are public
+ * marketing content). The `mediaId` in the URL is an opaque random ID that
+ * acts as a capability token: anyone with the link can view the image, but
+ * the underlying Supabase path is hidden so a leaked URL doesn't expose the
+ * bucket layout. If private media (e.g. receipts, banned-user evidence) is
+ * added later, it MUST be stored in a separate private bucket and served via
+ * a signed-URL route that enforces per-user authorization.
  */
 export async function GET(
   _request: Request,

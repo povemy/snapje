@@ -61,6 +61,10 @@ export async function POST(request: Request) {
     // Set new cookies (for environments where cookies work)
     await setAuthCookies(accessToken, newRefreshToken)
 
+    // CRITICAL FIX (tokens in localStorage): do NOT return the new refresh
+    // token in the JSON body — it is only sent via the httpOnly cookie. The
+    // client uses `credentials: 'include'` when calling this endpoint so the
+    // cookie is sent on the next refresh automatically.
     const { passwordHash: _, ...userWithoutPassword } = user
     return NextResponse.json({
       success: true,
@@ -68,8 +72,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(user.roles),
       },
-      // Return new tokens so the client can update localStorage
-      tokens: { accessToken, refreshToken: newRefreshToken },
+      tokens: { accessToken },
     })
   } catch (error) {
     console.error('Token refresh error:', error)

@@ -1,0 +1,693 @@
+     1→import { NextResponse } from 'next/server'
+     2→import { supabase, unwrap, genId } from '@/lib/supabase'
+     3→import bcrypt from 'bcryptjs'
+     4→
+     5→export async function POST() {
+     6→  try {
+     7→    // Check if data already seeded
+     8→    const existingRes = await supabase
+     9→      .from('User')
+    10→      .select('id')
+    11→      .eq('email', 'foodie@test.com')
+    12→      .single()
+    13→
+    14→    if (existingRes.data) {
+    15→      return NextResponse.json({
+    16→        success: false,
+    17→        error: 'Database already seeded. Reset the database first.',
+    18→      }, { status: 409 })
+    19→    }
+    20→
+    21→    const passwordHash = await bcrypt.hash('password123', 10)
+    22→
+    23→    // ============================================
+    24→    // CREATE DEMO USERS
+    25→    // ============================================
+    26→    const [foodieUserRes, vendorUserRes, adminUserRes] = await Promise.all([
+    27→      supabase.from('User').insert({
+    28→        id: genId('user'),
+    29→        email: 'foodie@test.com',
+    30→        passwordHash,
+    31→        name: 'Ali Foodie',
+    32→        phone: '+60123456789',
+    33→        roles: 'foodie',
+    34→        activeRole: 'foodie',
+    35→        emailVerified: true,
+    36→      }).select().single(),
+    37→      supabase.from('User').insert({
+    38→        id: genId('user'),
+    39→        email: 'vendor@test.com',
+    40→        passwordHash,
+    41→        name: 'Mei Ling Vendor',
+    42→        phone: '+60198765432',
+    43→        roles: 'foodie,vendor',
+    44→        activeRole: 'vendor',
+    45→        emailVerified: true,
+    46→      }).select().single(),
+    47→      supabase.from('User').insert({
+    48→        id: genId('user'),
+    49→        email: 'admin@test.com',
+    50→        passwordHash,
+    51→        name: 'Admin FlashBite',
+    52→        phone: '+60135551234',
+    53→        roles: 'foodie,vendor,admin',
+    54→        activeRole: 'admin',
+    55→        emailVerified: true,
+    56→      }).select().single(),
+    57→    ])
+    58→
+    59→    const foodieUser = unwrap(foodieUserRes, 'Create foodie user')
+    60→    const vendorUser = unwrap(vendorUserRes, 'Create vendor user')
+    61→    const adminUser = unwrap(adminUserRes, 'Create admin user')
+    62→
+    63→    // Also create some extra foodie users
+    64→    const [sitiRes, rajRes] = await Promise.all([
+    65→      supabase.from('User').insert({
+    66→        id: genId('user'),
+    67→        email: 'siti@test.com',
+    68→        passwordHash,
+    69→        name: 'Siti Nurhaliza',
+    70→        phone: '+60145550001',
+    71→        roles: 'foodie',
+    72→        activeRole: 'foodie',
+    73→        emailVerified: true,
+    74→      }).select().single(),
+    75→      supabase.from('User').insert({
+    76→        id: genId('user'),
+    77→        email: 'raj@test.com',
+    78→        passwordHash,
+    79→        name: 'Raj Kumar',
+    80→        phone: '+60165550002',
+    81→        roles: 'foodie',
+    82→        activeRole: 'foodie',
+    83→        emailVerified: true,
+    84→      }).select().single(),
+    85→    ])
+    86→
+    87→    const extraFoodies = [unwrap(sitiRes, 'Create siti user'), unwrap(rajRes, 'Create raj user')]
+    88→
+    89→    // ============================================
+    90→    // CREATE DEMO VENDORS (around KL area)
+    91→    // ============================================
+    92→    const vendorData = [
+    93→      {
+    94→        userId: vendorUser.id,
+    95→        businessName: 'Nasi Lemak Bunga Telang',
+    96→        description: 'Authentic Nasi Lemak with a twist - infused with butterfly pea flower for that beautiful blue rice. Family recipe passed down for 3 generations.',
+    97→        contactEmail: 'nasilemak@bungatelang.my',
+    98→        contactPhone: '+60388881001',
+    99→        address: '12, Jalan Ampang, 50450 Kuala Lumpur',
+   100→        latitude: 3.1580,
+   101→        longitude: 101.7120,
+   102→        operatingHours: JSON.stringify({ mon: '7-22', tue: '7-22', wed: '7-22', thu: '7-22', fri: '7-22', sat: '8-23', sun: '8-23' }),
+   103→        foodCategories: JSON.stringify(['Malay']),
+   104→        verificationStatus: 'approved',
+   105→        verifiedAt: new Date().toISOString(),
+   106→        rating: 4.7,
+   107→        totalSales: 342,
+   108→        subscriptionPlan: 'vendor_premium',
+   109→        subscriptionStatus: 'active',
+   110→        subscriptionStart: new Date().toISOString(),
+   111→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   112→      },
+   113→      {
+   114→        userId: vendorUser.id,
+   115→        businessName: 'Char Kuey Teow Paradise',
+   116→        description: 'Wok-hei master Char Kuey Teow cooked fresh to order. The best in KL, voted by locals. Come taste the difference!',
+   117→        contactEmail: 'ckteow@paradise.my',
+   118→        contactPhone: '+60388881002',
+   119→        address: '45, Jalan Bukit Bintang, 55100 Kuala Lumpur',
+   120→        latitude: 3.1480,
+   121→        longitude: 101.7160,
+   122→        operatingHours: JSON.stringify({ mon: '10-22', tue: '10-22', wed: '10-22', thu: '10-22', fri: '10-23', sat: '10-23', sun: '11-21' }),
+   123→        foodCategories: JSON.stringify(['Chinese']),
+   124→        verificationStatus: 'approved',
+   125→        verifiedAt: new Date().toISOString(),
+   126→        rating: 4.5,
+   127→        totalSales: 256,
+   128→        subscriptionPlan: 'vendor_basic',
+   129→        subscriptionStatus: 'active',
+   130→        subscriptionStart: new Date().toISOString(),
+   131→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   132→      },
+   133→      {
+   134→        userId: vendorUser.id,
+   135→        businessName: 'Roti Canai House',
+   136→        description: 'Flaky, crispy Roti Canai with the best dhal curry in town. Open early for breakfast, open late for supper.',
+   137→        contactEmail: 'roticanai@house.my',
+   138→        contactPhone: '+60388881003',
+   139→        address: '8, Jalan Masjid India, 50100 Kuala Lumpur',
+   140→        latitude: 3.1450,
+   141→        longitude: 101.6930,
+   142→        operatingHours: JSON.stringify({ mon: '6-24', tue: '6-24', wed: '6-24', thu: '6-24', fri: '6-24', sat: '6-24', sun: '6-24' }),
+   143→        foodCategories: JSON.stringify(['Indian']),
+   144→        verificationStatus: 'approved',
+   145→        verifiedAt: new Date().toISOString(),
+   146→        rating: 4.6,
+   147→        totalSales: 489,
+   148→        subscriptionPlan: 'vendor_premium',
+   149→        subscriptionStatus: 'active',
+   150→        subscriptionStart: new Date().toISOString(),
+   151→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   152→      },
+   153→      {
+   154→        userId: vendorUser.id,
+   155→        businessName: 'Mee Goreng Mamak',
+   156→        description: 'Spicy, tangy Mee Goreng Mamak that packs a punch. Made with our secret sauce blend that keeps customers coming back!',
+   157→        contactEmail: 'meegoreng@mamak.my',
+   158→        contactPhone: '+60388881004',
+   159→        address: '22, Jalan Tunku Abdul Rahman, 50100 Kuala Lumpur',
+   160→        latitude: 3.1560,
+   161→        longitude: 101.6980,
+   162→        operatingHours: JSON.stringify({ mon: '8-23', tue: '8-23', wed: '8-23', thu: '8-23', fri: '8-24', sat: '8-24', sun: '9-22' }),
+   163→        foodCategories: JSON.stringify(['Indian', 'Malay']),
+   164→        verificationStatus: 'approved',
+   165→        verifiedAt: new Date().toISOString(),
+   166→        rating: 4.3,
+   167→        totalSales: 178,
+   168→        subscriptionPlan: 'vendor_basic',
+   169→        subscriptionStatus: 'active',
+   170→        subscriptionStart: new Date().toISOString(),
+   171→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   172→      },
+   173→      {
+   174→        userId: vendorUser.id,
+   175→        businessName: 'Chicken Rice Shop KL',
+   176→        description: 'Tender, juicy Hainanese chicken rice served with fragrant rice and our signature chili sauce. A Malaysian classic done right.',
+   177→        contactEmail: 'chickenrice@shopkl.my',
+   178→        contactPhone: '+60388881005',
+   179→        address: '56, Jalan Sultan Ismail, 50250 Kuala Lumpur',
+   180→        latitude: 3.1520,
+   181→        longitude: 101.7090,
+   182→        operatingHours: JSON.stringify({ mon: '9-21', tue: '9-21', wed: '9-21', thu: '9-21', fri: '9-21', sat: '9-22', sun: '9-22' }),
+   183→        foodCategories: JSON.stringify(['Chinese']),
+   184→        verificationStatus: 'approved',
+   185→        verifiedAt: new Date().toISOString(),
+   186→        rating: 4.4,
+   187→        totalSales: 312,
+   188→        subscriptionPlan: 'vendor_premium',
+   189→        subscriptionStatus: 'active',
+   190→        subscriptionStart: new Date().toISOString(),
+   191→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   192→      },
+   193→      {
+   194→        userId: vendorUser.id,
+   195→        businessName: 'Laksa Sarawak Kitchen',
+   196→        description: 'Rich, creamy Sarawak Laksa with a unique spice paste. Experience the taste of East Malaysia right here in KL!',
+   197→        contactEmail: 'laksa@sarawak.my',
+   198→        contactPhone: '+60388881006',
+   199→        address: '33, Jalan Alor, 55100 Kuala Lumpur',
+   200→        latitude: 3.1460,
+   201→        longitude: 101.7060,
+   202→        operatingHours: JSON.stringify({ mon: '10-22', tue: '10-22', wed: '10-22', thu: '10-22', fri: '10-23', sat: '9-23', sun: '9-22' }),
+   203→        foodCategories: JSON.stringify(['Malay', 'Other']),
+   204→        verificationStatus: 'pending',
+   205→        rating: 0,
+   206→        totalSales: 0,
+   207→        subscriptionPlan: 'none',
+   208→        subscriptionStatus: 'inactive',
+   209→      },
+   210→      {
+   211→        userId: vendorUser.id,
+   212→        businessName: 'Satay Kajang Original',
+   213→        description: 'The legendary Satay Kajang, now in KL! Perfectly grilled skewers with our signature peanut sauce. Order by the dozen!',
+   214→        contactEmail: 'satay@kajang.my',
+   215→        contactPhone: '+60388881007',
+   216→        address: '78, Jalan Pudu, 55100 Kuala Lumpur',
+   217→        latitude: 3.1380,
+   218→        longitude: 101.7030,
+   219→        operatingHours: JSON.stringify({ mon: '11-23', tue: '11-23', wed: '11-23', thu: '11-23', fri: '11-24', sat: '11-24', sun: '12-22' }),
+   220→        foodCategories: JSON.stringify(['Malay']),
+   221→        verificationStatus: 'approved',
+   222→        verifiedAt: new Date().toISOString(),
+   223→        rating: 4.8,
+   224→        totalSales: 567,
+   225→        subscriptionPlan: 'vendor_premium',
+   226→        subscriptionStatus: 'active',
+   227→        subscriptionStart: new Date().toISOString(),
+   228→        subscriptionEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   229→      },
+   230→    ]
+   231→
+   232→    // We need separate vendors - vendorUser can only have one vendor profile
+   233→    // So let's create extra users for extra vendors
+   234→    const [vendor2Res, vendor3Res, vendor4Res, vendor5Res, vendor6Res, vendor7Res] = await Promise.all([
+   235→      supabase.from('User').insert({
+   236→        id: genId('user'),
+   237→        email: 'vendor2@test.com',
+   238→        passwordHash,
+   239→        name: 'Ahmad Roti',
+   240→        phone: '+60175550003',
+   241→        roles: 'foodie,vendor',
+   242→        activeRole: 'vendor',
+   243→        emailVerified: true,
+   244→      }).select().single(),
+   245→      supabase.from('User').insert({
+   246→        id: genId('user'),
+   247→        email: 'vendor3@test.com',
+   248→        passwordHash,
+   249→        name: 'Kumar Spice',
+   250→        phone: '+60185550004',
+   251→        roles: 'foodie,vendor',
+   252→        activeRole: 'vendor',
+   253→        emailVerified: true,
+   254→      }).select().single(),
+   255→      supabase.from('User').insert({
+   256→        id: genId('user'),
+   257→        email: 'vendor4@test.com',
+   258→        passwordHash,
+   259→        name: 'Lim Wok Master',
+   260→        phone: '+60195550005',
+   261→        roles: 'foodie,vendor',
+   262→        activeRole: 'vendor',
+   263→        emailVerified: true,
+   264→      }).select().single(),
+   265→      supabase.from('User').insert({
+   266→        id: genId('user'),
+   267→        email: 'vendor5@test.com',
+   268→        passwordHash,
+   269→        name: 'Samy Curry',
+   270→        phone: '+60105550006',
+   271→        roles: 'foodie,vendor',
+   272→        activeRole: 'vendor',
+   273→        emailVerified: true,
+   274→      }).select().single(),
+   275→      supabase.from('User').insert({
+   276→        id: genId('user'),
+   277→        email: 'vendor6@test.com',
+   278→        passwordHash,
+   279→        name: 'Siti Laksa',
+   280→        phone: '+60115550007',
+   281→        roles: 'foodie,vendor',
+   282→        activeRole: 'vendor',
+   283→        emailVerified: true,
+   284→      }).select().single(),
+   285→      supabase.from('User').insert({
+   286→        id: genId('user'),
+   287→        email: 'vendor7@test.com',
+   288→        passwordHash,
+   289→        name: 'Hassan Satay',
+   290→        phone: '+60125550008',
+   291→        roles: 'foodie,vendor',
+   292→        activeRole: 'vendor',
+   293→        emailVerified: true,
+   294→      }).select().single(),
+   295→    ])
+   296→
+   297→    const extraVendorUsers = [
+   298→      unwrap(vendor2Res, 'Create vendor2 user'),
+   299→      unwrap(vendor3Res, 'Create vendor3 user'),
+   300→      unwrap(vendor4Res, 'Create vendor4 user'),
+   301→      unwrap(vendor5Res, 'Create vendor5 user'),
+   302→      unwrap(vendor6Res, 'Create vendor6 user'),
+   303→      unwrap(vendor7Res, 'Create vendor7 user'),
+   304→    ]
+   305→
+   306→    // Update vendorData to use separate users and create vendors
+   307→    const vendorRecordPromises = vendorData.map((v, i) => {
+   308→      const userId = i === 0 ? vendorUser.id : extraVendorUsers[i - 1].id
+   309→      return supabase.from('Vendor').insert({ id: genId('vendor'), ...v, userId }).select().single()
+   310→    })
+   311→
+   312→    const vendorRecordResults = await Promise.all(vendorRecordPromises)
+   313→    const vendorRecords = vendorRecordResults.map((r, i) =>
+   314→      unwrap(r, `Create vendor ${i + 1}`)
+   315→    )
+   316→
+   317→    // ============================================
+   318→    // CREATE DEMO DEALS (8+ active deals)
+   319→    // ============================================
+   320→    const now = new Date()
+   321→    const dealsData = [
+   322→      {
+   323→        vendorId: vendorRecords[0].id,
+   324→        title: 'Nasi Lemak Special - Blue Rice',
+   325→        description: 'Our signature blue rice Nasi Lemak with crispy anchovies, roasted peanuts, cucumber, boiled egg, and your choice of sambal. Limited flash deal - grab it while it lasts!',
+   326→        category: 'Malay',
+   327→        originalPrice: 12.00,
+   328→        dealPrice: 6.50,
+   329→        totalQuantity: 30,
+   330→        maxClaimsPerUser: 2,
+   331→        expiresAt: new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString(),
+   332→        pickupInstructions: 'Show your QR code at the counter. Pickup at main entrance.',
+   333→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/d1f8eab41b2d.jpg',
+   334→      },
+   335→      {
+   336→        vendorId: vendorRecords[1].id,
+   337→        title: 'Char Kuey Teow Large Portion',
+   338→        description: 'Wok-tossed CKT with prawns, cockles, bean sprouts, and Chinese chives. Extra large portion for the same price as regular!',
+   339→        category: 'Chinese',
+   340→        originalPrice: 10.00,
+   341→        dealPrice: 5.50,
+   342→        totalQuantity: 25,
+   343→        maxClaimsPerUser: 1,
+   344→        expiresAt: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+   345→        pickupInstructions: 'Collect at stall #5. Present order confirmation.',
+   346→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/658794e37269.jpg',
+   347→      },
+   348→      {
+   349→        vendorId: vendorRecords[2].id,
+   350→        title: 'Roti Canai Set (2 pcs + Dhal)',
+   351→        description: 'Two pieces of our flaky, crispy Roti Canai served with rich dhal curry and sambal. Perfect breakfast or supper deal!',
+   352→        category: 'Indian',
+   353→        originalPrice: 6.00,
+   354→        dealPrice: 3.00,
+   355→        totalQuantity: 50,
+   356→        maxClaimsPerUser: 3,
+   357→        expiresAt: new Date(now.getTime() + 6 * 60 * 60 * 1000).toISOString(),
+   358→        pickupInstructions: 'Self-service pickup. Show QR at counter.',
+   359→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/9f2ff963df78.jpg',
+   360→      },
+   361→      {
+   362→        vendorId: vendorRecords[3].id,
+   363→        title: 'Mee Goreng Mamak Extra Pedas',
+   364→        description: 'Our famous Mee Goreng with extra spicy sambal, tofu, potatoes, and a fried egg on top. Not for the faint-hearted!',
+   365→        category: 'Indian',
+   366→        originalPrice: 8.00,
+   367→        dealPrice: 4.50,
+   368→        totalQuantity: 20,
+   369→        maxClaimsPerUser: 2,
+   370→        expiresAt: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+   371→        pickupInstructions: 'Pickup at the front counter. Ask for extra napkins!',
+   372→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/a7f764bc299d.jpg',
+   373→      },
+   374→      {
+   375→        vendorId: vendorRecords[4].id,
+   376→        title: 'Hainanese Chicken Rice Plate',
+   377→        description: 'Steamed chicken with fragrant rice, soup, and our secret chili sauce. The classic done right - now at half price!',
+   378→        category: 'Chinese',
+   379→        originalPrice: 11.00,
+   380→        dealPrice: 5.90,
+   381→        totalQuantity: 35,
+   382→        maxClaimsPerUser: 2,
+   383→        expiresAt: new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString(),
+   384→        pickupInstructions: 'Pickup at the food court, Stall B3.',
+   385→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/c25939cfb21d.jpg',
+   386→      },
+   387→      {
+   388→        vendorId: vendorRecords[5].id,
+   389→        title: 'Sarawak Laksa Bowl',
+   390→        description: 'Authentic Sarawak Laksa with prawns, chicken strips, bean sprouts, and a squeeze of lime. Creamy, spicy perfection!',
+   391→        category: 'Malay',
+   392→        originalPrice: 9.00,
+   393→        dealPrice: 4.80,
+   394→        totalQuantity: 15,
+   395→        maxClaimsPerUser: 1,
+   396→        expiresAt: new Date(now.getTime() + 3 * 60 * 60 * 1000).toISOString(),
+   397→        pickupInstructions: 'Counter pickup. Bring your own container for eco-friendly option.',
+   398→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/45ef964ffdc9.jpg',
+   399→      },
+   400→      {
+   401→        vendorId: vendorRecords[6].id,
+   402→        title: 'Satay Kajang 20 Sticks + Ketupat',
+   403→        description: '20 sticks of our legendary beef and chicken satay served with ketupat, onion, and cucumber. Best deal in town!',
+   404→        category: 'Malay',
+   405→        originalPrice: 25.00,
+   406→        dealPrice: 12.00,
+   407→        totalQuantity: 40,
+   408→        maxClaimsPerUser: 2,
+   409→        expiresAt: new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString(),
+   410→        pickupInstructions: 'Grill counter at the back. Follow the aroma!',
+   411→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/95939562463c.jpg',
+   412→      },
+   413→      {
+   414→        vendorId: vendorRecords[0].id,
+   415→        title: 'Cendol Penang Special',
+   416→        description: 'Refreshing Cendol with rich coconut milk, gula Melaka, red beans, and creamy sweet corn. The perfect dessert for hot KL weather!',
+   417→        category: 'Dessert',
+   418→        originalPrice: 7.00,
+   419→        dealPrice: 3.50,
+   420→        totalQuantity: 25,
+   421→        maxClaimsPerUser: 2,
+   422→        expiresAt: new Date(now.getTime() + 5 * 60 * 60 * 1000).toISOString(),
+   423→        pickupInstructions: 'Dessert counter next to the main stall.',
+   424→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/5ea784d83bd1.jpg',
+   425→      },
+   426→      {
+   427→        vendorId: vendorRecords[2].id,
+   428→        title: 'Teh Tarik Kurang Manis',
+   429→        description: 'Perfectly pulled tea with less sugar but full flavor. Our Teh Tarik is frothy, creamy, and the best companion for any meal.',
+   430→        category: 'Beverage',
+   431→        originalPrice: 4.00,
+   432→        dealPrice: 2.00,
+   433→        totalQuantity: 60,
+   434→        maxClaimsPerUser: 3,
+   435→        expiresAt: new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString(),
+   436→        pickupInstructions: 'Drinks counter at the front. Show your order.',
+   437→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/7a01a7c14ac1.jpg',
+   438→      },
+   439→      {
+   440→        vendorId: vendorRecords[4].id,
+   441→        title: 'Korean Fried Rice Bowl',
+   442→        description: 'Kimchi fried rice topped with a sunny-side-up egg and sesame seeds. Fusion deal you cannot resist!',
+   443→        category: 'Korean',
+   444→        originalPrice: 14.00,
+   445→        dealPrice: 7.50,
+   446→        totalQuantity: 20,
+   447→        maxClaimsPerUser: 1,
+   448→        expiresAt: new Date(now.getTime() + 4 * 60 * 60 * 1000).toISOString(),
+   449→        pickupInstructions: 'Pickup at fusion counter, Level 2.',
+   450→        imageUrl: 'https://sfile.chatglm.cn/images-ppt/685ae8fc5812.jpg',
+   451→      },
+   452→    ]
+   453→
+   454→    const dealRecordPromises = dealsData.map((deal) => {
+   455→      const discountPercent = Math.round(((deal.originalPrice - deal.dealPrice) / deal.originalPrice) * 100)
+   456→      return supabase.from('Deal').insert({
+   457→        id: genId('deal'),
+   458→        ...deal,
+   459→        discountPercent,
+   460→        reservedQuantity: 0,
+   461→        soldQuantity: 0,
+   462→        availableQuantity: deal.totalQuantity,
+   463→        status: 'active',
+   464→        pickupOnly: true,
+   465→        publicAccessAt: now.toISOString(),
+   466→      }).select().single()
+   467→    })
+   468→
+   469→    const dealRecordResults = await Promise.all(dealRecordPromises)
+   470→    const dealRecords = dealRecordResults.map((r, i) =>
+   471→      unwrap(r, `Create deal ${i + 1}`)
+   472→    )
+   473→
+   474→    // Also create some expired/sold_out deals for variety
+   475→    const [expiredDeal1Res, expiredDeal2Res] = await Promise.all([
+   476→      supabase.from('Deal').insert({
+   477→        id: genId('deal'),
+   478→        vendorId: vendorRecords[0].id,
+   479→        title: 'Nasi Lemak Ayam Goreng Berempah',
+   480→        description: 'Crispy fried chicken with spice paste, served with our signature Nasi Lemak. This deal has ended.',
+   481→        category: 'Malay',
+   482→        originalPrice: 15.00,
+   483→        dealPrice: 8.00,
+   484→        discountPercent: 47,
+   485→        totalQuantity: 20,
+   486→        reservedQuantity: 0,
+   487→        soldQuantity: 20,
+   488→        availableQuantity: 0,
+   489→        status: 'sold_out',
+   490→        pickupOnly: true,
+   491→        publicAccessAt: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(),
+   492→        expiresAt: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(),
+   493→      }).select().single(),
+   494→      supabase.from('Deal').insert({
+   495→        id: genId('deal'),
+   496→        vendorId: vendorRecords[1].id,
+   497→        title: 'Hokkien Mee Sup',
+   498→        description: 'Rich prawn broth Hokkien Mee. This deal has expired.',
+   499→        category: 'Chinese',
+   500→        originalPrice: 9.00,
+   501→        dealPrice: 4.50,
+   502→        discountPercent: 50,
+   503→        totalQuantity: 30,
+   504→        reservedQuantity: 0,
+   505→        soldQuantity: 12,
+   506→        availableQuantity: 18,
+   507→        status: 'expired',
+   508→        pickupOnly: true,
+   509→        publicAccessAt: new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString(),
+   510→        expiresAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
+   511→      }).select().single(),
+   512→    ])
+   513→
+   514→    unwrap(expiredDeal1Res, 'Create expired deal 1')
+   515→    unwrap(expiredDeal2Res, 'Create expired deal 2')
+   516→
+   517→    // ============================================
+   518→    // CREATE DEMO ORDERS
+   519→    // ============================================
+   520→    const orderData = [
+   521→      {
+   522→        userId: foodieUser.id,
+   523→        vendorId: vendorRecords[0].id,
+   524→        dealId: dealRecords[0].id,
+   525→        quantity: 1,
+   526→        originalPrice: dealRecords[0].originalPrice,
+   527→        dealPrice: dealRecords[0].dealPrice,
+   528→        totalPrice: dealRecords[0].dealPrice,
+   529→        status: 'pending_pickup',
+   530→        qrCode: crypto.randomUUID(),
+   531→        pickupDeadline: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+   532→      },
+   533→      {
+   534→        userId: foodieUser.id,
+   535→        vendorId: vendorRecords[2].id,
+   536→        dealId: dealRecords[2].id,
+   537→        quantity: 1,
+   538→        originalPrice: dealRecords[2].originalPrice,
+   539→        dealPrice: dealRecords[2].dealPrice,
+   540→        totalPrice: dealRecords[2].dealPrice,
+   541→        status: 'completed',
+   542→        qrCode: crypto.randomUUID(),
+   543→        qrVerifiedAt: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(),
+   544→        pickupDeadline: new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString(),
+   545→      },
+   546→      {
+   547→        userId: extraFoodies[0].id,
+   548→        vendorId: vendorRecords[6].id,
+   549→        dealId: dealRecords[6].id,
+   550→        quantity: 1,
+   551→        originalPrice: dealRecords[6].originalPrice,
+   552→        dealPrice: dealRecords[6].dealPrice,
+   553→        totalPrice: dealRecords[6].dealPrice,
+   554→        status: 'picked_up',
+   555→        qrCode: crypto.randomUUID(),
+   556→        qrVerifiedAt: new Date(now.getTime() - 30 * 60 * 1000).toISOString(),
+   557→        pickupDeadline: new Date(now.getTime() + 1.5 * 60 * 60 * 1000).toISOString(),
+   558→      },
+   559→    ]
+   560→
+   561→    const orderRecordPromises = orderData.map((o) => {
+   562→      const timestamp = Date.now()
+   563→      const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+   564→      return supabase.from('Order').insert({
+   565→        id: genId('order'),
+   566→        orderNumber: `FB-${timestamp}-${random}`,
+   567→        ...o,
+   568→      }).select().single()
+   569→    })
+   570→
+   571→    const orderRecordResults = await Promise.all(orderRecordPromises)
+   572→    const orderRecords = orderRecordResults.map((r, i) =>
+   573→      unwrap(r, `Create order ${i + 1}`)
+   574→    )
+   575→
+   576→    // Update deal sold/reserved quantities for orders
+   577→    await Promise.all([
+   578→      supabase.from('Deal').update({
+   579→        reservedQuantity: 1,
+   580→        availableQuantity: dealRecords[0].availableQuantity - 1,
+   581→      }).eq('id', dealRecords[0].id),
+   582→      supabase.from('Deal').update({
+   583→        soldQuantity: 1,
+   584→        availableQuantity: dealRecords[2].availableQuantity - 1,
+   585→      }).eq('id', dealRecords[2].id),
+   586→      supabase.from('Deal').update({
+   587→        soldQuantity: 1,
+   588→        availableQuantity: dealRecords[6].availableQuantity - 1,
+   589→      }).eq('id', dealRecords[6].id),
+   590→    ])
+   591→
+   592→    // ============================================
+   593→    // CREATE DEMO NOTIFICATIONS
+   594→    // ============================================
+   595→    await Promise.all([
+   596→      supabase.from('Notification').insert({
+   597→        id: genId('notif'),
+   598→        userId: foodieUser.id,
+   599→        type: 'claim_confirmed',
+   600→        title: 'Order Confirmed! 🎉',
+   601→        message: 'Your order for "Nasi Lemak Special - Blue Rice" from Nasi Lemak Bunga Telang is confirmed. Pick up before the deadline!',
+   602→        data: JSON.stringify({ orderId: orderRecords[0].id, dealId: dealRecords[0].id }),
+   603→      }),
+   604→      supabase.from('Notification').insert({
+   605→        id: genId('notif'),
+   606→        userId: foodieUser.id,
+   607→        type: 'order_status_update',
+   608→        title: 'Order Completed! ✅',
+   609→        message: 'Your order "Roti Canai Set (2 pcs + Dhal)" from Roti Canai House has been completed. Enjoy your meal!',
+   610→        data: JSON.stringify({ orderId: orderRecords[1].id, status: 'completed' }),
+   611→      }),
+   612→      supabase.from('Notification').insert({
+   613→        id: genId('notif'),
+   614→        userId: foodieUser.id,
+   615→        type: 'new_deal_nearby',
+   616→        title: 'New Deal Nearby! 🍜',
+   617→        message: 'Char Kuey Teow Paradise just dropped a new flash deal! 45% off - grab it before it\'s gone!',
+   618→        data: JSON.stringify({ dealId: dealRecords[1].id, vendorId: vendorRecords[1].id }),
+   619→        read: true,
+   620→      }),
+   621→      supabase.from('Notification').insert({
+   622→        id: genId('notif'),
+   623→        userId: foodieUser.id,
+   624→        type: 'deal_expiring',
+   625→        title: 'Deal Expiring Soon! ⏰',
+   626→        message: 'Mee Goreng Mamak Extra Pedas deal expires in 30 minutes! Don\'t miss out!',
+   627→        data: JSON.stringify({ dealId: dealRecords[3].id }),
+   628→        read: true,
+   629→      }),
+   630→      supabase.from('Notification').insert({
+   631→        id: genId('notif'),
+   632→        userId: vendorUser.id,
+   633→        type: 'vendor_approved',
+   634→        title: 'Vendor Account Approved! 🎉',
+   635→        message: 'Your vendor account "Nasi Lemak Bunga Telang" has been approved. You can now create flash deals!',
+   636→        data: JSON.stringify({ vendorId: vendorRecords[0].id, action: 'approve' }),
+   637→        read: true,
+   638→      }),
+   639→      supabase.from('Notification').insert({
+   640→        id: genId('notif'),
+   641→        userId: extraFoodies[0].id,
+   642→        type: 'pickup_reminder',
+   643→        title: 'Order Picked Up! 📦',
+   644→        message: 'Your order "Satay Kajang 20 Sticks + Ketupat" has been picked up from Satay Kajang Original.',
+   645→        data: JSON.stringify({ orderId: orderRecords[2].id, status: 'picked_up' }),
+   646→      }),
+   647→      supabase.from('Notification').insert({
+   648→        id: genId('notif'),
+   649→        userId: adminUser.id,
+   650→        type: 'siren_push',
+   651→        title: 'New Vendor Registration',
+   652→        message: 'Laksa Sarawak Kitchen has registered as a vendor and is awaiting approval.',
+   653→        data: JSON.stringify({ vendorId: vendorRecords[5].id }),
+   654→      }),
+   655→    ])
+   656→
+   657→    // ============================================
+   658→    // CREATE DEMO SUBSCRIPTIONS
+   659→    // ============================================
+   660→    await supabase.from('Subscription').insert({
+   661→      id: genId('sub'),
+   662→      userId: foodieUser.id,
+   663→      plan: 'first_dibs',
+   664→      status: 'active',
+   665→      startDate: new Date().toISOString(),
+   666→      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+   667→      autoRenew: true,
+   668→    })
+   669→
+   670→    return NextResponse.json({
+   671→      success: true,
+   672→      data: {
+   673→        message: 'Database seeded successfully!',
+   674→        users: { foodie: foodieUser.id, vendor: vendorUser.id, admin: adminUser.id },
+   675→        vendors: vendorRecords.length,
+   676→        deals: dealRecords.length + 2, // +2 for expired/sold_out
+   677→        orders: orderRecords.length,
+   678→        credentials: {
+   679→          foodie: 'foodie@test.com / password123',
+   680→          vendor: 'vendor@test.com / password123',
+   681→          admin: 'admin@test.com / password123',
+   682→        },
+   683→      },
+   684→    }, { status: 201 })
+   685→  } catch (error) {
+   686→    console.error('Seed error:', error)
+   687→    return NextResponse.json(
+   688→      { success: false, error: 'Seed failed: ' + (error instanceof Error ? error.message : 'Unknown error') },
+   689→      { status: 500 }
+   690→    )
+   691→  }
+   692→}
+   693→

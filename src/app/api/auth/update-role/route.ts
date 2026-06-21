@@ -95,6 +95,8 @@ export async function POST(request: Request) {
     // Set new cookies
     await setAuthCookies(accessToken, refreshToken)
 
+    // CRITICAL FIX (tokens in localStorage): do NOT return the refresh token
+    // in the JSON body. Only the short-lived access token is returned.
     const { passwordHash: _, ...userWithoutPassword } = updatedUser
     return NextResponse.json({
       success: true,
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
         ...userWithoutPassword,
         roles: parseRoles(updatedUser.roles),
       },
-      tokens: { accessToken, refreshToken },
+      tokens: { accessToken },
     })
   } catch (error) {
     console.error('Update role error:', error)

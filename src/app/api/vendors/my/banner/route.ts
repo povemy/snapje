@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 import { getAuthUser, hasRole } from '@/lib/auth'
 import { cache } from '@/lib/cache'
+import { isAllowedMediaUrl } from '@/lib/media/storage'
 
 /**
  * PUT /api/vendors/my/banner
@@ -31,6 +32,14 @@ export async function PUT(request: Request) {
     if (!bannerUrl || typeof bannerUrl !== 'string') {
       return NextResponse.json(
         { success: false, error: 'bannerUrl is required' },
+        { status: 400 }
+      )
+    }
+
+    // HIGH 6: URL allowlist — block arbitrary external URLs.
+    if (!isAllowedMediaUrl(bannerUrl)) {
+      return NextResponse.json(
+        { success: false, error: 'bannerUrl must be a valid media URL hosted on FlashBite storage' },
         { status: 400 }
       )
     }

@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
+import { clampPagination, escapeLike } from '@/lib/pagination'
 
 export async function GET(request: Request) {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+    const authUser = await requireAdmin()
+    if (!authUser) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -15,8 +16,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const search = searchParams.get('search')
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { page, pageSize } = clampPagination(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    )
 
     const skip = (page - 1) * pageSize
 
@@ -38,10 +41,11 @@ export async function GET(request: Request) {
       countQuery = countQuery.eq('verificationStatus', status)
     }
 
-    // Apply search filter
+    // Apply search filter (LOW 6: escape LIKE wildcards)
     if (search) {
-      vendorQuery = vendorQuery.or(`businessName.ilike.%${search}%,address.ilike.%${search}%,contactEmail.ilike.%${search}%`)
-      countQuery = countQuery.or(`businessName.ilike.%${search}%,address.ilike.%${search}%,contactEmail.ilike.%${search}%`)
+      const s = escapeLike(search)
+      vendorQuery = vendorQuery.or(`businessName.ilike.%${s}%,address.ilike.%${s}%,contactEmail.ilike.%${s}%`)
+      countQuery = countQuery.or(`businessName.ilike.%${s}%,address.ilike.%${s}%,contactEmail.ilike.%${s}%`)
     }
 
     const [vendorsRes, countRes] = await Promise.all([

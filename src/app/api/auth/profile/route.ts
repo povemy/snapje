@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthUser, parseRoles } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
+import { isAllowedMediaUrl } from '@/lib/media/storage'
 
 export async function PUT(request: Request) {
   try {
@@ -21,7 +22,16 @@ export async function PUT(request: Request) {
     if (phone !== undefined) updateData.phone = phone.trim() || null
     // avatarUrl — the upload route returns the optimized variant URL; save it
     // to the User table so the avatar persists across refreshes/logins.
-    if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl || null
+    if (avatarUrl !== undefined) {
+      // HIGH 6: URL allowlist — block arbitrary external avatar URLs.
+      if (avatarUrl && !isAllowedMediaUrl(avatarUrl)) {
+        return NextResponse.json(
+          { success: false, error: 'avatarUrl must be a valid media URL hosted on FlashBite storage' },
+          { status: 400 }
+        )
+      }
+      updateData.avatarUrl = avatarUrl || null
+    }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json(

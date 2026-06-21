@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     // Find order by QR code with deal and vendor info
     const orderRes = await supabase
       .from('Order')
-      .select('*, deal:Deal(id, title, description, imageUrl, category, pickupInstructions, originalPrice, dealPrice), vendor:Vendor(id, businessName, address, logoUrl, userId, contactPhone)')
+      .select('*, deal:Deal(id, title, description, imageUrl, category, pickupInstructions, originalPrice, dealPrice), vendor:Vendor(id, businessName, address, logoUrl, userId, contactPhone), user:User(id, name)')
       .eq('qrCode', qrCode.trim())
       .maybeSingle()
 
@@ -105,6 +105,10 @@ export async function POST(request: Request) {
       )
     }
 
+    // LOW 2: previously the `user` object was empty `{}` — fetch the customer
+    // name so the vendor can see who is picking up the order.
+    const customerName = order.user?.name || 'Customer'
+
     // Return order details for the vendor modal (lookup only, no mutation)
     return NextResponse.json({
       success: true,
@@ -129,7 +133,7 @@ export async function POST(request: Request) {
           address: order.vendor.address,
         },
         user: {
-          // We'll add customer name lookup below
+          name: customerName,
         },
         canComplete: order.status === 'pending_pickup' || order.status === 'picked_up',
       },

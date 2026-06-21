@@ -60,25 +60,32 @@ import { toast } from 'sonner'
 // (third-party cookie blocking). The server's getAuthUser() checks the
 // Authorization header first, then falls back to cookies.
 //
+// CRITICAL FIX (tokens in localStorage): only the short-lived accessToken
+// (15 min) is kept in localStorage. The refresh token lives ONLY in the
+// httpOnly cookie, so refresh requests use `credentials: 'include'` and let
+// the browser attach the cookie automatically. This prevents refresh-token
+// theft via XSS.
+//
 // Flow: every request gets `Authorization: Bearer <accessToken>`. On 401 we
-// call /api/auth/refresh (sending the refresh token in the body), store the
-// new tokens, and retry once. Concurrent 401s share a single refresh.
+// call /api/auth/refresh (sending credentials so the cookie is attached),
+// store the new accessToken, and retry once. Concurrent 401s share a single refresh.
 let refreshPromise: Promise<boolean> | null = null
 
 async function refreshAccessToken(): Promise<boolean> {
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     try {
-      const { refreshToken } = useAuthStore.getState()
+      // CRITICAL FIX: do NOT send a refresh token in the body — it's in the
+      // httpOnly cookie. `credentials: 'include'` ensures the cookie is sent.
       const res = await fetch('/api/auth/refresh', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        credentials: 'include',
       })
       if (!res.ok) return false
       const json = await res.json()
-      if (json.success && json.tokens) {
-        useAuthStore.getState().setTokens(json.tokens)
+      if (json.success && json.tokens && json.tokens.accessToken) {
+        useAuthStore.getState().setTokens({ accessToken: json.tokens.accessToken })
         return true
       }
       return false
@@ -91,7 +98,7 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshPromise
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string; tokens?: { accessToken: string; refreshToken: string } }> {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ success: boolean; data?: T; error?: string; tokens?: { accessToken?: string } }> {
   const buildHeaders = (opts?: RequestInit) => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -106,7 +113,9 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
   }
 
   try {
-    let res = await fetch(path, { ...options, headers: buildHeaders(options) })
+    // CRITICAL FIX: always include credentials so the httpOnly refresh_token
+    // cookie is available to the server on 401 → /api/auth/refresh flows.
+    let res = await fetch(path, { ...options, headers: buildHeaders(options), credentials: 'include' })
 
     // If the access token has expired, transparently refresh + retry once.
     // Skip this for the refresh/logout endpoints themselves to avoid loops.
@@ -118,7 +127,7 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
       const refreshed = await refreshAccessToken()
       if (refreshed) {
         // Retry the original request with the fresh Bearer token
-        res = await fetch(path, { ...options, headers: buildHeaders(options) })
+        res = await fetch(path, { ...options, headers: buildHeaders(options), credentials: 'include' })
       } else {
         return { success: false, error: 'Session expired. Please sign in again.' }
       }
@@ -506,9 +515,20 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
   const [timeLeft, setTimeLeft] = useState('')
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null
     const update = () => {
       const diff = new Date(expiresAt).getTime() - Date.now()
-      if (diff <= 0) { setTimeLeft('Expired'); return }
+      if (diff <= 0) {
+        setTimeLeft('Expired')
+        // LOW 9: once the deadline has passed, stop firing setInterval — the
+        // value will never change again, so continuing to tick every second is
+        // pure CPU/battery waste (especially on mobile).
+        if (interval) {
+          clearInterval(interval)
+          interval = null
+        }
+        return
+      }
       const hours = Math.floor(diff / 3600000)
       const mins = Math.floor((diff % 3600000) / 60000)
       const secs = Math.floor((diff % 60000) / 1000)
@@ -517,8 +537,10 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
       else setTimeLeft(`${secs}s`)
     }
     update()
-    const interval = setInterval(update, 1000)
-    return () => clearInterval(interval)
+    interval = setInterval(update, 1000)
+    return () => {
+      if (interval) clearInterval(interval)
+    }
   }, [expiresAt])
 
   const isUrgent = timeLeft !== 'Expired' && !timeLeft.includes('h')
@@ -831,7 +853,7 @@ function FoodieHomeView() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  const fetchDeals = useCallback(async () => {
+  const fetchDeals = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
     const params = new URLSearchParams({ status: 'active' })
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
@@ -843,13 +865,24 @@ function FoodieHomeView() {
     // Distance is still calculated and shown on each deal card.
 
     const res = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${params}`)
+    // HIGH 8: bail out if the effect was cancelled (e.g. user navigated away
+    // or changed the search category) before this response arrived. Prevents
+    // a stale response from overwriting fresher state.
+    if (signal?.aborted) return
     if (res.success && res.data) {
       setDeals(res.data.deals)
     }
-    setLoading(false)
+    if (!signal?.aborted) setLoading(false)
   }, [selectedCategory, debouncedSearch])
 
-  useEffect(() => { fetchDeals() }, [fetchDeals])
+  useEffect(() => {
+    // HIGH 8: AbortController + cancelled flag pattern. If the user changes
+    // the category or search query while a previous request is still in
+    // flight, we abort the stale request and ignore its result.
+    const controller = new AbortController()
+    fetchDeals(controller.signal)
+    return () => controller.abort()
+  }, [fetchDeals])
 
   // Assign card sizes for visual variety
   const getCardSize = (index: number): CardSize => {
@@ -1034,10 +1067,18 @@ function DealDetailView() {
   // Fetch deal
   useEffect(() => {
     if (!viewParams.id) return
+    // HIGH 8: cancelled flag prevents stale responses from overwriting the
+    // deal when the user navigates between deals quickly (e.g. taps one deal
+    // then another before the first response arrives).
+    let cancelled = false
     setLoading(true)
     apiFetch<Deal>(`/api/deals/${viewParams.id}`).then((res) => {
+      if (cancelled) return
       if (res.success && res.data) setDeal(res.data)
-    }).finally(() => setLoading(false))
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
   }, [viewParams.id])
 
   // Reset quantity when deal changes
@@ -1455,15 +1496,19 @@ function DealDetailView() {
 // FOODIE: ORDERS VIEW
 // ============================================
 // Pickup progress slider - animated bar showing time remaining
-function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
+function PickupProgressSlider({ pickupDeadline, createdAt }: { pickupDeadline: string; createdAt?: string }) {
   const [progress, setProgress] = useState(0)
   const [timeLeft, setTimeLeft] = useState('')
 
   useEffect(() => {
     const calcProgress = () => {
       const deadline = new Date(pickupDeadline).getTime()
-      // Assume 2-hour pickup window from order creation
-      const totalWindow = 2 * 60 * 60 * 1000
+      // MEDIUM 11: use the actual order createdAt (passed in) to compute the
+      // pickup window, instead of assuming a fixed 2-hour window. Falls back
+      // to the legacy 2-hour assumption if createdAt is not provided.
+      const totalWindow = createdAt
+        ? Math.max(60_000, deadline - new Date(createdAt).getTime())
+        : 2 * 60 * 60 * 1000
       const created = deadline - totalWindow
       const now = Date.now()
       const elapsed = now - created
@@ -1489,7 +1534,7 @@ function PickupProgressSlider({ pickupDeadline }: { pickupDeadline: string }) {
     calcProgress()
     const interval = setInterval(calcProgress, 30000) // update every 30s
     return () => clearInterval(interval)
-  }, [pickupDeadline])
+  }, [pickupDeadline, createdAt])
 
   const isOverdue = timeLeft === 'Pickup overdue'
   const isUrgent = !isOverdue && progress > 75
@@ -1655,7 +1700,7 @@ function FoodieOrdersView() {
                                 Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <PickupProgressSlider pickupDeadline={order.pickupDeadline} />
+                            <PickupProgressSlider pickupDeadline={order.pickupDeadline} createdAt={order.createdAt} />
                             {/* Price & Status */}
                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#e8edea]">
                               <div>
@@ -1834,11 +1879,10 @@ function FoodieProfileView() {
 
   // Settings toggles (persisted in localStorage)
   const [settings, setSettings] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flashbite_settings')
-      if (saved) return JSON.parse(saved)
-    }
-    return {
+    // MEDIUM 12: wrap JSON.parse in try/catch so a corrupted/tampered
+    // localStorage entry doesn't crash the app on boot — fall back to the
+    // defaults below instead.
+    const defaults = {
       pushNotifications: true,
       dealAlerts: true,
       expiringDealAlerts: true,
@@ -1856,6 +1900,22 @@ function FoodieProfileView() {
       // Upload
       autoCompress: true,
     }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('flashbite_settings')
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved)
+          if (parsed && typeof parsed === 'object') {
+            // Merge with defaults so missing keys still get a sensible value.
+            return { ...defaults, ...parsed }
+          }
+        } catch {
+          // Corrupt JSON in localStorage — fall through to defaults.
+          return defaults
+        }
+      }
+    }
+    return defaults
   })
 
   // Save settings to localStorage whenever they change
@@ -1903,12 +1963,12 @@ function FoodieProfileView() {
   }
 
   const handleLogout = async () => {
-    // Send refresh token in body so the server can delete it even if the
-    // access token is expired (cookie may not be available in preview iframe)
-    const { refreshToken } = useAuthStore.getState()
+    // CRITICAL FIX: the refresh token is no longer kept in localStorage (it
+    // lives in the httpOnly cookie). The /api/auth/logout route reads the
+    // refresh token from the cookie via `credentials: 'include'`, so no body
+    // is needed. (apiFetch already sets credentials: 'include'.)
     await apiFetch('/api/auth/logout', {
       method: 'POST',
-      body: JSON.stringify({ refreshToken }),
     })
     logout()
     // Redirect to public homepage for all roles
@@ -1961,11 +2021,16 @@ function FoodieProfileView() {
     }
     setChangingPassword(true)
     try {
-      const res = await apiFetch('/api/auth/change-password', {
+      const res = await apiFetch<{ tokens?: { accessToken?: string } }>('/api/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({ currentPassword, newPassword }),
       })
       if (res.success) {
+        // MEDIUM FIX: server issued a new access token after invalidating all
+        // existing sessions. Update the store with the fresh access token.
+        if (res.tokens?.accessToken) {
+          useAuthStore.getState().setTokens({ accessToken: res.tokens.accessToken })
+        }
         toast.success('Password changed successfully!')
         setShowPasswordModal(false)
         setCurrentPassword('')
@@ -2027,6 +2092,8 @@ function FoodieProfileView() {
                 setAvatarUrl(url)
                 // Save to profile via API — the route persists avatarUrl to
                 // the User table so it survives refreshes.
+                // MEDIUM 9: add explicit .catch() so a failed save surfaces a
+                // toast instead of being silently swallowed.
                 apiFetch('/api/auth/profile', {
                   method: 'PUT',
                   body: JSON.stringify({ avatarUrl: url }),
@@ -2034,8 +2101,10 @@ function FoodieProfileView() {
                   if (res.success && res.data) {
                     // Update the auth store so the avatar persists immediately
                     useAuthStore.getState().login(res.data as AuthUser)
+                  } else {
+                    toast.error(res.error || 'Failed to save avatar')
                   }
-                })
+                }).catch(() => toast.error('Failed to save avatar'))
               }}
               circular
               compact
@@ -2272,7 +2341,13 @@ function FoodieProfileView() {
                 currentUrl={avatarUrl}
                 onUploadComplete={(url) => {
                   setAvatarUrl(url)
+                  // MEDIUM 9: handle the save response so a failure surfaces a
+                  // toast instead of silently dropping the avatar update.
                   apiFetch('/api/auth/profile', { method: 'PUT', body: JSON.stringify({ avatarUrl: url }) })
+                    .then((res) => {
+                      if (!res.success) toast.error(res.error || 'Failed to save avatar')
+                    })
+                    .catch(() => toast.error('Failed to save avatar'))
                 }}
                 label="Profile Photo"
                 sizeHint="200×200px • Auto-resized"
@@ -2285,7 +2360,12 @@ function FoodieProfileView() {
                   <ImageUploader
                     group="vendor_logo"
                     onUploadComplete={(url) => {
+                      // MEDIUM 9: surface failures instead of fire-and-forget.
                       apiFetch('/api/vendors/my/logo', { method: 'PUT', body: JSON.stringify({ logoUrl: url }) })
+                        .then((res) => {
+                          if (!res.success) toast.error(res.error || 'Failed to save logo')
+                        })
+                        .catch(() => toast.error('Failed to save logo'))
                     }}
                     label="Vendor Logo"
                     sizeHint="200×200px • Auto-resized"
@@ -2295,7 +2375,12 @@ function FoodieProfileView() {
                   <ImageUploader
                     group="vendor_banner"
                     onUploadComplete={(url) => {
+                      // MEDIUM 9: surface failures instead of fire-and-forget.
                       apiFetch('/api/vendors/my/banner', { method: 'PUT', body: JSON.stringify({ bannerUrl: url }) })
+                        .then((res) => {
+                          if (!res.success) toast.error(res.error || 'Failed to save banner')
+                        })
+                        .catch(() => toast.error('Failed to save banner'))
                     }}
                     label="Store Banner"
                     sizeHint="1200×400px • Auto-resized"
@@ -3630,9 +3715,20 @@ function VendorFulfillmentView() {
 
   // Start camera scanner
   const startScanner = async () => {
+    // LOW 10: idempotency guard — if a scanner is already running (or starting
+    // up), bail out so we don't try to open a second camera stream on top of
+    // the first one.
+    if (html5QrcodeRef.current) {
+      return
+    }
     try {
       const { Html5Qrcode } = await import('html5-qrcode')
       const scannerId = 'qr-scanner-container'
+
+      // Guard again after the async import — a second click could have raced.
+      if (html5QrcodeRef.current) {
+        return
+      }
 
       const html5QrCode = new Html5Qrcode(scannerId)
       html5QrcodeRef.current = html5QrCode
@@ -3657,6 +3753,8 @@ function VendorFulfillmentView() {
       console.error('Camera error:', err)
       toast.error('Camera access denied or not available. Use manual QR input instead.')
       setCameraActive(false)
+      // LOW 10: clear the ref on failure too so a retry isn't blocked.
+      html5QrcodeRef.current = null
     }
   }
 
@@ -3666,11 +3764,16 @@ function VendorFulfillmentView() {
       const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void } | null
       if (html5QrCode) {
         await html5QrCode.stop()
+        // LOW 10: also call clear() to release the DOM/video element handles
+        // — stop() alone leaves the <video> element attached and the webcam
+        // indicator can stay lit. clear() fully tears down the scanner UI.
         html5QrCode.clear()
       }
     } catch {
       // Ignore stop errors
     }
+    // LOW 10: null the ref so startScanner's idempotency guard lets the next
+    // session start cleanly.
     html5QrcodeRef.current = null
     setCameraActive(false)
   }
@@ -3758,10 +3861,13 @@ function VendorFulfillmentView() {
   // Cleanup scanner on unmount
   useEffect(() => {
     return () => {
-      if (html5QrcodeRef.current) {
-        const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void }
+      // LOW 10: full teardown on unmount — stop(), clear(), and null the ref.
+      const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void } | null
+      if (html5QrCode) {
         html5QrCode.stop().catch(() => {})
+        try { html5QrCode.clear() } catch { /* ignore */ }
       }
+      html5QrcodeRef.current = null
     }
   }, [])
 
@@ -6279,7 +6385,14 @@ export default function FlashBiteApp() {
         // the user sees the sign-in screen. This is the ONLY place logout()
         // is called on a 401 — never inside apiFetch itself (that caused a
         // login loop where background requests clobbered active sessions).
-        logout()
+        //
+        // HIGH 7: do NOT call logout() on a transient network error — that
+        // would throw a logged-in user back to the sign-in screen just because
+        // their connection dropped for a moment. Only log out on a definitive
+        // auth failure (401/403 returned by the server).
+        if (res.error !== 'Network error') {
+          logout()
+        }
       }
     }).finally(() => setLoading(false))
   }, [login, logout, setLoading])

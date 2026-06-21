@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser, hasRole, parseRoles } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
+import { parseRoles } from '@/lib/auth'
+import { clampPagination, escapeLike } from '@/lib/pagination'
 
 export async function GET(request: Request) {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+    const authUser = await requireAdmin()
+    if (!authUser) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }
@@ -14,8 +16,10 @@ export async function GET(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search')
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { page, pageSize } = clampPagination(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    )
     const isBanned = searchParams.get('isBanned')
 
     const skip = (page - 1) * pageSize
@@ -32,10 +36,11 @@ export async function GET(request: Request) {
       .from('User')
       .select('*', { count: 'exact', head: true })
 
-    // Apply search filter
+    // Apply search filter (LOW 6: escape LIKE wildcards)
     if (search) {
-      userQuery = userQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
-      countQuery = countQuery.or(`name.ilike.%${search}%,email.ilike.%${search}%`)
+      const s = escapeLike(search)
+      userQuery = userQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%`)
+      countQuery = countQuery.or(`name.ilike.%${s}%,email.ilike.%${s}%`)
     }
 
     // Apply isBanned filter

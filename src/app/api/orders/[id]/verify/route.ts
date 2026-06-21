@@ -35,10 +35,12 @@ export async function POST(
       )
     }
 
-    // Find the order by QR code
+    // Find the order by QR code AND route id (LOW 1: previously the route `id`
+    // was ignored, allowing the QR to match an order from a different URL).
     const orderRes = await supabase
       .from('Order')
       .select('*, deal:Deal(id, title, vendorId), vendor:Vendor(id, businessName, userId)')
+      .eq('id', id)
       .eq('qrCode', qrCode)
       .single()
 
@@ -92,23 +94,41 @@ export async function POST(
     }
 
     // Sequential operations (replacing transaction)
+    const now = new Date().toISOString()
     const updateData: Record<string, unknown> = {
       status: newStatus,
+      updatedAt: now,
     }
     if (newStatus === 'picked_up') {
-      updateData.qrVerifiedAt = new Date().toISOString()
+      updateData.qrVerifiedAt = now
     }
 
-    // 1. Update order
-    const updatedOrder = unwrap(
-      await supabase
-        .from('Order')
-        .update(updateData)
-        .eq('id', order.id)
-        .select()
-        .single(),
-      'Update order status'
-    )
+    // 1. Update order — ATOMIC conditional update (HIGH 1 + LOW 3).
+    // Only the expected previous status will match, so two concurrent scans
+    // cannot both transition the same order. We also strip the qrCode from the
+    // returned row (LOW 3) so the response doesn't leak the secret.
+    const atomicUpdate = await supabase
+      .from('Order')
+      .update(updateData)
+      .eq('id', order.id)
+      .eq('status', order.status)
+      .select()
+      .single()
+
+    if (atomicUpdate.error || !atomicUpdate.data) {
+      // 0 rows affected → another request already moved the status, or the
+      // row was deleted. Treat as a conflict.
+      return NextResponse.json(
+        { success: false, error: 'Order status could not be updated (it may have already changed). Please rescan.' },
+        { status: 409 }
+      )
+    }
+    const updatedOrder = atomicUpdate.data
+    // LOW 3: strip qrCode from the response so a compromised vendor client
+    // cannot reuse the captured token for a replay attack.
+    if (updatedOrder && typeof updatedOrder === 'object' && 'qrCode' in updatedOrder) {
+      delete (updatedOrder as Record<string, unknown>).qrCode
+    }
 
     // 2. Create notification for the customer
     const notifType = newStatus === 'picked_up' ? 'pickup_reminder' : 'order_status_update'

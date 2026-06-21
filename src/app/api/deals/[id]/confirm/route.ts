@@ -2,22 +2,6 @@ import { NextResponse } from 'next/server'
 import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser } from '@/lib/auth'
 
-/**
- * Safely parse a timestamp from the database as UTC.
- * PostgreSQL `timestamp without time zone` returns strings without 'Z',
- * which JavaScript interprets as local time. This function ensures
- * UTC interpretation by appending 'Z' when needed.
- */
-function parseUTCDate(dateStr: string): Date {
-  if (!dateStr) return new Date(0)
-  // If already has timezone info (Z or +HH:MM), parse directly
-  if (dateStr.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(dateStr)) {
-    return new Date(dateStr)
-  }
-  // Otherwise treat as UTC
-  return new Date(dateStr + 'Z')
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -43,84 +27,82 @@ export async function POST(
       )
     }
 
-    // Find the reservation
-    const reservation = unwrap(
-      await supabase
+    // CRITICAL FIX (race condition): atomic conditional update on the
+    // reservation row. We only confirm if ALL of the following hold at the
+    // moment of the update:
+    //   - id matches reservationId
+    //   - userId matches the authenticated user (prevents IDOR)
+    //   - dealId matches the route param (prevents mismatched reservations)
+    //   - status is still 'pending' (prevents double-confirm)
+    //   - expiresAt is still in the future (prevents confirming expired)
+    // We join the Deal (+ Vendor) in the SAME query so the deal snapshot used
+    // for order creation comes from the atomic row — no separate fetch, no
+    // TOCTOU window between reading the deal and confirming the reservation.
+    // If any predicate fails, 0 rows are affected and we fall through to the
+    // granular error branch below.
+    const claimRes = await supabase
+      .from('Reservation')
+      .update({ status: 'confirmed' })
+      .eq('id', reservationId)
+      .eq('status', 'pending')
+      .eq('userId', authUser.userId)
+      .eq('dealId', id)
+      .gt('expiresAt', new Date().toISOString())
+      .select('*, deal:Deal(*, vendor:Vendor(*))')
+      .single()
+
+    if (claimRes.error || !claimRes.data) {
+      // Distinguish "not found" vs "already confirmed" vs "expired" vs "not
+      // owned / wrong deal" so the client can surface a useful error instead
+      // of a generic 409 for every failure mode.
+      const existing = await supabase
         .from('Reservation')
-        .select('*')
+        .select('id, status, expiresAt')
         .eq('id', reservationId)
-        .single(),
-      'Find reservation'
-    )
-
-    // Verify reservation belongs to user
-    if (reservation.userId !== authUser.userId) {
+        .maybeSingle()
+      if (!existing.data) {
+        return NextResponse.json(
+          { success: false, error: 'Reservation not found' },
+          { status: 404 }
+        )
+      }
+      if (existing.data.status !== 'pending') {
+        return NextResponse.json(
+          { success: false, error: 'Reservation already confirmed or expired' },
+          { status: 409 }
+        )
+      }
+      if (new Date(existing.data.expiresAt) <= new Date()) {
+        return NextResponse.json(
+          { success: false, error: 'Reservation has expired' },
+          { status: 410 }
+        )
+      }
+      // Row exists, is pending, and is not expired — the only remaining reason
+      // for 0 rows affected is ownership/dealId mismatch (IDOR attempt) or a
+      // hard DB error. Either way, do NOT leak which — return a generic 409.
       return NextResponse.json(
-        { success: false, error: 'This reservation does not belong to you' },
-        { status: 403 }
+        { success: false, error: 'Reservation could not be confirmed' },
+        { status: 409 }
       )
     }
+    const reservation = claimRes.data
+    const deal = reservation.deal
 
-    // Verify reservation is pending
-    if (reservation.status !== 'pending') {
-      return NextResponse.json(
-        { success: false, error: `Reservation is already ${reservation.status}` },
-        { status: 400 }
-      )
-    }
-
-    // *** FIX: Use UTC-safe date comparison ***
-    // PostgreSQL timestamp without tz returns strings without 'Z',
-    // causing JavaScript to interpret them as local time instead of UTC
-    const reservationExpiry = parseUTCDate(reservation.expiresAt)
-    const now = new Date()
-
-    if (reservationExpiry < now) {
-      // Mark reservation as expired in the database
-      await supabase.from('Reservation').update({ status: 'expired' }).eq('id', reservationId)
-
-      // Return reserved quantity back to available
-      const currentDeal = unwrap(
-        await supabase.from('Deal').select('reservedQuantity, availableQuantity').eq('id', reservation.dealId).single(),
-        'Fetch deal for expired reservation'
-      )
-      await supabase.from('Deal').update({
-        reservedQuantity: Math.max(0, currentDeal.reservedQuantity - reservation.quantity),
-        availableQuantity: currentDeal.availableQuantity + reservation.quantity,
-      }).eq('id', reservation.dealId)
-
-      return NextResponse.json(
-        { success: false, error: 'Your reservation has expired. Please claim the deal again.' },
-        { status: 400 }
-      )
-    }
-
-    // Verify the deal matches the route param
-    if (reservation.dealId !== id) {
-      return NextResponse.json(
-        { success: false, error: 'Reservation does not match this deal' },
-        { status: 400 }
-      )
-    }
-
-    // Fetch deal with vendor
-    const deal = unwrap(
-      await supabase
-        .from('Deal')
-        .select('*, vendor:Vendor(*)')
-        .eq('id', id)
-        .single(),
-      'Find deal for confirmation'
-    )
+    // TODO: SECURITY — prices should be snapshotted on the Reservation at claim time,
+    // not re-read from the Deal at confirm time. A vendor can change the price between
+    // claim and confirm (5-min window). See audit finding HIGH-5.
+    // (Requires a schema migration to add dealPrice + originalPrice columns to
+    // Reservation; intentionally not done in this pass.)
 
     // Generate order ID and number
     const orderId = genId('order')
     const timestamp = Date.now()
     const random = Math.random().toString(36).substring(2, 6).toUpperCase()
     const orderNumber = `FB-${timestamp}-${random}`
-    // QR code encodes the orderId so external scanners see a meaningful reference
-    // (previously used crypto.randomUUID() which showed an unrelated UUID)
-    const qrCode = orderId
+    // CRITICAL FIX (LOW 4): qrCode was previously the orderId (predictable).
+    // Use a long random token so external scanners cannot enumerate orders.
+    const qrCode = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '')
 
     // Calculate pickup deadline (2 hours from now)
     const pickupDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000)
@@ -165,10 +147,7 @@ export async function POST(
 
     await supabase.from('Deal').update(dealUpdateData).eq('id', deal.id)
 
-    // 3. Update reservation status
-    await supabase.from('Reservation').update({ status: 'confirmed' }).eq('id', reservationId)
-
-    // 4. Create notification
+    // 3. Create notification
     await supabase.from('Notification').insert({
       id: genId('notif'),
       userId: authUser.userId,

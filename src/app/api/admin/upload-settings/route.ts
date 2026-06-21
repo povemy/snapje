@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
 import { supabase, unwrap } from '@/lib/supabase'
 
 /**
@@ -8,9 +8,9 @@ import { supabase, unwrap } from '@/lib/supabase'
  */
 export async function GET() {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin only' }, { status: 403 })
+    const authUser = await requireAdmin()
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
     }
 
     // Try to fetch from a settings table, fallback to defaults
@@ -58,9 +58,9 @@ export async function GET() {
  */
 export async function PUT(request: Request) {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
-      return NextResponse.json({ success: false, error: 'Admin only' }, { status: 403 })
+    const authUser = await requireAdmin()
+    if (!authUser) {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
     }
 
     const body = await request.json()

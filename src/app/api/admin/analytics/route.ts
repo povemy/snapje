@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap } from '@/lib/supabase'
-import { getAuthUser, hasRole } from '@/lib/auth'
+import { requireAdmin } from '@/lib/auth-helpers'
 import { cache } from '@/lib/cache'
 
 export async function GET() {
   try {
-    const authUser = await getAuthUser()
-    if (!authUser || !hasRole(authUser.roles.join(','), 'admin')) {
+    const authUser = await requireAdmin()
+    if (!authUser) {
       return NextResponse.json(
         { success: false, error: 'Admin access required' },
         { status: 403 }

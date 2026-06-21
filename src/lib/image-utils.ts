@@ -221,6 +221,10 @@ export async function uploadImageVariants(
     method: 'POST',
     headers,
     body: formData,
+    // CRITICAL FIX: include credentials so the httpOnly refresh_token cookie
+    // is sent — needed if the access token has expired mid-upload and a 401
+    // triggers an automatic refresh.
+    credentials: 'include',
   })
 
   onProgress?.(90)

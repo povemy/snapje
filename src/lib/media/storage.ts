@@ -126,3 +126,40 @@ export function buildFilePath(
   const rand = Math.random().toString(36).slice(2, 10)
   return `${group}/${userId}/${timestamp}_${rand}/${fileName}`
 }
+
+/**
+ * HIGH 6: URL allowlist for user-supplied media URLs.
+ *
+ * Accepts only:
+ *   - absolute http/https URLs whose hostname matches the configured Supabase
+ *     project hostname (SUPABASE_URL), OR
+ *   - relative URLs of the form /api/media/serve/... (our portable serving
+ *     route which itself only ever redirects to the Supabase bucket).
+ *
+ * This blocks SSRF / arbitrary-external-host image injection where a malicious
+ * user could set logoUrl/avatarUrl to an attacker-controlled URL (used for
+ * tracking, IP harvesting, or driving bot traffic to a target).
+ *
+ * Returns true for empty/null values so callers can use it as a guard without
+ * blocking "clear image" flows.
+ */
+export function isAllowedMediaUrl(url: string | null | undefined): boolean {
+  if (!url) return true
+  try {
+    // Relative /api/media/serve/... — always allowed (our own route)
+    if (url.startsWith('/api/media/serve/')) return true
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+    if (!supabaseUrl) return false
+    let allowedHost: string
+    try {
+      allowedHost = new URL(supabaseUrl).hostname
+    } catch {
+      return false
+    }
+    return parsed.hostname === allowedHost
+  } catch {
+    return false
+  }
+}

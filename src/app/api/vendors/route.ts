@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { supabase, unwrap, genId } from '@/lib/supabase'
 import { getAuthUser, hasRole, parseRoles } from '@/lib/auth'
+import { clampPagination, escapeLike } from '@/lib/pagination'
 
 export async function GET(request: Request) {
   try {
@@ -8,21 +9,69 @@ export async function GET(request: Request) {
     const status = searchParams.get('status')
     const search = searchParams.get('search')
     const my = searchParams.get('my')
-    const page = parseInt(searchParams.get('page') || '1')
-    const pageSize = parseInt(searchParams.get('pageSize') || '20')
+    const { page, pageSize } = clampPagination(
+      searchParams.get('page'),
+      searchParams.get('pageSize')
+    )
 
-    let query = supabase
-      .from('Vendor')
-      .select('*, user:User(id, name, email, phone, avatarUrl)')
-      .order('createdAt', { ascending: false })
-      .range((page - 1) * pageSize, page * pageSize - 1)
+    // LOW 7: lat/lng range validation (used by some clients for proximity queries)
+    const lat = searchParams.get('lat')
+    const lng = searchParams.get('lng')
+    if (lat !== null) {
+      const latNum = Number(lat)
+      if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
+        return NextResponse.json(
+          { success: false, error: 'lat must be a number in [-90, 90]' },
+          { status: 400 }
+        )
+      }
+    }
+    if (lng !== null) {
+      const lngNum = Number(lng)
+      if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
+        return NextResponse.json(
+          { success: false, error: 'lng must be a number in [-180, 180]' },
+          { status: 400 }
+        )
+      }
+    }
 
-    // If "my" parameter, return only the current user's vendor
+    // HIGH 4 (PII leak): public vendor listings MUST NOT expose the vendor's
+    // personal user email/phone. Select only public business fields. When the
+    // caller requests their OWN vendor (`?my=true`) and is authenticated, we
+    // additionally include the linked User fields so the vendor dashboard can
+    // render the user's name/email/phone/avatar.
+    const publicVendorSelect =
+      'id, businessName, description, address, latitude, longitude, logoUrl, coverImageUrl, rating, totalSales, foodCategories, operatingHours, verificationStatus, createdAt'
+    const ownVendorSelect =
+      '*, user:User(id, name, email, phone, avatarUrl)'
+
+    // If "my" parameter, return only the current user's vendor.
+    // HIGH 4: if not authenticated, fall through to an empty result so we
+    // don't leak all vendors when an unauthenticated caller sends ?my=true.
+    let authenticatedUserId: string | null = null
     if (my === 'true') {
       const authUser = await getAuthUser()
       if (authUser) {
-        query = query.eq('userId', authUser.userId)
+        authenticatedUserId = authUser.userId
+      } else {
+        return NextResponse.json({
+          success: true,
+          data: { vendors: [], total: 0, page, pageSize, totalPages: 0 },
+        })
       }
+    }
+
+    const selectFields = my === 'true' ? ownVendorSelect : publicVendorSelect
+
+    let query = supabase
+      .from('Vendor')
+      .select(selectFields)
+      .order('createdAt', { ascending: false })
+      .range((page - 1) * pageSize, page * pageSize - 1)
+
+    if (my === 'true' && authenticatedUserId) {
+      query = query.eq('userId', authenticatedUserId)
     }
 
     if (status) {
@@ -30,7 +79,9 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      query = query.or(`businessName.ilike.%${search}%,address.ilike.%${search}%`)
+      // LOW 6: escape LIKE wildcards to prevent injection.
+      const s = escapeLike(search)
+      query = query.or(`businessName.ilike.%${s}%,address.ilike.%${s}%`)
     }
 
     // Build count query (same filters, but no pagination)
@@ -38,11 +89,8 @@ export async function GET(request: Request) {
       .from('Vendor')
       .select('*', { count: 'exact', head: true })
 
-    if (my === 'true') {
-      const authUser = await getAuthUser()
-      if (authUser) {
-        countQuery = countQuery.eq('userId', authUser.userId)
-      }
+    if (my === 'true' && authenticatedUserId) {
+      countQuery = countQuery.eq('userId', authenticatedUserId)
     }
 
     if (status) {
@@ -50,7 +98,8 @@ export async function GET(request: Request) {
     }
 
     if (search) {
-      countQuery = countQuery.or(`businessName.ilike.%${search}%,address.ilike.%${search}%`)
+      const s = escapeLike(search)
+      countQuery = countQuery.or(`businessName.ilike.%${s}%,address.ilike.%${s}%`)
     }
 
     const [vendorsRes, countRes] = await Promise.all([
@@ -126,6 +175,22 @@ export async function POST(request: Request) {
       )
     }
 
+    // LOW 7: validate lat/lng ranges before storage.
+    const latNum = Number(latitude)
+    const lngNum = Number(longitude)
+    if (!Number.isFinite(latNum) || latNum < -90 || latNum > 90) {
+      return NextResponse.json(
+        { success: false, error: 'latitude must be a finite number in [-90, 90]' },
+        { status: 400 }
+      )
+    }
+    if (!Number.isFinite(lngNum) || lngNum < -180 || lngNum > 180) {
+      return NextResponse.json(
+        { success: false, error: 'longitude must be a finite number in [-180, 180]' },
+        { status: 400 }
+      )
+    }
+
     // Get user
     const user = unwrap(
       await supabase.from('User').select('*').eq('id', authUser.userId).single(),
@@ -157,8 +222,8 @@ export async function POST(request: Request) {
           contactEmail: contactEmail.trim(),
           contactPhone: contactPhone.trim(),
           address: address.trim(),
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
+          latitude: latNum,
+          longitude: lngNum,
           operatingHours: operatingHours ? JSON.stringify(operatingHours) : '{}',
           foodCategories: foodCategories ? JSON.stringify(foodCategories) : '[]',
           verificationStatus: 'pending',
