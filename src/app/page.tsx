@@ -2,12 +2,23 @@
 
 import { useEffect, useState, useCallback, memo, useRef } from 'react'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { useAuthStore } from '@/stores/auth-store'
 import { useAppStore } from '@/stores/app-store'
 import { useNotificationStore } from '@/stores/notification-store'
 import { useSocket } from '@/hooks/use-socket'
 import type { AuthUser, AppRole, AppView, Deal, Order, Vendor, AppNotification } from '@/types'
 import { AnimatePresence, motion } from 'framer-motion'
+
+// Dynamically import the QRScanner (SSR-safe — html5-qrcode requires window/camera)
+const QRScanner = dynamic(() => import('@/components/QRScanner'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-10 rounded-xl bg-[#f0f4f2] flex items-center justify-center text-xs text-[#717971]">
+      Loading scanner…
+    </div>
+  ),
+})
 import {
   Home, Compass, ShoppingBag, User, ChefHat, LayoutDashboard,
   PlusCircle, Package, CheckCircle, CreditCard, Shield, Users,
@@ -3681,13 +3692,7 @@ function VendorFulfillmentView() {
   const [qrInput, setQrInput] = useState('')
   const [scanning, setScanning] = useState(false)
   const [completing, setCompleting] = useState(false)
-  const [cameraActive, setCameraActive] = useState(false)
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending')
-
-  // Camera scanner refs
-  const scannerRef = useRef<HTMLDivElement>(null)
-  const html5QrcodeRef = useRef<unknown>(null)
-  const fileScanInputRef = useRef<HTMLInputElement>(null)
 
   // Scan result modal
   const [scanResult, setScanResult] = useState<{
@@ -3714,75 +3719,10 @@ function VendorFulfillmentView() {
   const pendingPickup = orders.filter(o => o.status === 'pending_pickup')
   const completed = orders.filter(o => o.status === 'completed')
 
-  // Start camera scanner
-  const startScanner = async () => {
-    // LOW 10: idempotency guard — if a scanner is already running (or starting
-    // up), bail out so we don't try to open a second camera stream on top of
-    // the first one.
-    if (html5QrcodeRef.current) {
-      return
-    }
-    try {
-      const { Html5Qrcode } = await import('html5-qrcode')
-      const scannerId = 'qr-scanner-container'
-
-      // Guard again after the async import — a second click could have raced.
-      if (html5QrcodeRef.current) {
-        return
-      }
-
-      const html5QrCode = new Html5Qrcode(scannerId)
-      html5QrcodeRef.current = html5QrCode
-
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
-        },
-        (decodedText: string) => {
-          // QR code detected — auto scan
-          handleScanFromCamera(decodedText)
-        },
-        () => {
-          // QR code not found (ignore - continuous scanning)
-        }
-      )
-      setCameraActive(true)
-    } catch (err) {
-      console.error('Camera error:', err)
-      toast.error('Camera access denied or not available. Use manual QR input instead.')
-      setCameraActive(false)
-      // LOW 10: clear the ref on failure too so a retry isn't blocked.
-      html5QrcodeRef.current = null
-    }
-  }
-
-  // Stop camera scanner
-  const stopScanner = async () => {
-    try {
-      const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void } | null
-      if (html5QrCode) {
-        await html5QrCode.stop()
-        // LOW 10: also call clear() to release the DOM/video element handles
-        // — stop() alone leaves the <video> element attached and the webcam
-        // indicator can stay lit. clear() fully tears down the scanner UI.
-        html5QrCode.clear()
-      }
-    } catch {
-      // Ignore stop errors
-    }
-    // LOW 10: null the ref so startScanner's idempotency guard lets the next
-    // session start cleanly.
-    html5QrcodeRef.current = null
-    setCameraActive(false)
-  }
-
-  // Handle scan from camera
-  const handleScanFromCamera = async (qrCode: string) => {
-    // Stop scanner while processing
-    await stopScanner()
+  // Handle QR scan from the live camera scanner (QRScanner component)
+  // or from manual input. Looks up the order by QR code.
+  const handleQRScan = async (qrCode: string) => {
+    if (!qrCode.trim()) return
     setScanning(true)
     try {
       const res = await apiFetch<{
@@ -3792,7 +3732,7 @@ function VendorFulfillmentView() {
         canComplete: boolean
       }>('/api/orders/scan', {
         method: 'POST',
-        body: JSON.stringify({ qrCode }),
+        body: JSON.stringify({ qrCode: qrCode.trim() }),
       })
       if (res.success && res.data) {
         setScanResult(res.data)
@@ -3804,67 +3744,10 @@ function VendorFulfillmentView() {
     }
   }
 
-  // Scan QR code — lookup order (manual input)
+  // Manual input handler (kept as a fallback for when camera is unavailable)
   const handleScan = async () => {
     if (!qrInput.trim()) return
-    setScanning(true)
-    try {
-      const res = await apiFetch<{
-        order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
-        deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
-        vendor: { id: string; businessName: string; address: string } | null
-        canComplete: boolean
-      }>('/api/orders/scan', {
-        method: 'POST',
-        body: JSON.stringify({ qrCode: qrInput.trim() }),
-      })
-      if (res.success && res.data) {
-        setScanResult(res.data)
-      } else {
-        toast.error(res.error || 'QR code lookup failed')
-      }
-    } finally {
-      setScanning(false)
-    }
-  }
-
-  // Native file capture fallback — opens the phone's built-in camera app
-  // (works even when getUserMedia is blocked in the iframe/preview context).
-  // The user takes a photo of the QR code, then we decode it from the image.
-  const handleFileScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    setScanning(true)
-    try {
-      // Use html5-qrcode's scanFile method to decode the QR from the image
-      const { Html5Qrcode } = await import('html5-qrcode')
-      const html5QrCode = new Html5Qrcode('qr-file-scanner-temp')
-      const decodedText = await html5QrCode.scanFile(file, false)
-      html5QrCode.clear()
-
-      // Process the decoded QR code (same as camera scan)
-      const res = await apiFetch<{
-        order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
-        deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
-        vendor: { id: string; businessName: string; address: string } | null
-        canComplete: boolean
-      }>('/api/orders/scan', {
-        method: 'POST',
-        body: JSON.stringify({ qrCode: decodedText }),
-      })
-      if (res.success && res.data) {
-        setScanResult(res.data)
-      } else {
-        toast.error(res.error || 'QR code lookup failed')
-      }
-    } catch {
-      toast.error('Could not read QR code from image. Try again or enter manually.')
-    } finally {
-      setScanning(false)
-      // Reset the input so the same file can be selected again
-      if (fileScanInputRef.current) fileScanInputRef.current.value = ''
-    }
+    await handleQRScan(qrInput)
   }
 
   // Complete order
@@ -3898,19 +3781,6 @@ function VendorFulfillmentView() {
     setQrInput(order.qrCode)
   }
 
-  // Cleanup scanner on unmount
-  useEffect(() => {
-    return () => {
-      // LOW 10: full teardown on unmount — stop(), clear(), and null the ref.
-      const html5QrCode = html5QrcodeRef.current as { stop: () => Promise<void>; clear: () => void } | null
-      if (html5QrCode) {
-        html5QrCode.stop().catch(() => {})
-        try { html5QrCode.clear() } catch { /* ignore */ }
-      }
-      html5QrcodeRef.current = null
-    }
-  }, [])
-
   return (
     <div className="pb-28 px-5 pt-2">
       <div className="flex items-center gap-3 mb-5">
@@ -3920,7 +3790,7 @@ function VendorFulfillmentView() {
         <h1 className="text-xl font-extrabold text-[#1a1c1e]">Fulfillment</h1>
       </div>
 
-      {/* QR Scanner Card — compact */}
+      {/* QR Scanner Card — live camera scanner + manual input fallback */}
       <Card className="border-0 shadow-card rounded-2xl mb-4 overflow-hidden">
         <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-4 pt-3 pb-1.5">
           <h3 className="font-bold text-sm text-[#1a1c1e] flex items-center gap-2">
@@ -3928,47 +3798,11 @@ function VendorFulfillmentView() {
           </h3>
           <p className="text-[10px] text-[#414841]">Scan customer&apos;s QR to verify & complete pickup</p>
         </div>
-        <CardContent className="p-3 space-y-2">
-          {/* Camera Scanner Toggle */}
-          {!cameraActive ? (
-            <Button
-              onClick={startScanner}
-              className="w-full h-10 rounded-xl font-bold text-sm bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white flex items-center justify-center gap-2"
-            >
-              <Camera className="w-4 h-4" /> Open Camera Scanner
-            </Button>
-          ) : (
-            <div className="space-y-3">
-              <div
-                ref={scannerRef}
-                id="qr-scanner-container"
-                className="w-full rounded-xl overflow-hidden border-2 border-[#6CB4EE]/30"
-                style={{ minHeight: '180px' }}
-              />
-              <Button
-                onClick={stopScanner}
-                variant="outline"
-                className="w-full h-9 rounded-xl font-bold text-xs text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
-              >
-                <XCircle className="w-3.5 h-3.5 mr-1" /> Stop Scanner
-              </Button>
-            </div>
-          )}
-
-          {/* Native Camera App Fallback — opens the phone's built-in camera.
-              This works even when getUserMedia is blocked (iframe/preview).
-              The user takes a photo of the QR code, then we decode it. */}
-          <input
-            ref={fileScanInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileScan}
-            className="hidden"
-            aria-label="Scan QR with camera app"
-          />
-          {/* Hidden container for html5-qrcode file scanning (needs a DOM element) */}
-          <div id="qr-file-scanner-temp" className="hidden" />
+        <CardContent className="p-3 space-y-3">
+          {/* Live Camera Scanner — continuous feed, auto-detects QR on hover.
+              This replaces the old file-input fallback with a proper live
+              camera view using Html5QrcodeScanner. */}
+          <QRScanner onScan={handleQRScan} processing={scanning} />
 
           {/* Manual Input Fallback */}
           <div className="flex items-center gap-2 text-[9px] text-[#717971]">
@@ -3992,18 +3826,6 @@ function VendorFulfillmentView() {
               {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             </Button>
           </div>
-
-          {/* Scan with native camera app — triggers the file input above.
-              This is the reliable fallback when the in-browser camera
-              (getUserMedia) is blocked by the iframe/preview context. */}
-          <Button
-            onClick={() => fileScanInputRef.current?.click()}
-            disabled={scanning}
-            variant="outline"
-            className="w-full h-10 rounded-xl font-bold text-xs text-[#6CB4EE] border-[#6CB4EE]/30 hover:bg-[#6CB4EE]/10 flex items-center justify-center gap-2"
-          >
-            {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Camera className="w-3.5 h-3.5" /> Scan with Camera App</>}
-          </Button>
         </CardContent>
       </Card>
 

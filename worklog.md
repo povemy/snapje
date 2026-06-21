@@ -902,3 +902,40 @@ Stage Summary:
 - Refresh fixed: HMR auto-reload intercepted and blocked.
 - Camera fixed: native camera app fallback added (works in iframe/preview where getUserMedia is blocked).
 - PWA: manifest + meta tags added for standalone install. SPA stays fast (no service worker).
+
+---
+Task ID: refactor-qr-scanner
+Agent: Main Agent
+Task: Replace file-input QR fallback with continuous live camera scanner using Html5QrcodeScanner
+
+Work Log:
+- Created src/components/QRScanner.tsx — a dedicated Client Component following strict Next.js requirements:
+  1. 'use client' at the very top
+  2. Html5QrcodeScanner dynamically imported inside the start function (SSR-isolated)
+  3. useEffect hook for cleanup on unmount (scanner.clear().catch(...))
+  4. Unique ID "qr-reader" passed to Html5QrcodeScanner, with matching <div id="qr-reader"> rendered directly in the return statement — NOT hidden behind any isLoading or if (!mounted) guard
+  5. Scanner config: { fps: 10, qrbox: { width: 250, height: 250 } }
+  6. Cleanup: scanner.clear().catch(...) in the useEffect return + in the stopScanner function — prevents double-initialization memory leaks during Fast Refresh/hot-reloading
+  7. Success callback fires on QR detection with a duplicate-fire guard (alreadyFired flag)
+
+- Updated page.tsx:
+  1. Added `import dynamic from 'next/dynamic'` and dynamically imported QRScanner with ssr: false
+  2. Removed old scanner state: cameraActive, scannerRef, html5QrcodeRef, fileScanInputRef
+  3. Removed old scanner functions: startScanner, stopScanner, handleScanFromCamera, handleFileScan
+  4. Removed old cleanup useEffect (scanner teardown now handled inside QRScanner)
+  5. Removed old UI: Open Camera Scanner toggle, qr-scanner-container div, file input, hidden temp div, "Scan with Camera App" button
+  6. Replaced with <QRScanner onScan={handleQRScan} processing={scanning} />
+  7. Unified handleQRScan function (replaces handleScanFromCamera + handleFileScan + handleScan)
+  8. Kept manual input as a fallback below the scanner
+
+- Fixed a parsing error in QRScanner.tsx (a `+` at the start of a comment continuation line was parsed as JS — fixed by adding `//` prefix).
+
+Verification:
+- lint: zero errors.
+- Browser test: "Start Live Scanner" button visible ✅, #qr-reader div present ✅, old #qr-scanner-container removed ✅, old file input removed ✅, clicking Start toggles to "Stop Scanner" ✅ (scanner initialized successfully).
+
+Stage Summary:
+- File-input fallback completely replaced with continuous live camera scanner.
+- QRScanner is a dedicated, SSR-safe Client Component with proper cleanup.
+- The <div id="qr-reader"> is always rendered (never hidden) — prevents "Element not found" errors.
+- scanner.clear().catch(...) in cleanup prevents memory leaks during Fast Refresh.
