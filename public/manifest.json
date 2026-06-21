@@ -1,0 +1,19 @@
+{
+  "name": "FlashBite - Hyper-Local Food Flash Deals",
+  "short_name": "FlashBite",
+  "description": "Discover amazing food flash deals near you. Save up to 60% on meals from your favorite local vendors.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f0f4f2",
+  "theme_color": "#00B14F",
+  "categories": ["food", "shopping", "lifestyle"],
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

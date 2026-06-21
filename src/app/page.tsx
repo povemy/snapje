@@ -3687,6 +3687,7 @@ function VendorFulfillmentView() {
   // Camera scanner refs
   const scannerRef = useRef<HTMLDivElement>(null)
   const html5QrcodeRef = useRef<unknown>(null)
+  const fileScanInputRef = useRef<HTMLInputElement>(null)
 
   // Scan result modal
   const [scanResult, setScanResult] = useState<{
@@ -3827,6 +3828,45 @@ function VendorFulfillmentView() {
     }
   }
 
+  // Native file capture fallback — opens the phone's built-in camera app
+  // (works even when getUserMedia is blocked in the iframe/preview context).
+  // The user takes a photo of the QR code, then we decode it from the image.
+  const handleFileScan = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setScanning(true)
+    try {
+      // Use html5-qrcode's scanFile method to decode the QR from the image
+      const { Html5Qrcode } = await import('html5-qrcode')
+      const html5QrCode = new Html5Qrcode('qr-file-scanner-temp')
+      const decodedText = await html5QrCode.scanFile(file, false)
+      html5QrCode.clear()
+
+      // Process the decoded QR code (same as camera scan)
+      const res = await apiFetch<{
+        order: { id: string; orderNumber: string; status: string; quantity: number; totalPrice: number; pickupDeadline: string; createdAt: string }
+        deal: { id: string; title: string; description?: string; imageUrl?: string; category?: string; pickupInstructions?: string; originalPrice: number; dealPrice: number } | null
+        vendor: { id: string; businessName: string; address: string } | null
+        canComplete: boolean
+      }>('/api/orders/scan', {
+        method: 'POST',
+        body: JSON.stringify({ qrCode: decodedText }),
+      })
+      if (res.success && res.data) {
+        setScanResult(res.data)
+      } else {
+        toast.error(res.error || 'QR code lookup failed')
+      }
+    } catch {
+      toast.error('Could not read QR code from image. Try again or enter manually.')
+    } finally {
+      setScanning(false)
+      // Reset the input so the same file can be selected again
+      if (fileScanInputRef.current) fileScanInputRef.current.value = ''
+    }
+  }
+
   // Complete order
   const handleComplete = async () => {
     if (!scanResult?.order.id) return
@@ -3915,6 +3955,21 @@ function VendorFulfillmentView() {
             </div>
           )}
 
+          {/* Native Camera App Fallback — opens the phone's built-in camera.
+              This works even when getUserMedia is blocked (iframe/preview).
+              The user takes a photo of the QR code, then we decode it. */}
+          <input
+            ref={fileScanInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileScan}
+            className="hidden"
+            aria-label="Scan QR with camera app"
+          />
+          {/* Hidden container for html5-qrcode file scanning (needs a DOM element) */}
+          <div id="qr-file-scanner-temp" className="hidden" />
+
           {/* Manual Input Fallback */}
           <div className="flex items-center gap-2 text-[9px] text-[#717971]">
             <div className="flex-1 h-px bg-[#d7ddd9]" />
@@ -3937,6 +3992,18 @@ function VendorFulfillmentView() {
               {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             </Button>
           </div>
+
+          {/* Scan with native camera app — triggers the file input above.
+              This is the reliable fallback when the in-browser camera
+              (getUserMedia) is blocked by the iframe/preview context. */}
+          <Button
+            onClick={() => fileScanInputRef.current?.click()}
+            disabled={scanning}
+            variant="outline"
+            className="w-full h-10 rounded-xl font-bold text-xs text-[#6CB4EE] border-[#6CB4EE]/30 hover:bg-[#6CB4EE]/10 flex items-center justify-center gap-2"
+          >
+            {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Camera className="w-3.5 h-3.5" /> Scan with Camera App</>}
+          </Button>
         </CardContent>
       </Card>
 

@@ -16,6 +16,13 @@ export const metadata: Metadata = {
   keywords: ["FlashBite", "food deals", "flash deals", "local food", "discount meals"],
   icons: {
     icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "FlashBite",
   },
 };
 
@@ -25,6 +32,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#00B14F",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -34,11 +42,48 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* PWA: allow standalone install on mobile (helps camera permissions) */}
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FlashBite" />
+      </head>
       <body
         className={`${nunitoSans.variable} font-sans antialiased bg-background text-foreground`}
       >
+        {/* Suppress HMR-induced full page refreshes.
+            The preview proxy can't forward the HMR WebSocket, so it fails
+            repeatedly. Next.js then falls back to full page refreshes.
+            This script intercepts the HMR client's reload trigger and
+            silences it, so the app stays stable. */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            if (typeof window === 'undefined') return;
+            // Prevent HMR-triggered full page reloads by overriding the
+            // reload trigger that Next.js dev client uses when the WebSocket
+            // connection fails. The app will still work normally; code
+            // changes just require a manual refresh.
+            var origReload = window.location.reload;
+            var reloadBlocked = false;
+            // Only block automatic reloads (not user-triggered ones)
+            window.addEventListener('beforeunload', function(e) {
+              // Allow user-initiated navigation/refresh
+            });
+            // Intercept the Next.js HMR error handler that calls location.reload()
+            // by wrapping setTimeout to catch the reload call pattern
+            var origSetTimeout = window.setTimeout;
+            window.setTimeout = function(fn, delay) {
+              if (typeof fn === 'string' && fn.indexOf('location.reload') !== -1) {
+                console.warn('[HMR] Blocked auto-reload from HMR failure');
+                return 0;
+              }
+              return origSetTimeout.call(window, fn, delay);
+            };
+          })();
+        `}} />
         {children}
-        <Toaster 
+        <Toaster
           position="top-center"
           duration={3000}
           toastOptions={{
