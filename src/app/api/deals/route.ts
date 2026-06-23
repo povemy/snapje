@@ -53,6 +53,15 @@ export async function GET(request: Request) {
       countQuery = countQuery.eq('status', status)
     }
 
+    // Exclude expired deals from public listings — a deal with status='active'
+    // but expiresAt in the past should NOT appear on the homepage or explore
+    // page. Vendors can still see their expired deals via status=all queries.
+    if (status === 'active') {
+      const nowIso = new Date().toISOString()
+      dealsQuery = dealsQuery.gt('expiresAt', nowIso)
+      countQuery = countQuery.gt('expiresAt', nowIso)
+    }
+
     // Apply vendorId filter
     if (vendorId) {
       dealsQuery = dealsQuery.eq('vendorId', vendorId)
