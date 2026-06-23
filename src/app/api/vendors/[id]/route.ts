@@ -206,3 +206,13 @@ export async function PATCH(
     )
   }
 }
+
+// Also export as PUT — the client (Vendor Settings Business Name save) sends
+// PUT, but Next.js route handlers only match exact method names. Route the PUT
+// to the same PATCH handler so both work.
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PATCH(request, { params })
+}

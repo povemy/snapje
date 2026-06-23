@@ -1411,7 +1411,7 @@ function DealDetailView() {
         </p>
         <h1 className="text-2xl font-extrabold text-[#1a1c1e] leading-tight">{deal.title}</h1>
 
-        {/* Deal Highlight Banner (rounded-2xl, orange gradient accent) */}
+        {/* Deal Highlight Banner (rounded-2xl, red gradient accent) */}
         <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFF7ED] to-[#FFEDD5] border border-[#E53935]/20 p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-[#9A3412] font-medium">Flash Deal Price</p>
@@ -1853,7 +1853,7 @@ function FoodieOrdersView() {
                               </div>
                               <QrCode className="w-5 h-5 text-[#E53935] flex-shrink-0" />
                             </div>
-                            {/* Pickup time with orange */}
+                            {/* Pickup time with red */}
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <Clock className="w-3 h-3 text-[#E53935]" />
                               <span className="text-[11px] font-bold text-[#E53935]">
@@ -2049,7 +2049,6 @@ function FoodieProfileView() {
       expiringDealAlerts: true,
       locationServices: true,
       orderUpdates: true,
-      darkMode: false,
       // Foodie specific
       dietaryPrefs: [] as string[],
       dealAlertRadius: 5,
@@ -2336,7 +2335,7 @@ function FoodieProfileView() {
         <Accordion type="multiple" defaultValue={[]} className="space-y-2">
           {/* ── Basic Settings ── */}
           <AccordionItem value="basic" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
                 <User className="w-4 h-4 text-[#E53935]" /> Basic
               </span>
@@ -2398,9 +2397,107 @@ function FoodieProfileView() {
             </AccordionContent>
           </AccordionItem>
 
+          {/* ── Vendor Settings (positioned right after Basic) ── */}
+          {activeRole === 'vendor' && roles.includes('vendor') && (
+            <AccordionItem value="vendor" className="border-0">
+              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
+                <span className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-[#E53935]" /> Vendor Settings
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+                {/* Business Name — the name customers see on deal cards and orders */}
+                <div>
+                  <Label className="text-[11px] font-bold text-[#414841]">Business Name</Label>
+                  <p className="text-[9px] text-[#717971] mb-1.5">This is the name customers see on your deals and orders.</p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={editBusinessName}
+                      onChange={e => setEditBusinessName(e.target.value)}
+                      placeholder="Your restaurant/shop name"
+                      className="h-9 text-sm rounded-xl flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (!editBusinessName.trim()) return
+                        try {
+                          const vendorRes = await apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true')
+                          if (vendorRes.success && vendorRes.data?.vendors?.[0]) {
+                            const vendor = vendorRes.data.vendors[0]
+                            const res = await apiFetch(`/api/vendors/${vendor.id}`, {
+                              method: 'PUT',
+                              body: JSON.stringify({ businessName: editBusinessName.trim() }),
+                            })
+                            if (res.success) {
+                              toast.success('Business name updated!')
+                            } else {
+                              toast.error(res.error || 'Failed to update business name')
+                            }
+                          } else {
+                            toast.error('Vendor profile not found')
+                          }
+                        } catch {
+                          toast.error('Network error — please try again')
+                        }
+                      }}
+                      className="h-9 px-4 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Auto-accept Orders</p>
+                    <p className="text-[11px] text-[#717971]">Automatically confirm incoming claims</p>
+                  </div>
+                  <Switch checked={settings.autoAcceptOrders} onCheckedChange={v => updateSetting('autoAcceptOrders', v)} />
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-[#1a1c1e]">Business Hours Visible</p>
+                    <p className="text-[11px] text-[#717971]">Show operating hours to foodies</p>
+                  </div>
+                  <Switch checked={settings.businessHoursVisible} onCheckedChange={v => updateSetting('businessHoursVisible', v)} />
+                </div>
+                <Separator />
+                <button
+                  onClick={() => navigate('subscription')}
+                  className="w-full flex items-center justify-between p-0"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <CreditCard className="w-4 h-4 text-[#E53935]" />
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-[#1a1c1e]">Subscription Plan</p>
+                      <p className="text-[11px] text-[#717971]">Manage your vendor plan</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#717971]" />
+                </button>
+                <Separator />
+                <button
+                  onClick={() => navigate('inventory')}
+                  className="w-full flex items-center justify-between p-0"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Package className="w-4 h-4 text-[#E53935]" />
+                    <div className="text-left">
+                      <p className="text-sm font-bold text-[#1a1c1e]">Inventory Management</p>
+                      <p className="text-[11px] text-[#717971]">Manage your deal inventory</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#717971]" />
+                </button>
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
           {/* ── Notifications ── */}
           <AccordionItem value="notifications" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
                 <Bell className="w-4 h-4 text-[#E53935]" /> Notifications
               </span>
@@ -2462,7 +2559,7 @@ function FoodieProfileView() {
 
           {/* ── Privacy & Security ── */}
           <AccordionItem value="security" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-[#3D8AC4]" /> Security
               </span>
@@ -2500,43 +2597,9 @@ function FoodieProfileView() {
             </AccordionContent>
           </AccordionItem>
 
-          {/* ── Appearance ── */}
-          <AccordionItem value="appearance" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
-              <span className="flex items-center gap-2">
-                <Moon className="w-4 h-4 text-[#717971]" /> Appearance
-              </span>
-            </AccordionTrigger>
-            <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-[#1a1c1e]">Dark Mode</p>
-                  <p className="text-[11px] text-[#717971]">Switch to dark theme</p>
-                </div>
-                <Switch checked={settings.darkMode} onCheckedChange={v => updateSetting('darkMode', v)} />
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-bold text-[#1a1c1e] mb-2">Deal Card Size</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['Compact', 'Normal', 'Large'] as const).map(size => (
-                    <button
-                      key={size}
-                      className={`py-2 text-[11px] font-bold rounded-lg transition-all ${
-                        size === 'Normal' ? 'bg-[#E53935] text-white' : 'bg-[#e8edea] text-[#1a1c1e]'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
           {/* ── Upload & Photos ── */}
           <AccordionItem value="photos" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
                 <Camera className="w-4 h-4 text-[#E53935]" /> Photos & Uploads
               </span>
@@ -2606,7 +2669,7 @@ function FoodieProfileView() {
           {/* ── Foodie-specific Settings ── */}
           {activeRole === 'foodie' && (
             <AccordionItem value="foodie" className="border-0">
-              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
                 <span className="flex items-center gap-2">
                   <Utensils className="w-4 h-4 text-[#E53935]" /> Foodie Preferences
                 </span>
@@ -2661,101 +2724,9 @@ function FoodieProfileView() {
             </AccordionItem>
           )}
 
-          {/* ── Vendor-specific Settings ── */}
-          {activeRole === 'vendor' && roles.includes('vendor') && (
-            <AccordionItem value="vendor" className="border-0">
-              <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
-                <span className="flex items-center gap-2">
-                  <Store className="w-4 h-4 text-[#E53935]" /> Vendor Settings
-                </span>
-              </AccordionTrigger>
-              <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
-                {/* Business Name — the name customers see on deal cards and orders */}
-                <div>
-                  <Label className="text-[11px] font-bold text-[#414841]">Business Name</Label>
-                  <p className="text-[9px] text-[#717971] mb-1.5">This is the name customers see on your deals and orders.</p>
-                  <div className="flex gap-2">
-                    <Input
-                      value={editBusinessName}
-                      onChange={e => setEditBusinessName(e.target.value)}
-                      placeholder="Your restaurant/shop name"
-                      className="h-9 text-sm rounded-xl flex-1"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={async () => {
-                        if (!editBusinessName.trim()) return
-                        const vendorRes = await apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true')
-                        if (vendorRes.success && vendorRes.data?.vendors?.[0]) {
-                          const vendor = vendorRes.data.vendors[0]
-                          const res = await apiFetch(`/api/vendors/${vendor.id}`, {
-                            method: 'PUT',
-                            body: JSON.stringify({ businessName: editBusinessName.trim() }),
-                          })
-                          if (res.success) {
-                            toast.success('Business name updated!')
-                          } else {
-                            toast.error(res.error || 'Failed to update business name')
-                          }
-                        }
-                      }}
-                      className="h-9 px-4 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold"
-                    >
-                      <Save className="w-3.5 h-3.5" /> Save
-                    </Button>
-                  </div>
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-[#1a1c1e]">Auto-accept Orders</p>
-                    <p className="text-[11px] text-[#717971]">Automatically confirm incoming claims</p>
-                  </div>
-                  <Switch checked={settings.autoAcceptOrders} onCheckedChange={v => updateSetting('autoAcceptOrders', v)} />
-                </div>
-                <Separator />
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-[#1a1c1e]">Business Hours Visible</p>
-                    <p className="text-[11px] text-[#717971]">Show operating hours to foodies</p>
-                  </div>
-                  <Switch checked={settings.businessHoursVisible} onCheckedChange={v => updateSetting('businessHoursVisible', v)} />
-                </div>
-                <Separator />
-                <button
-                  onClick={() => navigate('subscription')}
-                  className="w-full flex items-center justify-between p-0"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-[#E53935]" />
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-[#1a1c1e]">Subscription Plan</p>
-                      <p className="text-[11px] text-[#717971]">Manage your vendor plan</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#717971]" />
-                </button>
-                <Separator />
-                <button
-                  onClick={() => navigate('inventory')}
-                  className="w-full flex items-center justify-between p-0"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Package className="w-4 h-4 text-[#E53935]" />
-                    <div className="text-left">
-                      <p className="text-sm font-bold text-[#1a1c1e]">Inventory Management</p>
-                      <p className="text-[11px] text-[#717971]">Manage your deal inventory</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#717971]" />
-                </button>
-              </AccordionContent>
-            </AccordionItem>
-          )}
-
           {/* ── Advanced ── */}
           <AccordionItem value="advanced" className="border-0">
-            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
+            <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-[#7EC8E3]" /> Advanced
               </span>
@@ -5587,7 +5558,7 @@ interface MediaData {
 const ALERT_COLORS: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
   none: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500', label: 'OK' },
   info: { bg: 'bg-[#FFEBEE]', text: 'text-[#2563a8]', border: 'border-[#FFCDD2]', dot: 'bg-[#E53935]', label: 'Info' },
-  warning: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500', label: 'Warning' },
+  warning: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: 'Warning' },
   critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: 'Critical' },
 }
 
@@ -5672,21 +5643,21 @@ function AdminMediaView() {
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`rounded-2xl border p-4 ${alertLevels.critical ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'}`}
+                className={`rounded-2xl border p-4 ${alertLevels.critical ? 'bg-red-50 border-red-200' : 'bg-red-50 border-red-200'}`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${alertLevels.critical ? 'bg-red-500' : 'bg-orange-500'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${alertLevels.critical ? 'bg-red-500' : 'bg-red-500'}`}>
                     <AlertOctagon className="w-4 h-4 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className={`font-bold text-sm ${alertLevels.critical ? 'text-red-700' : 'text-orange-700'}`}>
+                    <h3 className={`font-bold text-sm ${alertLevels.critical ? 'text-red-700' : 'text-red-700'}`}>
                       {alertLevels.critical ? 'Critical Alert' : 'Warning Alert'}
                     </h3>
-                    <p className={`text-xs mt-0.5 ${alertLevels.critical ? 'text-red-600' : 'text-orange-600'}`}>
+                    <p className={`text-xs mt-0.5 ${alertLevels.critical ? 'text-red-600' : 'text-red-600'}`}>
                       {alertLevels.critical || 0} critical file(s) over 1.5MB · {alertLevels.warning || 0} warning file(s) over 700KB
                     </p>
                   </div>
-                  <BellRing className={`w-5 h-5 ${alertLevels.critical ? 'text-red-400' : 'text-orange-400'} animate-pulse`} />
+                  <BellRing className={`w-5 h-5 ${alertLevels.critical ? 'text-red-400' : 'text-red-400'} animate-pulse`} />
                 </div>
               </motion.div>
             ) : (
@@ -5732,7 +5703,7 @@ function AdminMediaView() {
                   <span>Thresholds:</span>
                   <span className="flex items-center gap-2">
                     <span className="text-[#E53935]">&lt;700KB</span>·
-                    <span className="text-orange-500">&gt;700KB</span>·
+                    <span className="text-red-500">&gt;700KB</span>·
                     <span className="text-red-500">&gt;1.5MB</span>
                   </span>
                 </div>
