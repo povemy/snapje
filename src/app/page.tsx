@@ -839,13 +839,13 @@ function ImageUploader({
 // ============================================
 const CATEGORY_ICONS = [
   { key: 'All', label: 'Flash Deals', icon: Zap, color: '#E53935', bg: '#E8F4FD' },
-  { key: 'Malay', label: 'Malay', icon: Utensils, color: '#e74c3c', bg: '#fde8e8' },
-  { key: 'Chinese', label: 'Chinese', icon: Utensils, color: '#f39c12', bg: '#fef3e2' },
-  { key: 'Indian', label: 'Indian', icon: Utensils, color: '#e67e22', bg: '#fef0e0' },
+  { key: 'Malay', label: 'Malay', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
+  { key: 'Chinese', label: 'Chinese', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
+  { key: 'Indian', label: 'Indian', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
   { key: 'Western', label: 'Western', icon: Utensils, color: '#3498db', bg: '#e8f4fd' },
-  { key: 'Japanese', label: 'Japanese', icon: Utensils, color: '#e91e63', bg: '#fce4ec' },
-  { key: 'Korean', label: 'Korean', icon: Utensils, color: '#9b59b6', bg: '#f3e5f5' },
-  { key: 'Dessert', label: 'Dessert', icon: Utensils, color: '#ff6b81', bg: '#ffe8ed' },
+  { key: 'Japanese', label: 'Japanese', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
+  { key: 'Korean', label: 'Korean', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
+  { key: 'Dessert', label: 'Dessert', icon: Utensils, color: '#E53935', bg: '#FFEBEE' },
 ]
 
 // ============================================
@@ -1392,7 +1392,7 @@ function DealDetailView() {
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         {/* Discount tag — moved UP 10% (bottom-[8%]) */}
         <div className="absolute bottom-[8%] left-5">
-          <Badge className="bg-gradient-to-r from-[#E53935] to-[#F97316] text-white font-bold border-0 rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1">
+          <Badge className="bg-gradient-to-r from-[#E53935] to-[#E53935] text-white font-bold border-0 rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1">
             <Flame className="w-3.5 h-3.5" />
             -{deal.discountPercent}% OFF
           </Badge>
@@ -1412,11 +1412,11 @@ function DealDetailView() {
         <h1 className="text-2xl font-extrabold text-[#1a1c1e] leading-tight">{deal.title}</h1>
 
         {/* Deal Highlight Banner (rounded-2xl, red gradient accent) */}
-        <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFF7ED] to-[#FFEDD5] border border-[#E53935]/20 p-4 flex items-center justify-between">
+        <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFEBEE] to-[#FFCDD2] border border-[#E53935]/20 p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs text-[#9A3412] font-medium">Flash Deal Price</p>
+            <p className="text-xs text-[#C62828] font-medium">Flash Deal Price</p>
             <div className="flex items-end gap-2 mt-0.5">
-              <span className="text-2xl font-black text-[#F97316]">
+              <span className="text-2xl font-black text-[#E53935]">
                 RM{deal.dealPrice.toFixed(2)}
               </span>
               <span className="text-sm text-[#717971] line-through mb-0.5">
@@ -1425,7 +1425,7 @@ function DealDetailView() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs text-[#9A3412] font-medium">{quantity}x total</p>
+            <p className="text-xs text-[#C62828] font-medium">{quantity}x total</p>
             <span className="text-lg font-bold text-[#1a1c1e]">RM{totalPrice.toFixed(2)}</span>
           </div>
         </div>
@@ -1511,7 +1511,7 @@ function DealDetailView() {
                   )}
                   {driveTime != null && (
                     <span className="flex items-center gap-1 text-[#414841]">
-                      <Route className="w-3.5 h-3.5 text-[#F97316]" />
+                      <Route className="w-3.5 h-3.5 text-[#E53935]" />
                       {driveTime} min drive
                     </span>
                   )}
@@ -1630,7 +1630,7 @@ function DealDetailView() {
                 ? 'bg-[#10B981] hover:bg-[#10B981] text-white'
                 : isSoldOut && isAuthenticated
                 ? 'bg-[#c1c9c0] text-white cursor-not-allowed'
-                : 'bg-gradient-to-r from-[#E53935] to-[#F97316] hover:opacity-90 text-white'
+                : 'bg-gradient-to-r from-[#E53935] to-[#E53935] hover:opacity-90 text-white'
             }`}
           >
             {claiming ? (
@@ -1923,7 +1923,7 @@ function FoodieOrdersView() {
                                 )}
                               </div>
                             </div>
-                            <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg font-bold text-[10px] mt-1.5">
+                            <Badge className="bg-[#EF5350]/10 text-[#E53935] border-0 rounded-lg font-bold text-[10px] mt-1.5">
                               <CheckCircle className="w-3 h-3 mr-0.5" /> Completed
                             </Badge>
                           </div>
@@ -2005,7 +2005,7 @@ function FoodieOrdersView() {
                 Pickup by {new Date(selectedOrder.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
               {selectedOrder.status === 'completed' && (
-                <Badge className="mt-3 bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg">
+                <Badge className="mt-3 bg-[#EF5350]/10 text-[#E53935] border-0 rounded-lg">
                   <CheckCircle className="w-3 h-3 mr-1" /> Completed
                 </Badge>
               )}
@@ -2562,7 +2562,7 @@ function FoodieProfileView() {
           <AccordionItem value="security" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
-                <Lock className="w-4 h-4 text-[#3D8AC4]" /> Security
+                <Lock className="w-4 h-4 text-[#E53935]" /> Security
               </span>
             </AccordionTrigger>
             <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2571,7 +2571,7 @@ function FoodieProfileView() {
                 className="w-full flex items-center justify-between p-0"
               >
                 <div className="flex items-center gap-2.5">
-                  <KeyRound className="w-4 h-4 text-[#3D8AC4]" />
+                  <KeyRound className="w-4 h-4 text-[#E53935]" />
                   <div className="text-left">
                     <p className="text-sm font-bold text-[#1a1c1e]">Change Password</p>
                     <p className="text-[11px] text-[#717971]">Update your account password</p>
@@ -2729,7 +2729,7 @@ function FoodieProfileView() {
           <AccordionItem value="advanced" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:bg-[#E53935] [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:text-white [bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#7EC8E3]" /> Advanced
+                <Sparkles className="w-4 h-4 text-[#EF5350]" /> Advanced
               </span>
             </AccordionTrigger>
             <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2812,7 +2812,7 @@ function FoodieProfileView() {
         <DialogContent className="rounded-2xl max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-[#3D8AC4]" /> Change Password
+              <KeyRound className="w-5 h-5 text-[#E53935]" /> Change Password
             </DialogTitle>
             <DialogDescription>Enter your current password and choose a new one</DialogDescription>
           </DialogHeader>
@@ -2832,7 +2832,7 @@ function FoodieProfileView() {
             <Button
               onClick={handleChangePassword}
               disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
-              className="w-full h-10 rounded-xl bg-gradient-to-b from-[#3D8AC4] to-[#2E6DA4] text-white font-bold"
+              className="w-full h-10 rounded-xl bg-gradient-to-b from-[#E53935] to-[#C62828] text-white font-bold"
             >
               {changingPassword ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Change Password'}
             </Button>
@@ -3167,7 +3167,7 @@ function VendorDashboardView() {
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <ShoppingBag className="w-6 h-6 text-[#7EC8E3] mx-auto mb-1" />
+                <ShoppingBag className="w-6 h-6 text-[#EF5350] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Pending Pickup</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{pendingOrders.length}</p>
               </CardContent>
@@ -3190,7 +3190,7 @@ function VendorDashboardView() {
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Create Deal</span>
             </motion.button>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('fulfillment')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#E53935]/20 to-[#F97316]/10 rounded-2xl shadow-chip">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('fulfillment')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#E53935]/20 to-[#E53935]/10 rounded-2xl shadow-chip">
               <div className="w-10 h-10 rounded-xl bg-[#E53935] flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
@@ -3320,7 +3320,7 @@ function VendorDashboardView() {
                         </div>
                         <Badge className={`border-0 rounded-lg text-xs flex-shrink-0 ${
                           activeTab === 'active'
-                            ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]'
+                            ? 'bg-[#EF5350]/10 text-[#E53935]'
                             : 'bg-[#717971]/10 text-[#717971]'
                         }`}>
                           {activeTab === 'active' ? 'Active' : deal.status}
@@ -3415,7 +3415,7 @@ function VendorDashboardView() {
                 {/* Status & Discount */}
                 <div className="flex items-center gap-2">
                   <Badge className={`border-0 rounded-lg text-xs ${
-                    isActiveDeal(selectedDeal) ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' : 'bg-[#717971]/10 text-[#717971]'
+                    isActiveDeal(selectedDeal) ? 'bg-[#EF5350]/10 text-[#E53935]' : 'bg-[#717971]/10 text-[#717971]'
                   }`}>
                     {isActiveDeal(selectedDeal) ? 'Active' : selectedDeal.status}
                   </Badge>
@@ -3449,9 +3449,9 @@ function VendorDashboardView() {
                     <p className="text-[#717971]">Reserved</p>
                     <p className="font-bold text-[#E53935]">{selectedDeal.reservedQuantity}</p>
                   </div>
-                  <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
+                  <div className="bg-[#EF5350]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
-                    <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.soldQuantity}</p>
                   </div>
                   <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Left</p>
@@ -3573,8 +3573,8 @@ function VendorDashboardView() {
             </div>
 
             {editDiscount > 0 && (
-              <div className="bg-[#EBF5FB] rounded-xl p-3 text-center">
-                <p className="text-sm text-[#3D8AC4] font-bold">🔥 {editDiscount}% Discount</p>
+              <div className="bg-[#FFEBEE] rounded-xl p-3 text-center">
+                <p className="text-sm text-[#E53935] font-bold">🔥 {editDiscount}% Discount</p>
               </div>
             )}
 
@@ -3837,8 +3837,8 @@ function VendorCreateDealView() {
             </div>
           </div>
           {discountPercent > 0 && (
-            <div className="bg-[#EBF5FB] rounded-xl p-3 text-center">
-              <p className="text-sm text-[#3D8AC4] font-bold">🔥 {discountPercent}% Discount</p>
+            <div className="bg-[#FFEBEE] rounded-xl p-3 text-center">
+              <p className="text-sm text-[#E53935] font-bold">🔥 {discountPercent}% Discount</p>
             </div>
           )}
           <div>
@@ -4027,7 +4027,7 @@ function VendorInventoryView() {
                     <p className="text-xs text-[#414841]">RM{deal.dealPrice.toFixed(2)} per meal</p>
                   </div>
                   <Badge className={`border-0 rounded-lg text-xs ${
-                    isActiveDeal(deal) ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' : 'bg-[#717971]/10 text-[#717971]'
+                    isActiveDeal(deal) ? 'bg-[#EF5350]/10 text-[#E53935]' : 'bg-[#717971]/10 text-[#717971]'
                   }`}>
                     {isActiveDeal(deal) ? 'Active' : deal.status}
                   </Badge>
@@ -4041,9 +4041,9 @@ function VendorInventoryView() {
                     <p className="text-[#717971]">Reserved</p>
                     <p className="font-bold text-[#E53935]">{deal.reservedQuantity}</p>
                   </div>
-                  <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
+                  <div className="bg-[#EF5350]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
-                    <p className="font-bold text-[#3D8AC4]">{deal.soldQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{deal.soldQuantity}</p>
                   </div>
                   <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Available</p>
@@ -4308,7 +4308,7 @@ function VendorFulfillmentView() {
                     <p className="text-xs font-bold text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
                     <div className="flex items-center gap-1.5">
                       <p className="text-[9px] text-[#717971] font-mono truncate">#{order.orderNumber}</p>
-                      <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded text-[8px] h-3.5 px-1">Done</Badge>
+                      <Badge className="bg-[#EF5350]/10 text-[#E53935] border-0 rounded text-[8px] h-3.5 px-1">Done</Badge>
                     </div>
                     {/* Timestamps — compact */}
                     <div className="flex items-center gap-2 mt-0.5">
@@ -4363,7 +4363,7 @@ function VendorFulfillmentView() {
                   <Badge className={`border-0 rounded-lg text-xs ${
                     scanResult.order.status === 'pending_pickup'
                       ? 'bg-[#E53935]/10 text-[#E53935]'
-                      : 'bg-[#7EC8E3]/10 text-[#3D8AC4]'
+                      : 'bg-[#EF5350]/10 text-[#E53935]'
                   }`}>
                     {scanResult.order.status === 'pending_pickup' ? 'Pending Pickup' : scanResult.order.status}
                   </Badge>
@@ -4550,10 +4550,10 @@ function VendorSubscriptionView() {
               )}
             </div>
             <ul className="space-y-1.5 text-sm text-[#414841]">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Unlimited flash deals</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Inventory management</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> QR fulfillment</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Basic statistics</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Unlimited flash deals</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Inventory management</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> QR fulfillment</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Basic statistics</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_basic' && (
               <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white">
@@ -4578,15 +4578,15 @@ function VendorSubscriptionView() {
               )}
             </div>
             <ul className="space-y-1.5 text-sm text-[#414841]">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Everything in Basic</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Advanced analytics</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Priority ranking</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Marketing tools</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Everything in Basic</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Advanced analytics</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Priority ranking</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#EF5350]" /> Marketing tools</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#717971]" /> Siren Push (coming)</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#717971]" /> Auto-Drop (coming)</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_premium' && (
-              <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#E53935] to-[#F97316] text-white">
+              <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#E53935] to-[#E53935] text-white">
                 {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Premium'}
               </Button>
             )}
@@ -4865,7 +4865,7 @@ function AdminDashboardView() {
             </Card>
             <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('vendors')}>
               <CardContent className="p-4 text-center">
-                <Store className="w-6 h-6 text-[#7EC8E3] mx-auto mb-1" />
+                <Store className="w-6 h-6 text-[#EF5350] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Vendors</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalVendors as number) || 0}</p>
               </CardContent>
@@ -4889,7 +4889,7 @@ function AdminDashboardView() {
           {/* Quick Nav */}
           <div className="space-y-2">
             {[
-              { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#7EC8E3]' },
+              { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#EF5350]' },
               { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#E53935]' },
               { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#E53935]' },
               { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#EF5350]' },
@@ -5039,7 +5039,7 @@ function AdminDealsView() {
               <div className="px-5 pb-5 space-y-4">
                 {/* Status & Discount */}
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg text-xs">Active</Badge>
+                  <Badge className="bg-[#EF5350]/10 text-[#E53935] border-0 rounded-lg text-xs">Active</Badge>
                   <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-xs">-{selectedDeal.discountPercent}%</Badge>
                 </div>
 
@@ -5056,7 +5056,7 @@ function AdminDealsView() {
                     <p className="text-xs text-[#414841]"><span className="font-semibold">Address:</span> {selectedDeal.vendor.address}</p>
                     <p className="text-xs text-[#414841]"><span className="font-semibold">Email:</span> {selectedDeal.vendor.contactEmail}</p>
                     <Badge className={`border-0 rounded-md text-[10px] px-1.5 py-0 ${
-                      selectedDeal.vendor.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
+                      selectedDeal.vendor.verificationStatus === 'approved' ? 'bg-[#EF5350]/10 text-[#E53935]' :
                       selectedDeal.vendor.verificationStatus === 'pending' ? 'bg-[#E53935]/10 text-[#E53935]' :
                       'bg-[#717971]/10 text-[#717971]'
                     }`}>
@@ -5087,9 +5087,9 @@ function AdminDealsView() {
                     <p className="text-[#717971]">Reserved</p>
                     <p className="font-bold text-[#E53935]">{selectedDeal.reservedQuantity}</p>
                   </div>
-                  <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
+                  <div className="bg-[#EF5350]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
-                    <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.soldQuantity}</p>
                   </div>
                   <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Left</p>
@@ -5265,14 +5265,14 @@ function AdminVendorsView() {
                 key={v.id}
                 className="flex items-center gap-2.5 p-2.5 bg-white shadow-card rounded-lg hover:shadow-card-hover transition-shadow"
               >
-                <div className="w-8 h-8 rounded-lg bg-[#7EC8E3]/10 flex items-center justify-center flex-shrink-0">
-                  <Store className="w-4 h-4 text-[#7EC8E3]" />
+                <div className="w-8 h-8 rounded-lg bg-[#EF5350]/10 flex items-center justify-center flex-shrink-0">
+                  <Store className="w-4 h-4 text-[#EF5350]" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold text-xs text-[#1a1c1e] truncate">{v.businessName}</p>
                     <Badge className={`border-0 rounded-md text-[9px] px-1 py-0 flex-shrink-0 ${
-                      v.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
+                      v.verificationStatus === 'approved' ? 'bg-[#EF5350]/10 text-[#E53935]' :
                       v.verificationStatus === 'pending' ? 'bg-[#E53935]/10 text-[#E53935]' :
                       v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
                       'bg-[#717971]/10 text-[#717971]'
@@ -5285,7 +5285,7 @@ function AdminVendorsView() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   {v.verificationStatus === 'pending' && (
                     <>
-                      <Button size="sm" onClick={() => handleAction(v.id, 'approve')} className="h-7 px-2 rounded-lg bg-[#7EC8E3] hover:bg-[#3D8AC4] text-white text-[10px] font-bold">
+                      <Button size="sm" onClick={() => handleAction(v.id, 'approve')} className="h-7 px-2 rounded-lg bg-[#EF5350] hover:bg-[#E53935] text-white text-[10px] font-bold">
                         ✓
                       </Button>
                       <Button size="sm" onClick={() => handleAction(v.id, 'reject', 'Does not meet requirements')} variant="outline" className="h-7 px-2 rounded-lg text-[10px] font-bold text-[#EF4444] border-[#EF4444]/30">
@@ -5779,11 +5779,11 @@ function AdminAnalyticsView() {
           <div className="grid grid-cols-2 gap-3">
             {[
               { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
-              { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
+              { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#EF5350]', bg: 'bg-[#EF5350]/10' },
               { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
               { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4A6A8A]', bg: 'bg-[#4A6A8A]/10' },
               { label: 'Total Revenue', value: `RM${(analytics?.overview?.totalRevenue || 0).toFixed(0)}`, icon: DollarSign, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
-              { label: 'Meals Saved', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
+              { label: 'Meals Saved', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#EF5350]', bg: 'bg-[#EF5350]/10' },
             ].map((item) => (
               <div key={item.label} className="bg-white shadow-card rounded-xl p-3 flex items-center gap-2.5">
                 <div className={`w-9 h-9 rounded-lg ${item.bg} flex items-center justify-center flex-shrink-0`}>
@@ -6056,7 +6056,7 @@ function VendorPublicView() {
                   {vendor.verificationStatus === 'approved' && (
                     <>
                       <span>•</span>
-                      <span className="flex items-center gap-0.5 text-[#3D8AC4] font-semibold">
+                      <span className="flex items-center gap-0.5 text-[#E53935] font-semibold">
                         <CheckCircle className="w-3 h-3" /> Verified
                       </span>
                     </>
