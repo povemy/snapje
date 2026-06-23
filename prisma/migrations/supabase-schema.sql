@@ -1,5 +1,5 @@
 -- ============================================
--- FLASHBITE - Supabase PostgreSQL Schema
+-- SNAPJE - Supabase PostgreSQL Schema
 -- ============================================
 -- Run this in Supabase SQL Editor:
 -- https://supabase.com/dashboard/project/xknkgtuctjmkpommcxfd/sql

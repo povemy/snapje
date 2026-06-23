@@ -1,4 +1,4 @@
-# FlashBite — Environment Credentials Reference
+# SnapJe — Environment Credentials Reference
 
 > **Source of truth for all environment variables.** Last updated: 2026-06-17
 > Recovered from git history (commit `f30b6d4` — original commit by user on 2026-06-15).
@@ -105,10 +105,10 @@ postgresql://postgres.xknkgtuctjmkpommcxfd:Aiman0122769500@aws-1-ap-southeast-1.
 
 ---
 
-## JWT Secrets (for FlashBite's own auth tokens)
+## JWT Secrets (for SnapJe's own auth tokens)
 
 These are used by `src/lib/auth.ts` to sign access/refresh tokens. They are NOT
-Supabase keys — they're FlashBite's own HMAC-SHA256 secrets.
+Supabase keys — they're SnapJe's own HMAC-SHA256 secrets.
 
 ```
 JWT_SECRET=flashbite-access-secret-9f3a7c2e1b8d4f6a0e5c3b9d7f2a8c4e

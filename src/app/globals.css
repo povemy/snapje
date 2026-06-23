@@ -9,7 +9,7 @@
   --font-sans: "Nunito Sans", system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
   
-  /* FlashBite × Foodpanda Design System - Surface Colors */
+  /* SnapJe × Foodpanda Design System - Surface Colors */
   --color-surface: #F4F7F6;
   --color-surface-dim: #e2e8e5;
   --color-surface-bright: #f8faf9;
@@ -26,26 +26,26 @@
   --color-outline-variant: #c1c9c0;
   --color-surface-tint: #6CB4EE;
 
-  /* FlashBite Primary - Baby Blue */
+  /* SnapJe Primary - Baby Blue */
   --color-primary: #6CB4EE;
   --color-on-primary: #ffffff;
   --color-primary-container: #B3DAF5;
   --color-on-primary-container: #3570A8;
   --color-inverse-primary: #8FC5E8;
 
-  /* FlashBite Secondary - Blue Tint */
+  /* SnapJe Secondary - Blue Tint */
   --color-secondary: #4A6A8A;
   --color-on-secondary: #ffffff;
   --color-secondary-container: #D3E4F0;
   --color-on-secondary-container: #35506E;
 
-  /* FlashBite Tertiary */
+  /* SnapJe Tertiary */
   --color-tertiary: #3a6567;
   --color-on-tertiary: #ffffff;
   --color-tertiary-container: #bdebec;
   --color-on-tertiary-container: #1f4d50;
 
-  /* FlashBite Error */
+  /* SnapJe Error */
   --color-error: #ba1a1a;
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
@@ -87,7 +87,7 @@
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
 
-  /* Border Radius - FlashBite Design System */
+  /* Border Radius - SnapJe Design System */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -95,7 +95,7 @@
   --radius-2xl: 1.25rem;
   --radius-full: 9999px;
 
-  /* Shadows - FlashBite Design System */
+  /* Shadows - SnapJe Design System */
   --shadow-card: 0px 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-card-hover: 0px 4px 16px rgba(0, 0, 0, 0.12);
   --shadow-modal: 0px 8px 24px rgba(0, 0, 0, 0.16);
@@ -103,7 +103,7 @@
 }
 
 :root {
-  /* FlashBite Design System - Spacing Tokens (not in @theme to avoid Tailwind conflicts) */
+  /* SnapJe Design System - Spacing Tokens (not in @theme to avoid Tailwind conflicts) */
   --fb-spacing-xs: 4px;
   --fb-spacing-sm: 8px;
   --fb-spacing-md: 16px;
@@ -191,7 +191,7 @@
   }
 }
 
-/* FlashBite Custom Scrollbar */
+/* SnapJe Custom Scrollbar */
 @layer base {
   ::-webkit-scrollbar {
     width: 4px;
@@ -209,7 +209,7 @@
   }
 }
 
-/* FlashBite Animation Utilities */
+/* SnapJe Animation Utilities */
 @layer utilities {
   .animate-pulse-urgent {
     animation: pulse-urgent 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

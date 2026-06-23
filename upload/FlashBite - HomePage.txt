@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>FlashBite - Home</title>
+<title>SnapJe - Home</title>
 <!-- Material Symbols -->
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
@@ -144,7 +144,7 @@
 <button class="w-10 h-10 flex items-center justify-center text-primary spring-bounce">
 <span class="material-symbols-outlined text-[24px]" data-icon="location_on">location_on</span>
 </button>
-<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">FlashBite</h1>
+<h1 class="font-display-lg-mobile text-display-lg-mobile text-primary tracking-tight">SnapJe</h1>
 <button class="w-10 h-10 flex items-center justify-center rounded-full overflow-hidden spring-bounce shadow-sm">
 <img alt="User Avatar" class="w-full h-full object-cover" data-alt="A close-up portrait of a professional individual with a warm, welcoming smile. The image is brightly lit with soft, high-key lighting emphasizing a modern, clean aesthetic. The background is subtle and out of focus, drawing attention to the subject. The overall mood conveys trust, reliability, and friendliness, fitting for a premium delivery service profile avatar." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6gSBsAlmO-LvH26F2JK9_8RmjyHeM7_NU6T9REMLuyv0eKYfPtEB3xcYsdqrPlU68oQvIrYIIXLTZ-TiXp45qaNKyVE54YF8MfIaLaLG8cFqcOyl5YvKHcq8QBQJTKcZ5X07sfP2RvYJ6Ec5lvgNjd52X3otrpCY65EeojVtSs4C5IglNgjq4HYZsd8mLsud16pDIq_zTeYS_F5-CGsvjXQUf15VRyKZ22XdXdC-Rq8m_uGAYjb_0xvgWq36tHRmS7GcbM7MHwFE">
 </button>

@@ -26,7 +26,7 @@ export async function PUT(request: Request) {
       // HIGH 6: URL allowlist — block arbitrary external avatar URLs.
       if (avatarUrl && !isAllowedMediaUrl(avatarUrl)) {
         return NextResponse.json(
-          { success: false, error: 'avatarUrl must be a valid media URL hosted on FlashBite storage' },
+          { success: false, error: 'avatarUrl must be a valid media URL hosted on SnapJe storage' },
           { status: 400 }
         )
       }

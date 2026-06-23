@@ -70,7 +70,7 @@ try {
   await page.waitForTimeout(5000);
   const title = await page.title();
   await page.screenshot({ path: '/home/z/my-project/screenshot-verify-home.png' });
-  results.push({ test: 'Browser homepage', pass: title.includes('FlashBite'), details: title });
+  results.push({ test: 'Browser homepage', pass: title.includes('SnapJe'), details: title });
   console.log(`Homepage title: ${title}`);
 
   // Check page content

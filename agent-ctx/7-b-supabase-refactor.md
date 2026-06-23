@@ -1,7 +1,7 @@
 # Task 7-b: Supabase Refactor Agent - Deal API Routes
 
 ## Task
-Refactor FlashBite API routes from Prisma to Supabase client SDK for all deal-related routes.
+Refactor SnapJe API routes from Prisma to Supabase client SDK for all deal-related routes.
 
 ## Files Modified
 

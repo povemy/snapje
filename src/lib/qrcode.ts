@@ -1,5 +1,5 @@
 /**
- * QR Code Generation Utility for FlashBite
+ * QR Code Generation Utility for SnapJe
  * 
  * Generates unique QR code data URLs from order qrCode strings.
  * Each QR code is generated ONCE and tied to a specific order.

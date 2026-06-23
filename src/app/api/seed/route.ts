@@ -67,7 +67,7 @@ export async function POST() {
         id: genId('user'),
         email: 'admin@test.com',
         passwordHash,
-        name: 'Admin FlashBite',
+        name: 'Admin SnapJe',
         phone: '+60135551234',
         roles: 'foodie,vendor,admin',
         activeRole: 'admin',

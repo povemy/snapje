@@ -11,9 +11,9 @@ const nunitoSans = Nunito_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "FlashBite - Hyper-Local Food Flash Deals",
+  title: "SnapJe - Hyper-Local Food Flash Deals",
   description: "Discover amazing food flash deals near you. Save up to 60% on meals from your favorite local vendors.",
-  keywords: ["FlashBite", "food deals", "flash deals", "local food", "discount meals"],
+  keywords: ["SnapJe", "food deals", "flash deals", "local food", "discount meals"],
   icons: {
     icon: [
       { url: "/logo.svg", type: "image/svg+xml" },
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "FlashBite",
+    title: "SnapJe",
   },
 };
 
@@ -53,7 +53,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="FlashBite" />
+        <meta name="apple-mobile-web-app-title" content="SnapJe" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
         {/* ================================================================
@@ -152,7 +152,7 @@ export default function RootLayout({
               var locProto = window.Location.prototype;
               var origReload = locProto.reload;
               locProto.reload = function() {
-                console.warn('[FlashBite] Blocked location.reload() — app stays stable.');
+                console.warn('[SnapJe] Blocked location.reload() — app stays stable.');
               };
             } catch(e) {}
 
@@ -161,7 +161,7 @@ export default function RootLayout({
               var origReplace = locProto.replace;
               locProto.replace = function(url) {
                 if (url === window.location.href || url === window.location.pathname) {
-                  console.warn('[FlashBite] Blocked location.replace(self) — app stays stable.');
+                  console.warn('[SnapJe] Blocked location.replace(self) — app stays stable.');
                   return;
                 }
                 return origReplace.call(this, url);
@@ -177,7 +177,7 @@ export default function RootLayout({
                   set: function(val) {
                     var current = window.location.href;
                     if (val === current || val === window.location.pathname) {
-                      console.warn('[FlashBite] Blocked href self-assign — app stays stable.');
+                      console.warn('[SnapJe] Blocked href self-assign — app stays stable.');
                       return;
                     }
                     origHref.set.call(this, val);
@@ -192,7 +192,7 @@ export default function RootLayout({
               var origGo = window.history.go;
               window.history.go = function(delta) {
                 if (delta === 0 || delta === undefined) {
-                  console.warn('[FlashBite] Blocked history.go(0) — app stays stable.');
+                  console.warn('[SnapJe] Blocked history.go(0) — app stays stable.');
                   return;
                 }
                 return origGo.call(window.history, delta);
@@ -205,9 +205,9 @@ export default function RootLayout({
                 var isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
                 if (!isLocalhost) {
                   navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                    console.log('[FlashBite] Service Worker registered:', reg.scope);
+                    console.log('[SnapJe] Service Worker registered:', reg.scope);
                   }).catch(function(err) {
-                    console.warn('[FlashBite] SW registration failed:', err);
+                    console.warn('[SnapJe] SW registration failed:', err);
                   });
                 }
               });

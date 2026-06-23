@@ -1,4 +1,4 @@
-# FlashBite Security Prevention Rules
+# SnapJe Security Prevention Rules
 
 > **MANDATORY** — These rules MUST be followed for all future code in this codebase.
 > Derived from a full security audit. Violations have led to CRITICAL vulnerabilities.

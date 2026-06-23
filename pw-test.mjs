@@ -172,7 +172,7 @@ async function test() {
       console.log(`  Console errors: ${consoleErrors.length}`);
       console.log(`  Page errors: ${pageErrors.length}`);
       await page.screenshot({ path: '/home/z/my-project/screenshot-browser-homepage.png' });
-      results.push({ test: 'Browser homepage', pass: title.includes('FlashBite'), details: `Title: ${title}` });
+      results.push({ test: 'Browser homepage', pass: title.includes('SnapJe'), details: `Title: ${title}` });
     } catch (e) {
       console.log(`  ❌ Error: ${e.message}`);
       results.push({ test: 'Browser homepage', pass: false, details: e.message });

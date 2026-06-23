@@ -34,7 +34,7 @@ export async function GET() {
       qualityDeal: 80,
       qualityVendor: 85,
       enableWatermark: false,
-      watermarkText: 'FlashBite',
+      watermarkText: 'SnapJe',
       moderationMode: 'auto' as const, // 'auto' | 'manual' | 'none'
       maxUploadsPerDay: 100,
       enableCDN: false,

@@ -1,4 +1,4 @@
-# Task 7-c: Refactor FlashBite API Routes from Prisma to Supabase (Vendors, Orders, Notifications)
+# Task 7-c: Refactor SnapJe API Routes from Prisma to Supabase (Vendors, Orders, Notifications)
 
 ## Agent: Supabase Refactor Agent
 

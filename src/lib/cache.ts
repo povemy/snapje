@@ -1,5 +1,5 @@
 /**
- * Simple in-memory cache for FlashBite
+ * Simple in-memory cache for SnapJe
  * Replaces Redis for the MVP.
  *
  * MEDIUM 7 (rate limiter multi-instance): this cache + rate limiter are

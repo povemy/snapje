@@ -1,4 +1,4 @@
-# FlashBite Worklog
+# SnapJe Worklog
 
 ---
 Task ID: 1
@@ -366,7 +366,7 @@ Agent: Main Agent
 Task: Pull sesatu repo from https://github.com/povemy/sesatu and run it in this sandbox
 
 Work Log:
-- Cloned https://github.com/povemy/sesatu.git into /tmp/sesatu and inspected contents (FlashBite hyper-local food flash deal app, Next.js 16 + Prisma PostgreSQL + Supabase + socket.io)
+- Cloned https://github.com/povemy/sesatu.git into /tmp/sesatu and inspected contents (SnapJe hyper-local food flash deal app, Next.js 16 + Prisma PostgreSQL + Supabase + socket.io)
 - Stopped the pre-existing default Next.js dev server (PIDs 1158/1179) via pkill
 - Replaced /home/z/my-project contents with the repo (preserved sandbox infra: .zscripts/, download/, upload/, node_modules/, .git)
 - Applied env.md's recommended robust fix for the sandbox system env var collision: renamed Prisma env vars in prisma/schema.prisma from env("DATABASE_URL")/env("DIRECT_URL") to env("PRISMA_DATABASE_URL")/env("PRISMA_DIRECT_URL"), and added matching PRISMA_* entries to .env (sandbox exports DATABASE_URL=file:...sqlite at system level which overrides .env)
@@ -377,7 +377,7 @@ Work Log:
 - Started dev server: setsid nohup node node_modules/.bin/next dev -p 3000 (PID persisted across multiple commands)
 - Started realtime mini-service: setsid nohup bun --hot index.ts on port 3003
 - Browser verification (Playwright) PASSED:
-  * Homepage renders "FlashBite - Hyper-Local Food Flash Deals" with 12 active deals, categories, real prices/distances/countdowns
+  * Homepage renders "SnapJe - Hyper-Local Food Flash Deals" with 12 active deals, categories, real prices/distances/countdowns
   * Sign In modal works; login as vendor@test.com succeeds
   * Vendor dashboard renders: Revenue RM7, Active Deals 2, Pending Pickup 0, Total Sold 5, Quick Actions, Leaflet map (KLCC)
   * /api/deals -> 200 (Hainanese Chicken Rice Plate etc.), /api/vendors -> 200 (Test Vendor Kitchen etc.)
@@ -386,7 +386,7 @@ Work Log:
 - `bun run lint` passes with zero errors
 
 Stage Summary:
-- sesatu (FlashBite) successfully cloned, configured, and running in sandbox
+- sesatu (SnapJe) successfully cloned, configured, and running in sandbox
 - Key fix: Prisma env var rename to avoid sandbox DATABASE_URL collision (per env.md guidance)
 - Dev server (port 3000) + realtime socket.io service (port 3003) both running and persistent
 - All APIs return real Supabase PostgreSQL data; auth, vendor dashboard, deals, map all functional
@@ -502,11 +502,11 @@ Stage Summary:
 ---
 Task ID: apply-sharp-media-pipeline
 Agent: Main Agent
-Task: Analyze user's previous media compression/storage tech and apply the best parts to FlashBite
+Task: Analyze user's previous media compression/storage tech and apply the best parts to SnapJe
 
 Work Log:
 - Analyzed user's previous app tech: (1) server-side sharp/libvips compression pipeline with auto-orient, WebP conversion, metadata stripping, DB-tunable quality, dynamic bypass; (2) atomic verification after write; (3) portable serving URL (/api/media/serve/{id}) that obscures storage backend.
-- Identified high-value applications for FlashBite: the existing /api/upload was uploading raw client-compressed files to Supabase with NO server-side processing — missing EXIF auto-orientation (sideways mobile photos), metadata stripping (GPS privacy leak on originals), DB-tunable quality, and dimension extraction (MediaFile.width/height were always null).
+- Identified high-value applications for SnapJe: the existing /api/upload was uploading raw client-compressed files to Supabase with NO server-side processing — missing EXIF auto-orientation (sideways mobile photos), metadata stripping (GPS privacy leak on originals), DB-tunable quality, and dimension extraction (MediaFile.width/height were always null).
 - Installed sharp — the native binary wasn't loading under bun's module cache, but works correctly under Node (which is what next-server uses). Verified with `node -e` that sharp processes images.
 - Created src/lib/media/optimize.ts — adapted their pipeline:
   * optimizeImage(): autoOrient() (EXIF rotation), WebP conversion, metadata stripped by default (no keepMetadata = privacy), DB-tunable quality, dynamic bypass when enableOptimization=false (still extracts dimensions).
@@ -982,3 +982,101 @@ Verification:
 Stage Summary:
 - Refresh KILLED: WebSocket override makes HMR client think it's connected → no reload trigger. All reload paths blocked as belt-and-suspenders.
 - QR scanner: Reverted to Html5Qrcode with continuous auto-detection + 3 camera fallbacks. No file input, no photo snapping.
+
+---
+Task ID: rebrand-page-tsx
+Agent: General-Purpose Sub Agent
+Task: Rebrand "FlashBite" → "SnapJe" in src/app/page.tsx
+
+Work Log:
+- Ran `bun run restore-env` first (✅ .env restored with Supabase PostgreSQL credentials)
+- Searched src/app/page.tsx (6367 lines) for all case variants: FlashBite, Flashbite, flashbite, FLASHBITE, flash-bite, Flash Bite, flash_bite
+- Found 13 total occurrences of FlashBite/flashbite (no other case variants present)
+- Categorized each occurrence by type:
+  * User-visible text (8): h1 brand title, analytics sharing description, app version label, "Start Selling on" heading, default watermark text, watermark input fallback, "Join FlashBite" dialog title, "Loading FlashBite..." splash text
+  * Internal identifiers (5): localStorage keys `flashbite_settings` (3x) and `flashbite_cache` (1x), and `FlashBiteApp` function name (1x)
+- Changed all 8 user-visible occurrences to "SnapJe" (exact casing: capital S, lowercase nap, capital J, lowercase e)
+- Left all 5 internal identifiers unchanged per task rules (localStorage keys + function name)
+- Specifically preserved:
+  * Line 1914: `localStorage.getItem('flashbite_settings')`
+  * Line 1934: `localStorage.setItem('flashbite_settings', ...)`
+  * Line 2602: `localStorage.removeItem('flashbite_settings')`
+  * Line 2603: `localStorage.removeItem('flashbite_cache')`
+  * Line 6297: `export default function FlashBiteApp() {`
+
+Changes Made (8 edits via MultiEdit):
+- Line 230: `<h1 ...>FlashBite</h1>` → `<h1 ...>SnapJe</h1>`
+- Line 2589: `Help improve FlashBite with usage data` → `Help improve SnapJe with usage data`
+- Line 2615: `FlashBite v1.0.0 (MVP)` → `SnapJe v1.0.0 (MVP)`
+- Line 4323: `Start Selling on FlashBite` → `Start Selling on SnapJe`
+- Line 5582: `watermarkText: 'FlashBite',` → `watermarkText: 'SnapJe',`
+- Line 5759: `settings.watermarkText || 'FlashBite'` → `settings.watermarkText || 'SnapJe'`
+- Line 6154: `'Join FlashBite'` → `'Join SnapJe'`
+- Line 6353: `Loading FlashBite...` → `Loading SnapJe...`
+
+Stage Summary:
+- Rebrand complete: all user-visible "FlashBite" instances in src/app/page.tsx replaced with "SnapJe"
+- Internal identifiers (localStorage keys + FlashBiteApp function name) intentionally preserved to avoid breaking data persistence and exports
+- `bun run lint` ran successfully with 0 errors
+- Final grep confirms remaining "flashbite" matches are all internal identifiers (5 expected matches: 4 localStorage keys + 1 function name)
+
+---
+Task ID: rebrand-files
+Agent: Main Agent
+Task: Rebrand "FlashBite" → "SnapJe" in ALL files EXCEPT src/app/page.tsx (page.tsx was already rebranded in the previous task)
+
+Work Log:
+- Ran `bun run restore-env` first to ensure .env was properly configured
+- Searched the entire project for all case variants: FlashBite, Flashbite, flashbite, FLASHBITE, flash-bite, Flash Bite, flash_bite
+- Categorized each occurrence as either user-visible text/comment (CHANGE) or internal identifier (LEAVE AS IS) per the task rules
+- Files edited (user-visible text, comments, brand references):
+  * src/app/layout.tsx — metadata title, keywords, appleWebApp.title, apple-mobile-web-app-title meta, 6× console.log/warn prefixes (`[FlashBite]` → `[SnapJe]`)
+  * public/manifest.json — name, short_name
+  * public/sw.js — top comment ("FlashBite Service Worker" → "SnapJe Service Worker")
+  * src/app/globals.css — 10 design-system section comments (FlashBite → SnapJe)
+  * package.json — name field ("nextjs_tailwind_shadcn_ts" → "snapje")
+  * prisma/schema.prisma — top comment
+  * env.md — title, JWT Secrets section heading, brand reference in description (JWT_SECRET values left intact)
+  * SECURITY_RULES.md — top title (localStorage key references in code examples left intact)
+  * scripts/restore-env.sh — .env template comment (JWT_SECRET values left intact)
+  * .env — header comment (JWT_SECRET values left intact)
+  * src/components/map/GeolocationGate.tsx — user-visible UI text ("FlashBite uses your location..." → "SnapJe uses your location...")
+  * src/lib/cache.ts — top docstring comment
+  * src/lib/media/storage.ts — top docstring comment
+  * src/lib/media/optimize.ts — top docstring comment
+  * src/lib/image-utils.ts — top docstring comment (localStorage key reference preserved)
+  * src/types/index.ts — top docstring comment
+  * src/lib/qrcode.ts — top docstring comment
+  * src/app/api/auth/profile/route.ts — error message ("FlashBite storage" → "SnapJe storage")
+  * src/app/api/admin/upload-settings/route.ts — default watermarkText ('FlashBite' → 'SnapJe')
+  * src/app/api/seed/route.ts — admin user display name ('Admin FlashBite' → 'Admin SnapJe')
+  * src/app/api/deals/route.ts — error message
+  * src/app/api/deals/[id]/route.ts — error message
+  * src/app/api/vendors/my/banner/route.ts — error message
+  * src/app/api/vendors/my/logo/route.ts — error message
+  * mini-services/realtime-service/index.ts — console.log prefix ("[FlashBite Real-time]" → "[SnapJe Real-time]")
+  * mini-services/realtime-service/package.json — name field ("flashbite-realtime-service" → "snapje-realtime-service")
+  * scripts/setup-supabase.ts — top docstring, SQL seed data (Admin name, vendor email domains @flashbite.my → @snapje.my), console.log, JS seed data
+  * prisma/migrations/supabase-schema.sql — top comment (FLASHBITE → SNAPJE)
+  * prisma/migrations/supabase-seed.sql — top comment, admin user name, vendor email domains
+  * worklog.md — title (# FlashBite Worklog → # SnapJe Worklog) + 5 brand-name references in historical task entries
+  * agent-ctx/5-backend-api-routes.md, 7-b-supabase-refactor.md, 7-c-supabase-refactor-agent.md — brand references in task descriptions
+  * upload/FlashBite - HomePage.txt, upload/SnapJe-IndividualPage.txt, upload/DailyDealsRevised.txt — title tags, h1, brand references in design specs
+  * Test scripts (test-flashbite.mjs, pw-test.mjs, quick-test.mjs, seed-and-test.mjs, full-test.mjs) — updated `title.includes('FlashBite')` and `text=FlashBite` selectors to SnapJe to match the new page title
+
+- Intentionally preserved (per task rules — internal identifiers, NOT user-facing brand):
+  * localStorage keys: flashbite_settings, flashbite_cache, flashbite-auth, flashbite-location, flashbite-user-location (used by Zustand persist + manual localStorage access in src/stores, src/hooks, src/lib/image-utils.ts, src/app/page.tsx)
+  * Service Worker cache name: 'flashbite-shell-v1' (Cache API storage key — analogous to localStorage keys)
+  * JWT secret values: JWT_SECRET and JWT_REFRESH_SECRET in .env, env.md, scripts/restore-env.sh (rotating these would invalidate all existing tokens)
+  * Dev-only JWT fallback secret in src/lib/auth.ts: `flashbite-dev-only-${label}-do-not-use-in-prod`
+  * Code identifier: FlashBiteApp function name in src/app/page.tsx (out of scope — page.tsx is excluded)
+  * CSS variable prefix: --fb-spacing-* (uses "fb" abbreviation, not "flashbite"; renaming would require coordinated changes across all consumers)
+  * Comments that explicitly reference localStorage key names by their literal value (e.g. "cached in flashbite-* localStorage", "under the 'flashbite-auth' key") — left intact to keep documentation accurate
+  * Historical worklog entries that mention the old hardcoded JWT secret, FlashBiteApp, or the previous rebranding task — preserved as historical record
+
+- `bun run lint` ran successfully with 0 errors after all changes
+
+Stage Summary:
+- Rebrand complete: all user-visible "FlashBite"/"Flashbite"/"FLASHBITE"/"flash-bite"/"Flash Bite"/"flash_bite" instances outside src/app/page.tsx replaced with "SnapJe" (or "SNAPJE" for the all-caps SQL comments, "snapje" for lowercase package names and email domains)
+- Internal identifiers (localStorage keys, JWT secret values, service worker cache name, FlashBiteApp function name, CSS variable prefix) intentionally preserved to avoid breaking data persistence, authentication, and existing exports
+- 0 lint errors after rebrand

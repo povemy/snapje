@@ -1,5 +1,5 @@
 -- ============================================
--- FLASHBITE - Supabase Seed Data
+-- SNAPJE - Supabase Seed Data
 -- ============================================
 -- Run this AFTER supabase-schema.sql in the SQL Editor
 -- https://supabase.com/dashboard/project/xknkgtuctjmkpommcxfd/sql
@@ -10,14 +10,14 @@
 INSERT INTO "User" ("id", "email", "passwordHash", "name", "phone", "roles", "activeRole", "emailVerified") VALUES
 ('user_foodie', 'foodie@test.com', '$2a$12$LJ3m4ys3Lk0TSwMM0e4sM.6UOd6q1MGqF9Q7xlMKfHxMFv1kYn3aW', 'Aiman Foodie', '+60123456789', 'foodie', 'foodie', true),
 ('user_vendor', 'vendor@test.com', '$2a$12$LJ3m4ys3Lk0TSwMM0e4sM.6UOd6q1MGqF9Q7xlMKfHxMFv1kYn3aW', 'Kak Roti Vendor', '+60198765432', 'foodie,vendor', 'vendor', true),
-('user_admin', 'admin@test.com', '$2a$12$LJ3m4ys3Lk0TSwMM0e4sM.6UOd6q1MGqF9Q7xlMKfHxMFv1kYn3aW', 'Admin FlashBite', '+60111222333', 'foodie,vendor,admin', 'admin', true)
+('user_admin', 'admin@test.com', '$2a$12$LJ3m4ys3Lk0TSwMM0e4sM.6UOd6q1MGqF9Q7xlMKfHxMFv1kYn3aW', 'Admin SnapJe', '+60111222333', 'foodie,vendor,admin', 'admin', true)
 ON CONFLICT ("email") DO NOTHING;
 
 -- Demo Vendors
 INSERT INTO "Vendor" ("id", "userId", "businessName", "description", "contactEmail", "contactPhone", "address", "latitude", "longitude", "foodCategories", "verificationStatus", "subscriptionPlan", "subscriptionStatus", "rating", "totalSales") VALUES
-('vendor_kak_roti', 'user_vendor', 'Kak Roti Corner', 'Authentic Malaysian breakfast & street food since 1998', 'kakroti@flashbite.my', '+60198765432', '12 Jalan Tunku Abdul Rahman, KL', 3.1542, 101.6978, '["Malay","Indian"]', 'approved', 'vendor_basic', 'active', 4.8, 156),
-('vendor_mamak_lounge', 'user_vendor', 'Mamak Lounge', 'Late-night mamak with the best roti canai & teh tarik', 'mamak@flashbite.my', '+60198889999', '45 Jalan Bukit Bintang, KL', 3.1478, 101.7130, '["Malay","Indian"]', 'approved', 'vendor_premium', 'active', 4.6, 89),
-('vendor_seoul_bowl', 'user_vendor', 'Seoul Bowl KL', 'Korean-Malaysian fusion bowls', 'seoul@flashbite.my', '+60197776666', '88 Jalan Ampang, KL', 3.1580, 101.7180, '["Korean","Japanese"]', 'approved', 'vendor_basic', 'active', 4.5, 42)
+('vendor_kak_roti', 'user_vendor', 'Kak Roti Corner', 'Authentic Malaysian breakfast & street food since 1998', 'kakroti@snapje.my', '+60198765432', '12 Jalan Tunku Abdul Rahman, KL', 3.1542, 101.6978, '["Malay","Indian"]', 'approved', 'vendor_basic', 'active', 4.8, 156),
+('vendor_mamak_lounge', 'user_vendor', 'Mamak Lounge', 'Late-night mamak with the best roti canai & teh tarik', 'mamak@snapje.my', '+60198889999', '45 Jalan Bukit Bintang, KL', 3.1478, 101.7130, '["Malay","Indian"]', 'approved', 'vendor_premium', 'active', 4.6, 89),
+('vendor_seoul_bowl', 'user_vendor', 'Seoul Bowl KL', 'Korean-Malaysian fusion bowls', 'seoul@snapje.my', '+60197776666', '88 Jalan Ampang, KL', 3.1580, 101.7180, '["Korean","Japanese"]', 'approved', 'vendor_basic', 'active', 4.5, 42)
 ON CONFLICT ("userId") DO NOTHING;
 
 -- Demo Deals (expires 6 hours from now)

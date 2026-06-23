@@ -133,7 +133,7 @@ try {
     const title = await page.title();
     console.log(`Title: ${title}`);
     await page.screenshot({ path: '/home/z/my-project/screenshot-browser-homepage.png' });
-    results.push({ test: 'Browser homepage', pass: title.includes('FlashBite'), details: `Title: ${title}` });
+    results.push({ test: 'Browser homepage', pass: title.includes('SnapJe'), details: `Title: ${title}` });
   } catch (e) {
     console.log(`Error: ${e.message}`);
     results.push({ test: 'Browser homepage', pass: false, details: e.message });

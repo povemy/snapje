@@ -3,7 +3,7 @@
 ## Agent: Backend API Developer
 
 ## Summary
-Created all 22 API routes for the FlashBite food flash deal application, covering authentication, deals, vendors, orders, admin, notifications, and seed data.
+Created all 22 API routes for the SnapJe food flash deal application, covering authentication, deals, vendors, orders, admin, notifications, and seed data.
 
 ## Files Created
 

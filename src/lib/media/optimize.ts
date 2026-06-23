@@ -1,5 +1,5 @@
 /**
- * FlashBite Media Optimization Pipeline
+ * SnapJe Media Optimization Pipeline
  * =====================================
  *
  * Adapted from a production media-compression architecture. Uses sharp (libvips

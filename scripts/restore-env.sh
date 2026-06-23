@@ -22,7 +22,7 @@ ENV_MD="$PROJECT_DIR/env.md"
 # The correct .env content (sourced from env.md)
 cat > "$ENV_FILE" << 'ENVEOF'
 # ============================================
-# FlashBite - Supabase PostgreSQL Configuration
+# SnapJe - Supabase PostgreSQL Configuration
 # ============================================
 
 # Supabase Project URL

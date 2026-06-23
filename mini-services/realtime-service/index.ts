@@ -90,4 +90,4 @@ io.on('connection', (socket) => {
   })
 })
 
-console.log(`[FlashBite Real-time] Socket.io server running on port ${PORT}`)
+console.log(`[SnapJe Real-time] Socket.io server running on port ${PORT}`)

@@ -85,7 +85,7 @@ export function GeolocationGate() {
                   Enable Location
                 </h3>
                 <p className="text-xs text-[#717971] mt-1 leading-relaxed">
-                  FlashBite uses your location to suggest nearby food deals and show distance to vendors.
+                  SnapJe uses your location to suggest nearby food deals and show distance to vendors.
                 </p>
                 {error && (
                   <p className="text-xs text-[#EF4444] mt-1.5">{error}</p>

@@ -1,5 +1,5 @@
 /**
- * FlashBite Image Utilities
+ * SnapJe Image Utilities
  * =========================
  * Client-side image resizing using Canvas API.
  * Generates multiple size variants for different usage contexts.

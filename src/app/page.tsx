@@ -227,7 +227,7 @@ function AuthScreen() {
           >
             <Flame className="w-10 h-10 text-white" />
           </motion.div>
-          <h1 className="text-3xl font-extrabold text-[#1a1c1e] tracking-tight">FlashBite</h1>
+          <h1 className="text-3xl font-extrabold text-[#1a1c1e] tracking-tight">SnapJe</h1>
           <p className="text-[#414841] mt-1 text-sm">Hyper-local food flash deals</p>
         </div>
 
@@ -1876,6 +1876,7 @@ function FoodieProfileView() {
 
   // Settings state
   const [editName, setEditName] = useState('')
+  const [editBusinessName, setEditBusinessName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [isEditingProfile, setIsEditingProfile] = useState(false)
@@ -1908,8 +1909,6 @@ function FoodieProfileView() {
       orderNotificationSound: true,
       lowStockAlerts: true,
       businessHoursVisible: true,
-      // Upload
-      autoCompress: true,
     }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('flashbite_settings')
@@ -1942,6 +1941,17 @@ function FoodieProfileView() {
       setAvatarUrl(user.avatarUrl)
     }
   }, [user?.avatarUrl])
+
+  // Initialize Business Name from vendor profile (for the Vendor Settings section)
+  useEffect(() => {
+    if (roles.includes('vendor') && isAuthenticated) {
+      apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true').then((res) => {
+        if (res.success && res.data?.vendors?.[0]) {
+          setEditBusinessName(res.data.vendors[0].businessName || '')
+        }
+      }).catch(() => {})
+    }
+  }, [isAuthenticated])
 
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -2399,14 +2409,6 @@ function FoodieProfileView() {
                   <Separator />
                 </>
               )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-[#1a1c1e]">Auto-compress</p>
-                  <p className="text-[11px] text-[#717971]">Reduce file size before upload</p>
-                </div>
-                <Switch checked={settings.autoCompress !== false} onCheckedChange={v => updateSetting('autoCompress', v)} />
-              </div>
-              <Separator />
               <div>
                 <p className="text-[11px] text-[#717971]">
                   💡 Images are auto-resized for each context: thumbnails (200px), cards (400px), full (800px), hero (1200px). Upload any size — the system handles the rest.
@@ -2482,6 +2484,42 @@ function FoodieProfileView() {
                 </span>
               </AccordionTrigger>
               <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
+                {/* Business Name — the name customers see on deal cards and orders */}
+                <div>
+                  <Label className="text-[11px] font-bold text-[#414841]">Business Name</Label>
+                  <p className="text-[9px] text-[#717971] mb-1.5">This is the name customers see on your deals and orders.</p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={editBusinessName}
+                      onChange={e => setEditBusinessName(e.target.value)}
+                      placeholder="Your restaurant/shop name"
+                      className="h-9 text-sm rounded-xl flex-1"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={async () => {
+                        if (!editBusinessName.trim()) return
+                        const vendorRes = await apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true')
+                        if (vendorRes.success && vendorRes.data?.vendors?.[0]) {
+                          const vendor = vendorRes.data.vendors[0]
+                          const res = await apiFetch(`/api/vendors/${vendor.id}`, {
+                            method: 'PUT',
+                            body: JSON.stringify({ businessName: editBusinessName.trim() }),
+                          })
+                          if (res.success) {
+                            toast.success('Business name updated!')
+                          } else {
+                            toast.error(res.error || 'Failed to update business name')
+                          }
+                        }
+                      }}
+                      className="h-9 px-4 rounded-xl bg-[#6CB4EE] hover:bg-[#4A96D5] text-white text-xs font-bold"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save
+                    </Button>
+                  </div>
+                </div>
+                <Separator />
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-bold text-[#1a1c1e]">Auto-accept Orders</p>
@@ -2548,7 +2586,7 @@ function FoodieProfileView() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-[#1a1c1e]">Analytics Sharing</p>
-                  <p className="text-[11px] text-[#717971]">Help improve FlashBite with usage data</p>
+                  <p className="text-[11px] text-[#717971]">Help improve SnapJe with usage data</p>
                 </div>
                 <Switch defaultChecked={true} />
               </div>
@@ -2574,7 +2612,7 @@ function FoodieProfileView() {
               <Separator />
               <div>
                 <p className="text-sm font-bold text-[#1a1c1e]">App Version</p>
-                <p className="text-[11px] text-[#717971]">FlashBite v1.0.0 (MVP)</p>
+                <p className="text-[11px] text-[#717971]">SnapJe v1.0.0 (MVP)</p>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -4282,7 +4320,7 @@ function VendorRegistrationView() {
             <Store className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="font-bold text-[#1a1c1e]">Start Selling on FlashBite</h2>
+            <h2 className="font-bold text-[#1a1c1e]">Start Selling on SnapJe</h2>
             <p className="text-xs text-[#414841]">Turn unsold meals into revenue</p>
           </div>
         </div>
@@ -5541,7 +5579,7 @@ function AdminUploadSettingsView() {
     qualityDeal: 80,
     qualityVendor: 85,
     enableWatermark: false,
-    watermarkText: 'FlashBite',
+    watermarkText: 'SnapJe',
     moderationMode: 'auto',
     maxUploadsPerDay: 100,
     enableCDN: false,
@@ -5718,7 +5756,7 @@ function AdminUploadSettingsView() {
                   <div>
                     <p className="text-sm font-bold text-[#1a1c1e]">Watermark Text</p>
                     <Input
-                      value={String(settings.watermarkText || 'FlashBite')}
+                      value={String(settings.watermarkText || 'SnapJe')}
                       onChange={(e) => updateField('watermarkText', e.target.value)}
                       className="mt-1 h-9 rounded-xl text-sm"
                     />
@@ -6113,7 +6151,7 @@ function AuthModal() {
         <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-6 pt-6 pb-2">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-[#1a1c1e]">
-              {isLogin ? 'Welcome Back' : 'Join FlashBite'}
+              {isLogin ? 'Welcome Back' : 'Join SnapJe'}
             </DialogTitle>
             <DialogDescription className="text-[#414841]">
               {isLogin ? 'Sign in to claim deals and track orders' : 'Create an account to start saving on food'}
@@ -6312,7 +6350,7 @@ export default function FlashBiteApp() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#8FC5E8] to-[#6CB4EE] mb-4 shadow-card">
             <Flame className="w-10 h-10 text-white" />
           </div>
-          <p className="text-[#414841] text-sm">Loading FlashBite...</p>
+          <p className="text-[#414841] text-sm">Loading SnapJe...</p>
         </motion.div>
       </div>
     )

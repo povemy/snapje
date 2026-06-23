@@ -209,7 +209,7 @@ export async function POST(request: Request) {
     // HIGH 6: URL allowlist — block arbitrary external image URLs.
     if (imageUrl && !isAllowedMediaUrl(imageUrl)) {
       return NextResponse.json(
-        { success: false, error: 'imageUrl must be a valid media URL hosted on FlashBite storage' },
+        { success: false, error: 'imageUrl must be a valid media URL hosted on SnapJe storage' },
         { status: 400 }
       )
     }

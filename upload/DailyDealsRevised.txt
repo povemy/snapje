@@ -1,4 +1,4 @@
-PROJECT BRIEF: "FLASHBITE" - HYPER-LOCAL FOOD FLASH DEAL APP (FOUNDER MVP → SCALE ROADMAP)
+PROJECT BRIEF: "SNAPJE" - HYPER-LOCAL FOOD FLASH DEAL APP (FOUNDER MVP → SCALE ROADMAP)
 OBJECTIVE: Build a hyper-local, time-sensitive food flash deal ecosystem that connects hungry consumers (especially office workers and urban professionals) with nearby food vendors who need to liquidate unsold inventory or pre-sell upcoming meal batches.
 The business model is designed around predictable recurring revenue (MRR), not transaction commissions.
 PRIMARY REVENUE STREAMS:
@@ -11,7 +11,7 @@ PRIMARY REVENUE STREAMS:
 	◦	Office Pods and workplace group ordering solutions.
 CORE BUSINESS THESIS: A vendor losing 20 unsold meals experiences a 100% loss.
 Selling those meals at a 40–60% discount still creates incremental revenue, reduces food waste, and introduces the vendor to new customers.
-FLASHBITE is not competing directly as another food delivery marketplace. The long-term strategic moat is becoming the workplace lunch discovery and coordination network.
+SNAPJE is not competing directly as another food delivery marketplace. The long-term strategic moat is becoming the workplace lunch discovery and coordination network.
 PRODUCT DEVELOPMENT PHILOSOPHY:
 Phase 0 - Concierge Validation (No-Code):
 	•	Validate market demand before large engineering investment.
@@ -126,7 +126,7 @@ Perceived performance is considered a core product feature.
 	◦	Less than 1 second on modern WiFi connections.
 
 ========================================================================= 2. UI/UX DESIGN SYSTEM & THEME
-DESIGN PHILOSOPHY: FLASHBITE's visual identity should communicate three psychological feelings:
+DESIGN PHILOSOPHY: SNAPJE's visual identity should communicate three psychological feelings:
 	1	TRUST: Users are purchasing food from nearby vendors, often within a limited time window. The interface must feel hygienic, reliable, professional, and easy to understand.
 	2	TEMPTATION: Food is an emotional purchase. High-quality imagery, attractive pricing presentation, and satisfying interactions should create a "I want this now" feeling.
 	3	SPEED: Flash deals are urgent by nature. The user must be able to discover, evaluate, claim, and receive a pickup QR code within seconds.
@@ -349,7 +349,7 @@ Route: /auth
 Purpose: Provide a frictionless onboarding experience.
 UI:
 	•	Clean pure-white background.
-	•	Large FLASHBITE baby-blue logo.
+	•	Large SNAPJE baby-blue logo.
 	•	Minimal distractions.
 	•	Login/Register toggle with smooth transitions.
 Authentication Methods:
@@ -537,7 +537,7 @@ Supported Payments:
 
 C. OFFICE POD LEADER (PHASE 3 - STRATEGIC MOAT)
 Purpose:
-Transform FLASHBITE from a simple deal marketplace into a workplace food coordination platform.
+Transform SNAPJE from a simple deal marketplace into a workplace food coordination platform.
 Core Insight:
 A single office pod leader can influence 5–30 lunch purchases at once.
 This creates stronger network effects than acquiring individual users one-by-one.
@@ -582,7 +582,7 @@ Route: /vendor/dashboard
 Purpose: Provide a real-time snapshot of business performance.
 Dashboard Cards:
 Today's Performance:
-	•	Revenue generated from FLASHBITE.
+	•	Revenue generated from SNAPJE.
 	•	Number of meals sold.
 	•	Number of active deals.
 	•	Remaining unsold inventory.
@@ -714,7 +714,7 @@ Capabilities:
 	•	QR verification.
 	•	Earnings tracking.
 ========================================================================= F. ADMIN CONTROL CENTER
-Purpose: Provide complete operational visibility over the FLASHBITE ecosystem.
+Purpose: Provide complete operational visibility over the SNAPJE ecosystem.
 Access: Web dashboard only.
 
 VENDOR MANAGEMENT
@@ -881,7 +881,7 @@ Skeleton Rules:
 No layout shifting is acceptable.
 
 PERCEIVED PERFORMANCE STANDARD
-FLASHBITE must feel instantaneous.
+SNAPJE must feel instantaneous.
 User expectations:
 Tap: "Something happened immediately."
 Claim: "I successfully reserved my meal."
@@ -889,7 +889,7 @@ Scan: "My pickup was confirmed instantly."
 The interface should create confidence, urgency, and delight.
 ========================================================================= END OF PRODUCT REQUIREMENTS DOCUMENT
 FINAL PRODUCT VISION:
-FLASHBITE begins as the simplest possible food surplus liquidation engine.
+SNAPJE begins as the simplest possible food surplus liquidation engine.
 The first mission is to prove:
 "Will vendors consistently pay a monthly subscription to sell excess food?"
 Only after this is validated should the platform expand into:

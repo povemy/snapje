@@ -31,7 +31,7 @@ async function test() {
     const hasError = pageErrors.length > 0;
     console.log('Page errors:', pageErrors.length ? pageErrors : 'None');
     console.log('Console errors:', consoleErrors.length ? consoleErrors.slice(0, 5) : 'None');
-    results.push({ test: 'Homepage loads', pass: !hasError && title.includes('FlashBite'), details: `Title: ${title}` });
+    results.push({ test: 'Homepage loads', pass: !hasError && title.includes('SnapJe'), details: `Title: ${title}` });
     await page.screenshot({ path: '/home/z/my-project/screenshot-test-homepage.png' });
   } catch (e) {
     console.log('ERROR:', e.message);

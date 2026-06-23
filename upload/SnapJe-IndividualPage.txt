@@ -1,7 +1,7 @@
 <!DOCTYPE html><html class="light" lang="en"><head>
 <meta charset="utf-8">
 <meta content="width=device-width, initial-scale=1.0" name="viewport">
-<title>FlashBite - Deal Detail</title>
+<title>SnapJe - Deal Detail</title>
 <!-- Material Symbols -->
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
 <!-- Google Fonts: Nunito Sans -->
@@ -138,7 +138,7 @@
 <button aria-label="Go back" class="w-10 h-10 flex items-center justify-center rounded-full hover:bg-surface-variant transition-colors active:scale-95 duration-200 ease-in-out">
 <span class="material-symbols-outlined text-primary">arrow_back</span>
 </button>
-<span class="font-display-lg-mobile text-display-lg-mobile text-primary">FlashBite</span>
+<span class="font-display-lg-mobile text-display-lg-mobile text-primary">SnapJe</span>
 <button aria-label="User Profile" class="w-10 h-10 flex items-center justify-center rounded-full overflow-hidden hover:bg-surface-variant transition-colors active:scale-95 duration-200 ease-in-out">
 <!-- Simulated Avatar -->
 <div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center">

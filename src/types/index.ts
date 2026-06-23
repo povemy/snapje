@@ -1,5 +1,5 @@
 /**
- * FlashBite TypeScript Type Definitions
+ * SnapJe TypeScript Type Definitions
  */
 
 // ============================================

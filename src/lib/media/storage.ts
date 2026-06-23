@@ -1,5 +1,5 @@
 /**
- * FlashBite Media Storage Layer
+ * SnapJe Media Storage Layer
  * =============================
  *
  * Adapted from a production storage architecture. Uses Supabase Storage

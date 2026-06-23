@@ -157,13 +157,13 @@ try {
     await page.waitForTimeout(5000);
     
     // Wait for content to appear (the app has a loading state)
-    await page.waitForSelector('text=FlashBite', { timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('text=SnapJe', { timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(2000);
     
     const title = await page.title();
     console.log(`Title: ${title}`);
     await page.screenshot({ path: '/home/z/my-project/screenshot-final-homepage.png' });
-    results.push({ test: 'Browser homepage loads', pass: title.includes('FlashBite'), details: `Title: ${title}` });
+    results.push({ test: 'Browser homepage loads', pass: title.includes('SnapJe'), details: `Title: ${title}` });
   } catch (e) {
     console.log(`Error: ${e.message}`);
     results.push({ test: 'Browser homepage loads', pass: false, details: e.message });
@@ -382,7 +382,7 @@ try {
     await page.waitForTimeout(5000);
     
     // Wait for content
-    await page.waitForSelector('text=FlashBite', { timeout: 10000 }).catch(() => {});
+    await page.waitForSelector('text=SnapJe', { timeout: 10000 }).catch(() => {});
     await page.waitForTimeout(2000);
     
     await page.screenshot({ path: '/home/z/my-project/screenshot-final-admin-home.png' });

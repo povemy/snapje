@@ -1,4 +1,4 @@
-// FlashBite Service Worker — lightweight PWA shell
+// SnapJe Service Worker — lightweight PWA shell
 // Does NOT cache API responses or images (avoids stale data in this real-time app).
 // Only caches the app shell (HTML/JS/CSS) for offline installability.
 
