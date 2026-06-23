@@ -36,7 +36,7 @@ const REVERSE_DEBOUNCE_MS = 700
  * Vendor registration / deal-location picker.
  *
  * - Address search input (forward geocodes via Nominatim on Enter / Search)
- * - "Use my location" button (browser geolocation, cached in flashbite-* localStorage)
+ * - "Use my location" button (browser geolocation, cached in snapje-* localStorage)
  * - Interactive Leaflet map with a draggable center marker; reverse-geocodes
  *   the address on marker drag / map click (debounced 700ms).
  *

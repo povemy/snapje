@@ -191,7 +191,7 @@ export default function QRScanner({ onScan, processing }: QRScannerProps) {
         <button
           onClick={startScanner}
           disabled={starting || processing}
-          className="w-full h-10 rounded-xl font-bold text-sm bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
+          className="w-full h-10 rounded-xl font-bold text-sm bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white flex items-center justify-center gap-2 disabled:opacity-50 transition-opacity"
         >
           {starting ? (
             <><RefreshCw className="w-4 h-4 animate-spin" /> Starting camera…</>

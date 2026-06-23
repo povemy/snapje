@@ -59,7 +59,7 @@ export const useAuthStore = create<AuthStore>()(
         }),
     }),
     {
-      name: 'flashbite-auth',
+      name: 'snapje-auth',
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,

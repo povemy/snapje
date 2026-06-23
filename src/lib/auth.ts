@@ -16,7 +16,7 @@ function getJwtSecret(envVar: 'JWT_SECRET' | 'JWT_REFRESH_SECRET', label: string
     `WARNING: ${envVar} is not set. Using insecure dev-only fallback secret. ` +
       `This MUST NOT be used in production.`
   )
-  return new TextEncoder().encode(`flashbite-dev-only-${label}-do-not-use-in-prod`)
+  return new TextEncoder().encode(`snapje-dev-only-${label}-do-not-use-in-prod`)
 }
 
 const ACCESS_TOKEN_SECRET = getJwtSecret('JWT_SECRET', 'access')

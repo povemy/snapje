@@ -37,7 +37,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#00B14F",
+  themeColor: "#E53935",
   viewportFit: "cover",
 };
 
@@ -87,6 +87,28 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {
             if (typeof window === 'undefined') return;
+
+            // ── localStorage key migration: flashbite-* → snapje-* ──────
+            // One-time migration: copy old flashbite-* localStorage keys
+            // to the new snapje-* names so existing users don't lose their
+            // session, settings, or cached location after the rebrand.
+            try {
+              var migrations = [
+                ['flashbite-auth', 'snapje-auth'],
+                ['flashbite_settings', 'snapje_settings'],
+                ['flashbite-location', 'snapje-location'],
+                ['flashbite-user-location', 'snapje-user-location'],
+                ['flashbite_cache', 'snapje_cache'],
+              ];
+              for (var i = 0; i < migrations.length; i++) {
+                var oldKey = migrations[i][0];
+                var newKey = migrations[i][1];
+                if (!localStorage.getItem(newKey) && localStorage.getItem(oldKey)) {
+                  localStorage.setItem(newKey, localStorage.getItem(oldKey));
+                  localStorage.removeItem(oldKey);
+                }
+              }
+            } catch(e) { /* ignore migration errors */ }
 
             // ── LAYER 1: Neuter the HMR WebSocket ──────────────────────
             // Override WebSocket so HMR connections get a silent no-op
@@ -229,18 +251,18 @@ export default function RootLayout({
               background: 'rgba(255, 255, 255, 0.5)',
               backdropFilter: 'blur(12px)',
               WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(108, 180, 238, 0.2)',
+              border: '1px solid rgba(229, 57, 53, 0.2)',
               boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
               animation: 'toastFadeIn 0.3s ease-out, toastFadeOut 2s ease-in 1s forwards',
             },
             success: {
               style: {
-                background: 'rgba(108, 180, 238, 0.5)',
+                background: 'rgba(229, 57, 53, 0.5)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)',
                 color: '#fff',
-                border: '1px solid rgba(108, 180, 238, 0.3)',
-                boxShadow: '0 8px 32px rgba(108, 180, 238, 0.2)',
+                border: '1px solid rgba(229, 57, 53, 0.3)',
+                boxShadow: '0 8px 32px rgba(229, 57, 53, 0.2)',
                 animation: 'toastFadeIn 0.3s ease-out, toastFadeOut 2s ease-in 1s forwards',
               },
             },

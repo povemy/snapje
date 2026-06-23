@@ -31,7 +31,8 @@ import {
   Lock, Globe, Volume2, BellRing, KeyRound, Smartphone,
   Moon, Wallet, Megaphone, EyeOff,
   Plus, Minus, Navigation, Route, Footprints,
-  Image as ImageIcon, HardDrive, FileImage, AlertOctagon
+  Image as ImageIcon, HardDrive, FileImage, AlertOctagon,
+  LocateFixed, Crosshair
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -223,7 +224,7 @@ function AuthScreen() {
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#8FC5E8] to-[#6CB4EE] mb-4 shadow-card"
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#EF5350] to-[#E53935] mb-4 shadow-card"
           >
             <Flame className="w-10 h-10 text-white" />
           </motion.div>
@@ -236,7 +237,7 @@ function AuthScreen() {
           <button
             onClick={() => setIsLogin(true)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-              isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+              isLogin ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
             }`}
           >
             Sign In
@@ -244,7 +245,7 @@ function AuthScreen() {
           <button
             onClick={() => setIsLogin(false)}
             className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-              !isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+              !isLogin ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
             }`}
           >
             Sign Up
@@ -312,12 +313,12 @@ function AuthScreen() {
                   onClick={() => setRole('foodie')}
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                     role === 'foodie'
-                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+                      ? 'border-[#E53935] bg-[#E53935]/10 shadow-chip'
                       : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
                   }`}
                 >
-                  <Utensils className={`w-6 h-6 ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
-                  <span className={`text-sm font-bold ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+                  <Utensils className={`w-6 h-6 ${role === 'foodie' ? 'text-[#E53935]' : 'text-[#717971]'}`} />
+                  <span className={`text-sm font-bold ${role === 'foodie' ? 'text-[#E53935]' : 'text-[#414841]'}`}>
                     Find Deals
                   </span>
                   <span className="text-[10px] text-[#717971]">Browse & claim food</span>
@@ -327,12 +328,12 @@ function AuthScreen() {
                   onClick={() => setRole('vendor')}
                   className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${
                     role === 'vendor'
-                      ? 'border-[#6CB4EE] bg-[#6CB4EE]/10 shadow-chip'
+                      ? 'border-[#E53935] bg-[#E53935]/10 shadow-chip'
                       : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
                   }`}
                 >
-                  <Store className={`w-6 h-6 ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
-                  <span className={`text-sm font-bold ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>
+                  <Store className={`w-6 h-6 ${role === 'vendor' ? 'text-[#E53935]' : 'text-[#717971]'}`} />
+                  <span className={`text-sm font-bold ${role === 'vendor' ? 'text-[#E53935]' : 'text-[#414841]'}`}>
                     Sell Food
                   </span>
                   <span className="text-[10px] text-[#717971]">Post flash deals</span>
@@ -343,7 +344,7 @@ function AuthScreen() {
           <Button
             type="submit"
             disabled={loading}
-            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
+            className="w-full h-12 rounded-xl text-base font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white hover:opacity-90 active:scale-95 transition-all shadow-card"
           >
             {loading ? (
               <RefreshCw className="w-5 h-5 animate-spin" />
@@ -406,7 +407,7 @@ const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false
 
   return (
     <span className={`inline-flex items-center gap-1 ${compact ? 'text-xs' : 'text-sm'} font-bold ${
-      timeLeft === 'Expired' ? 'text-[#717971]' : isUrgent ? 'text-[#FB923C] animate-pulse-urgent' : 'text-[#6CB4EE]'
+      timeLeft === 'Expired' ? 'text-[#717971]' : isUrgent ? 'text-[#E53935] animate-pulse-urgent' : 'text-[#E53935]'
     }`}>
       <Clock className={compact ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
       {timeLeft}
@@ -454,14 +455,14 @@ const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: {
           
           {/* Promo Badge - Top Left, overlapping image */}
           <div className="absolute top-1.5 left-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#6CB4EE] text-white text-[10px] font-bold shadow-sm">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#E53935] text-white text-[10px] font-bold shadow-sm">
               Promo
             </span>
           </div>
           
           {/* Discount % Badge - Below Promo */}
           <div className="absolute top-7 left-1.5">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#FB923C] text-white text-[9px] font-bold">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-[#E53935] text-white text-[9px] font-bold">
               -{deal.discountPercent}%
             </span>
           </div>
@@ -470,7 +471,7 @@ const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: {
           {deal.distance !== undefined && (
             <div className="absolute top-1.5 right-1.5">
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/90 text-[#1a1c1e] text-[10px] font-medium shadow-sm">
-                <MapPin className="w-2.5 h-2.5 text-[#6CB4EE]" />
+                <MapPin className="w-2.5 h-2.5 text-[#E53935]" />
                 {deal.distance.toFixed(1)}km
               </span>
             </div>
@@ -501,7 +502,7 @@ const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: {
           
           {/* Price Row - heavy emphasis on deal price, minimized original */}
           <div className="flex items-baseline gap-1.5 mt-1.5">
-            <span className={`font-black text-[#6CB4EE] ${isHalfWidth ? 'text-sm' : 'text-lg'}`}>
+            <span className={`font-black text-[#E53935] ${isHalfWidth ? 'text-sm' : 'text-lg'}`}>
               RM{deal.dealPrice.toFixed(2)}
             </span>
             <span className="text-[10px] text-[#717971] line-through">
@@ -510,7 +511,7 @@ const DealCard = memo(function DealCard({ deal, onSelect, size = 'medium' }: {
           </div>
           
           {/* Stock indicator */}
-          <div className={`text-[10px] font-bold mt-1 ${isLowStock ? 'text-[#FB923C]' : isSoldOut ? 'text-[#717971]' : 'text-[#6CB4EE]'}`}>
+          <div className={`text-[10px] font-bold mt-1 ${isLowStock ? 'text-[#E53935]' : isSoldOut ? 'text-[#717971]' : 'text-[#E53935]'}`}>
             {isSoldOut ? 'Sold out' : isLowStock ? `🔥 ${deal.availableQuantity} left` : `${deal.availableQuantity} left`}
           </div>
         </div>
@@ -561,7 +562,7 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
       timeLeft === 'Expired' 
         ? 'bg-black/40 text-white/70' 
         : isUrgent 
-        ? 'bg-[#FB923C]/90 text-white animate-pulse-urgent' 
+        ? 'bg-[#E53935]/90 text-white animate-pulse-urgent' 
         : 'bg-black/40 text-white/90'
     }`}>
       <Clock className="w-2.5 h-2.5" />
@@ -600,7 +601,7 @@ function QRCodeImage({ qrCode }: { qrCode: string }) {
   if (error || !src) {
     return (
       <div className="w-[220px] h-[220px] flex items-center justify-center bg-[#f0f4f2] rounded-xl">
-        <QrCode className="w-20 h-20 text-[#6CB4EE]" />
+        <QrCode className="w-20 h-20 text-[#E53935]" />
       </div>
     )
   }
@@ -733,7 +734,7 @@ function ImageUploader({
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={() => !uploading && fileInputRef.current?.click()}
-          className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#6CB4EE]' : ''}`}
+          className={`relative cursor-pointer group ${circular ? 'rounded-full' : 'rounded-xl'} overflow-hidden ${dragging ? 'ring-2 ring-[#E53935]' : ''}`}
         >
           {displayUrl ? (
           <div className={`relative ${circular ? 'w-20 h-20' : 'w-24 h-16'}`}>
@@ -749,7 +750,7 @@ function ImageUploader({
         ) : (
           <div className={`${circular ? 'w-20 h-20' : 'w-24 h-16'} flex items-center justify-center bg-[#f0f4f2] ${circular ? 'rounded-full' : 'rounded-xl'} border-2 border-dashed border-[#c1c9c0]`}>
             {uploading ? (
-              <div className="w-6 h-6 rounded-full border-2 border-[#6CB4EE] border-t-transparent animate-spin" />
+              <div className="w-6 h-6 rounded-full border-2 border-[#E53935] border-t-transparent animate-spin" />
             ) : (
               <PlusCircle className="w-5 h-5 text-[#717971]" />
             )}
@@ -776,7 +777,7 @@ function ImageUploader({
         onDragLeave={handleDragLeave}
         onClick={() => !uploading && fileInputRef.current?.click()}
         className={`relative cursor-pointer group border-2 border-dashed rounded-xl transition-all ${
-          dragging ? 'border-[#6CB4EE] bg-[#6CB4EE]/5' : 'border-[#d7ddd9] bg-[#f8faf9] hover:border-[#8FC5E8]'
+          dragging ? 'border-[#E53935] bg-[#E53935]/5' : 'border-[#d7ddd9] bg-[#f8faf9] hover:border-[#EF5350]'
         } ${displayUrl ? 'p-0 overflow-hidden' : 'p-6'}`}
       >
         {displayUrl ? (
@@ -802,14 +803,14 @@ function ImageUploader({
           <div className="text-center">
             {uploading ? (
               <div className="flex flex-col items-center">
-                <div className="w-10 h-10 rounded-full border-3 border-[#6CB4EE] border-t-transparent animate-spin mb-2" />
+                <div className="w-10 h-10 rounded-full border-3 border-[#E53935] border-t-transparent animate-spin mb-2" />
                 <p className="text-xs text-[#717971]">Uploading... {progress}%</p>
                 <Progress value={progress} className="w-32 h-1.5 mt-2" />
               </div>
             ) : (
               <>
-                <div className="w-12 h-12 rounded-full bg-[#6CB4EE]/10 flex items-center justify-center mx-auto mb-2">
-                  <Camera className="w-6 h-6 text-[#6CB4EE]" />
+                <div className="w-12 h-12 rounded-full bg-[#E53935]/10 flex items-center justify-center mx-auto mb-2">
+                  <Camera className="w-6 h-6 text-[#E53935]" />
                 </div>
                 <p className="text-sm font-bold text-[#1a1c1e]">
                   {dragging ? 'Drop image here' : 'Tap to upload'}
@@ -837,7 +838,7 @@ function ImageUploader({
 // CATEGORY ICON GRID - Foodpanda Style
 // ============================================
 const CATEGORY_ICONS = [
-  { key: 'All', label: 'Flash Deals', icon: Zap, color: '#6CB4EE', bg: '#E8F4FD' },
+  { key: 'All', label: 'Flash Deals', icon: Zap, color: '#E53935', bg: '#E8F4FD' },
   { key: 'Malay', label: 'Malay', icon: Utensils, color: '#e74c3c', bg: '#fde8e8' },
   { key: 'Chinese', label: 'Chinese', icon: Utensils, color: '#f39c12', bg: '#fef3e2' },
   { key: 'Indian', label: 'Indian', icon: Utensils, color: '#e67e22', bg: '#fef0e0' },
@@ -854,9 +855,17 @@ function FoodieHomeView() {
   const { navigate, setShowAuthModal } = useAppStore()
   const { selectedCategory, setSelectedCategory, searchQuery, setSearchQuery } = useAppStore()
   const { isAuthenticated } = useAuthStore()
+  const geo = useGeolocation()
   const [deals, setDeals] = useState<Deal[]>([])
   const [loading, setLoading] = useState(true)
   const [debouncedSearch, setDebouncedSearch] = useState(searchQuery)
+  // ISSUE 2 (fix-logout-theme-nearme): "Near me" filter toggle. When true,
+  // fetchDeals sends lat/lng/maxDistance to the API so only deals within the
+  // user's deal-alert radius are returned. When false (default), all active
+  // deals are returned (no distance filtering).
+  const [radiusEnabled, setRadiusEnabled] = useState(false)
+  // Used to trigger a re-fetch after geo.request() resolves with a fix.
+  const [geoNonce, setGeoNonce] = useState(0)
 
   // Debounce search input by 300ms
   useEffect(() => {
@@ -864,27 +873,92 @@ function FoodieHomeView() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
-  const fetchDeals = useCallback(async (signal?: AbortSignal) => {
+  // Helper: read the deal-alert radius from the persisted settings in
+  // localStorage. Mirrors the key used by FoodieProfileView
+  // (`snapje_settings.dealAlertRadius`). Defaults to 5 km.
+  const readDealAlertRadius = useCallback((): number => {
+    if (typeof window === 'undefined') return 5
+    try {
+      const raw = window.localStorage.getItem('snapje_settings')
+      if (!raw) return 5
+      const parsed = JSON.parse(raw)
+      const n = Number(parsed?.dealAlertRadius)
+      return Number.isFinite(n) && n > 0 ? n : 5
+    } catch {
+      return 5
+    }
+  }, [])
+
+  const fetchDeals = useCallback(async (signal?: AbortSignal, opts?: { withRadius?: boolean }) => {
     setLoading(true)
     const params = new URLSearchParams({ status: 'active' })
     if (selectedCategory && selectedCategory !== 'All') params.set('category', selectedCategory)
     if (debouncedSearch) params.set('search', debouncedSearch)
-    // NOTE: Do NOT send lat/lng/maxDistance here. When no location is sent, the
-    // API returns ALL active deals (no distance filtering) — sorted by distance
-    // from DEFAULT_LOCATION (KL) for display only. This ensures newly created
-    // deals from ANY vendor appear immediately, regardless of how far they are.
-    // Distance is still calculated and shown on each deal card.
 
-    const res = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${params}`)
+    // ISSUE 2: only send lat/lng/maxDistance when "Near me" is active AND we
+    // have a real geolocation fix. When omitted, the API returns ALL active
+    // deals (no distance filter) — see the original comment below.
+    const useRadius = opts?.withRadius ?? radiusEnabled
+    if (useRadius && geo.location) {
+      params.set('lat', geo.location.latitude.toString())
+      params.set('lng', geo.location.longitude.toString())
+      params.set('maxDistance', readDealAlertRadius().toString())
+    }
+    // NOTE: When no location is sent, the API returns ALL active deals (no
+    // distance filtering) — sorted by distance from DEFAULT_LOCATION (KL)
+    // for display only. This ensures newly created deals from ANY vendor
+    // appear immediately, regardless of how far they are. Distance is still
+    // calculated and shown on each deal card.
+
+    let res
+    try {
+      res = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${params}`)
+    } catch (err) {
+      // ISSUE 4: never let an API throw crash the dashboard — bail out
+      // gracefully and let the caller show the empty state.
+      console.error('[FoodieHomeView] fetchDeals failed:', err)
+      if (!signal?.aborted) {
+        setDeals([])
+        setLoading(false)
+      }
+      return
+    }
     // HIGH 8: bail out if the effect was cancelled (e.g. user navigated away
     // or changed the search category) before this response arrived. Prevents
     // a stale response from overwriting fresher state.
     if (signal?.aborted) return
     if (res.success && res.data) {
-      setDeals(res.data.deals)
+      const fetched = res.data.deals || []
+      // ISSUE 2: if "Near me" is on but the filter returned zero deals, fall
+      // back to fetching ALL deals so the home screen isn't empty. Surface a
+      // toast so the user understands why they're seeing distant deals.
+      if (useRadius && fetched.length === 0 && geo.location) {
+        const radius = readDealAlertRadius()
+        toast.info(`No deals within ${radius} km — showing all deals`)
+        // Re-fetch without the radius filter (one-shot; don't toggle off the
+        // user's preference, just override this fetch).
+        const fallbackParams = new URLSearchParams({ status: 'active' })
+        if (selectedCategory && selectedCategory !== 'All') fallbackParams.set('category', selectedCategory)
+        if (debouncedSearch) fallbackParams.set('search', debouncedSearch)
+        try {
+          const fb = await apiFetch<{ deals: Deal[]; total: number }>(`/api/deals?${fallbackParams}`)
+          if (!signal?.aborted && fb.success && fb.data) {
+            setDeals(fb.data.deals || [])
+          }
+        } catch (err2) {
+          console.error('[FoodieHomeView] fallback fetchDeals failed:', err2)
+        }
+      } else {
+        setDeals(fetched)
+      }
+    } else if (!res.success) {
+      // ISSUE 4: surface API errors as a toast instead of silently leaving
+      // the user staring at a loading spinner.
+      toast.error(res.error || 'Failed to load deals')
+      setDeals([])
     }
     if (!signal?.aborted) setLoading(false)
-  }, [selectedCategory, debouncedSearch])
+  }, [selectedCategory, debouncedSearch, radiusEnabled, geo.location, readDealAlertRadius])
 
   useEffect(() => {
     // HIGH 8: AbortController + cancelled flag pattern. If the user changes
@@ -894,6 +968,58 @@ function FoodieHomeView() {
     fetchDeals(controller.signal)
     return () => controller.abort()
   }, [fetchDeals])
+
+  // ISSUE 2: when geoNonce changes (i.e. the user just granted location via
+  // the "Near me" button), re-fetch with the radius filter active.
+  useEffect(() => {
+    if (geoNonce === 0) return
+    const controller = new AbortController()
+    fetchDeals(controller.signal, { withRadius: true })
+    return () => controller.abort()
+  }, [geoNonce, fetchDeals])
+
+  // ISSUE 2: "Near me" button handler. Requests geolocation, then flips on
+  // the radius filter and bumps geoNonce to trigger a re-fetch.
+  const handleNearMe = useCallback(() => {
+    if (geo.loading) return
+    if (geo.location) {
+      // Already have a fix — just toggle the filter on and re-fetch.
+      setRadiusEnabled(true)
+      setGeoNonce(n => n + 1)
+      toast.success(`Showing deals near you (within ${readDealAlertRadius()} km)`)
+      return
+    }
+    // No fix yet — ask the browser for one.
+    toast.info('Getting your location…')
+    geo.request()
+    // Watch for the location to come in. Because useGeolocation doesn't
+    // expose a promise, we poll the cached location in localStorage.
+    const startedAt = Date.now()
+    const checkInterval = setInterval(() => {
+      const elapsed = Date.now() - startedAt
+      // Bail after 12s — the geolocation request likely failed/timed out.
+      if (elapsed > 12000) {
+        clearInterval(checkInterval)
+        if (geo.error) {
+          toast.error(geo.error || 'Unable to get your location')
+        }
+        return
+      }
+      try {
+        const raw = window.localStorage.getItem('snapje-user-location')
+        if (!raw) return
+        const parsed = JSON.parse(raw)
+        if (typeof parsed?.latitude === 'number' && typeof parsed?.longitude === 'number') {
+          clearInterval(checkInterval)
+          setRadiusEnabled(true)
+          setGeoNonce(n => n + 1)
+          toast.success(`Showing deals near you (within ${readDealAlertRadius()} km)`)
+        }
+      } catch {
+        // ignore — keep polling
+      }
+    }, 300)
+  }, [geo, readDealAlertRadius])
 
   // Assign card sizes for visual variety
   const getCardSize = (index: number): CardSize => {
@@ -913,7 +1039,7 @@ function FoodieHomeView() {
         <div className="px-4 pb-2">
           <div className="flex items-center justify-between">
             <button className="flex items-center gap-1.5 flex-1 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-[#6CB4EE] flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#E53935] flex items-center justify-center flex-shrink-0">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
               <div className="min-w-0">
@@ -925,12 +1051,35 @@ function FoodieHomeView() {
               <ChevronRight className="w-3.5 h-3.5 text-[#717971] flex-shrink-0" />
             </button>
             <div className="flex items-center gap-2 ml-2">
+              {/* ISSUE 2: "Near me" button. Toggles distance-based filtering
+                  on the deals list using the user's deal-alert radius. */}
+              <button
+                onClick={handleNearMe}
+                disabled={geo.loading}
+                aria-pressed={radiusEnabled}
+                title={radiusEnabled ? `Showing deals within ${readDealAlertRadius()} km` : 'Show deals near me'}
+                className={`h-8 px-3 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50 ${
+                  radiusEnabled
+                    ? 'bg-[#E53935] text-white shadow-chip'
+                    : 'bg-[#F4F7F6] text-[#414841] hover:bg-[#e8edea]'
+                }`}
+              >
+                {geo.loading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : radiusEnabled ? (
+                  <LocateFixed className="w-3.5 h-3.5" />
+                ) : (
+                  <Crosshair className="w-3.5 h-3.5" />
+                )}
+                <span className="hidden xs:inline">Near me</span>
+                <span className="xs:hidden">Near</span>
+              </button>
               {isAuthenticated ? (
                 <NotificationBell />
               ) : (
                 <Button
                   onClick={() => setShowAuthModal(true)}
-                  className="h-8 px-4 rounded-full text-xs font-bold bg-[#6CB4EE] text-white hover:bg-[#4A96D5] active:scale-95 transition-all"
+                  className="h-8 px-4 rounded-full text-xs font-bold bg-[#E53935] text-white hover:bg-[#C62828] active:scale-95 transition-all"
                 >
                   Sign In
                 </Button>
@@ -947,7 +1096,7 @@ function FoodieHomeView() {
               placeholder="Search flash deals, restaurants..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 rounded-full text-sm bg-[#F4F7F6] border-0 focus:bg-white focus:border-[#6CB4EE]"
+              className="pl-10 h-10 rounded-full text-sm bg-[#F4F7F6] border-0 focus:bg-white focus:border-[#E53935]"
             />
           </div>
         </div>
@@ -964,7 +1113,7 @@ function FoodieHomeView() {
                 key={cat.key}
                 onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
                 className={`flex flex-col items-center gap-1.5 py-2 rounded-xl transition-all duration-150 ${
-                  isActive ? 'bg-[#6CB4EE]/10 ring-1 ring-[#6CB4EE]/30' : ''
+                  isActive ? 'bg-[#E53935]/10 ring-1 ring-[#E53935]/30' : ''
                 }`}
               >
                 <div 
@@ -974,7 +1123,7 @@ function FoodieHomeView() {
                   <Icon className="w-5 h-5" style={{ color: cat.color }} />
                 </div>
                 <span className={`text-[10px] font-bold leading-tight ${
-                  isActive ? 'text-[#6CB4EE]' : 'text-[#1a1c1e]'
+                  isActive ? 'text-[#E53935]' : 'text-[#1a1c1e]'
                 }`}>
                   {cat.label}
                 </span>
@@ -987,7 +1136,7 @@ function FoodieHomeView() {
       {/* ===== Flash Deals Section Header ===== */}
       <div className="px-4 pt-3 pb-2">
         <div className="flex items-center gap-2">
-          <Flame className="w-5 h-5 text-[#FB923C]" />
+          <Flame className="w-5 h-5 text-[#E53935]" />
           <h2 className="text-base font-extrabold text-[#1a1c1e]">Flash Deals</h2>
           <span className="text-xs text-[#717971] font-medium">{deals.length} available</span>
         </div>
@@ -1237,13 +1386,13 @@ function DealDetailView() {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Utensils className="w-20 h-20 text-[#8FC5E8]" />
+            <Utensils className="w-20 h-20 text-[#EF5350]" />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         {/* Discount tag — moved UP 10% (bottom-[8%]) */}
         <div className="absolute bottom-[8%] left-5">
-          <Badge className="bg-gradient-to-r from-[#FB923C] to-[#F97316] text-white font-bold border-0 rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1">
+          <Badge className="bg-gradient-to-r from-[#E53935] to-[#F97316] text-white font-bold border-0 rounded-full shadow-lg px-3 py-1.5 flex items-center gap-1">
             <Flame className="w-3.5 h-3.5" />
             -{deal.discountPercent}% OFF
           </Badge>
@@ -1263,7 +1412,7 @@ function DealDetailView() {
         <h1 className="text-2xl font-extrabold text-[#1a1c1e] leading-tight">{deal.title}</h1>
 
         {/* Deal Highlight Banner (rounded-2xl, orange gradient accent) */}
-        <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFF7ED] to-[#FFEDD5] border border-[#FB923C]/20 p-4 flex items-center justify-between">
+        <div className="mt-4 rounded-2xl bg-gradient-to-r from-[#FFF7ED] to-[#FFEDD5] border border-[#E53935]/20 p-4 flex items-center justify-between">
           <div>
             <p className="text-xs text-[#9A3412] font-medium">Flash Deal Price</p>
             <div className="flex items-end gap-2 mt-0.5">
@@ -1285,7 +1434,7 @@ function DealDetailView() {
         <div className="grid grid-cols-3 gap-3 mt-4">
           {/* Ends in */}
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
-            <Clock className="w-5 h-5 text-[#6CB4EE] mx-auto mb-1" />
+            <Clock className="w-5 h-5 text-[#E53935] mx-auto mb-1" />
             <p className="text-[10px] text-[#414841]">Ends in</p>
             <CountdownTimer expiresAt={deal.expiresAt} compact />
           </div>
@@ -1293,13 +1442,13 @@ function DealDetailView() {
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
             <Flame
               className={`w-5 h-5 mx-auto mb-1 ${
-                deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#6CB4EE]'
+                deal.availableQuantity <= 5 ? 'text-[#E53935]' : 'text-[#E53935]'
               }`}
             />
             <p className="text-[10px] text-[#414841]">Stock</p>
             <p
               className={`text-sm font-bold ${
-                deal.availableQuantity <= 5 ? 'text-[#FB923C]' : 'text-[#1a1c1e]'
+                deal.availableQuantity <= 5 ? 'text-[#E53935]' : 'text-[#1a1c1e]'
               }`}
             >
               {deal.availableQuantity} left
@@ -1307,7 +1456,7 @@ function DealDetailView() {
           </div>
           {/* Distance */}
           <div className="bg-[#f0f4f2] rounded-xl p-3 text-center">
-            <Navigation className="w-5 h-5 text-[#6CB4EE] mx-auto mb-1" />
+            <Navigation className="w-5 h-5 text-[#E53935] mx-auto mb-1" />
             <p className="text-[10px] text-[#414841]">Distance</p>
             <p className="text-sm font-bold text-[#1a1c1e]">
               {distance != null ? formatDistance(distance) : '—'}
@@ -1324,7 +1473,7 @@ function DealDetailView() {
         {/* Pickup Location — Map card */}
         <div className="mt-5">
           <h3 className="font-bold text-[#1a1c1e] mb-2 flex items-center gap-1.5">
-            <MapPin className="w-4 h-4 text-[#6CB4EE]" /> Pickup Location
+            <MapPin className="w-4 h-4 text-[#E53935]" /> Pickup Location
           </h3>
           <div className="rounded-2xl border border-[#e8edea] overflow-hidden">
             {/* Map */}
@@ -1351,7 +1500,7 @@ function DealDetailView() {
               {distance != null ? (
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                   <span className="flex items-center gap-1 text-[#414841]">
-                    <Navigation className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                    <Navigation className="w-3.5 h-3.5 text-[#E53935]" />
                     {formatDistance(distance)}
                   </span>
                   {walkTime != null && (
@@ -1370,7 +1519,7 @@ function DealDetailView() {
               ) : (
                 <button
                   onClick={requestLocation}
-                  className="mt-3 text-xs text-[#6CB4EE] font-medium flex items-center gap-1 hover:underline"
+                  className="mt-3 text-xs text-[#E53935] font-medium flex items-center gap-1 hover:underline"
                 >
                   <Navigation className="w-3.5 h-3.5" /> Enable location to see distance
                 </button>
@@ -1381,7 +1530,7 @@ function DealDetailView() {
                 href={`https://www.openstreetmap.org/?mlat=${vendorLat}&mlon=${vendorLng}#map=17/${vendorLat}/${vendorLng}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-flex items-center gap-1 text-xs text-[#6CB4EE] font-medium hover:underline"
+                className="mt-3 inline-flex items-center gap-1 text-xs text-[#E53935] font-medium hover:underline"
               >
                 <MapPin className="w-3.5 h-3.5" /> Open in Maps
               </a>
@@ -1404,7 +1553,7 @@ function DealDetailView() {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="mt-5 bg-[#FFF7ED] border border-[#FB923C]/30 rounded-xl p-4"
+            className="mt-5 bg-[#FFF7ED] border border-[#E53935]/30 rounded-xl p-4"
           >
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle className="w-5 h-5 text-[#F97316]" />
@@ -1427,7 +1576,7 @@ function DealDetailView() {
             )}
             <Button
               onClick={() => navigate('orders')}
-              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#FB923C] to-[#F97316] text-white hover:opacity-90 active:scale-95 transition-all"
+              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#E53935] to-[#F97316] text-white hover:opacity-90 active:scale-95 transition-all"
             >
               <QrCode className="w-4 h-4 mr-1.5" />
               View QR Code &amp; Pickup Details
@@ -1480,7 +1629,7 @@ function DealDetailView() {
                 ? 'bg-[#10B981] hover:bg-[#10B981] text-white'
                 : isSoldOut && isAuthenticated
                 ? 'bg-[#c1c9c0] text-white cursor-not-allowed'
-                : 'bg-gradient-to-r from-[#FB923C] to-[#F97316] hover:opacity-90 text-white'
+                : 'bg-gradient-to-r from-[#E53935] to-[#F97316] hover:opacity-90 text-white'
             }`}
           >
             {claiming ? (
@@ -1554,7 +1703,7 @@ function PickupProgressSlider({ pickupDeadline, createdAt }: { pickupDeadline: s
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between mb-1">
-        <span className={`text-[10px] font-bold ${isOverdue ? 'text-[#717971]' : isUrgent ? 'text-red-500' : isWarning ? 'text-[#FB923C]' : 'text-[#6CB4EE]'}`}>
+        <span className={`text-[10px] font-bold ${isOverdue ? 'text-[#717971]' : isUrgent ? 'text-red-500' : isWarning ? 'text-[#E53935]' : 'text-[#E53935]'}`}>
           {timeLeft}
         </span>
       </div>
@@ -1564,16 +1713,16 @@ function PickupProgressSlider({ pickupDeadline, createdAt }: { pickupDeadline: s
           animate={{ width: `${progress}%` }}
           transition={{ duration: 1.2, ease: 'easeOut' }}
           className={`h-full rounded-full ${
-            isOverdue ? 'bg-[#c1c9c0]' : isUrgent ? 'bg-red-500' : isWarning ? 'bg-[#FB923C]' : 'bg-[#6CB4EE]'
+            isOverdue ? 'bg-[#c1c9c0]' : isUrgent ? 'bg-red-500' : isWarning ? 'bg-[#E53935]' : 'bg-[#E53935]'
           }`}
           style={{
             background: isOverdue
               ? '#c1c9c0'
               : isUrgent
-              ? 'linear-gradient(90deg, #FB923C, #EF4444)'
+              ? 'linear-gradient(90deg, #E53935, #EF4444)'
               : isWarning
-              ? 'linear-gradient(90deg, #6CB4EE, #FB923C)'
-              : 'linear-gradient(90deg, #8FC5E8, #6CB4EE)',
+              ? 'linear-gradient(90deg, #E53935, #E53935)'
+              : 'linear-gradient(90deg, #EF5350, #E53935)',
           }}
         />
       </div>
@@ -1605,7 +1754,7 @@ function FoodieOrdersView() {
           <ShoppingBag className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
           <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to view orders</h3>
           <p className="text-sm text-[#414841] mt-1">You need an account to track your orders</p>
-          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white rounded-xl">
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">
             Sign In
           </Button>
         </div>
@@ -1618,8 +1767,8 @@ function FoodieOrdersView() {
   const expiredOrders = orders.filter(o => o.status === 'expired' || o.status === 'cancelled')
 
   const tabConfig = [
-    { key: 'active' as const, label: 'Active', count: activeOrders.length, icon: Clock, color: '#FB923C' },
-    { key: 'completed' as const, label: 'Completed', count: completedOrders.length, icon: CheckCircle, color: '#6CB4EE' },
+    { key: 'active' as const, label: 'Active', count: activeOrders.length, icon: Clock, color: '#E53935' },
+    { key: 'completed' as const, label: 'Completed', count: completedOrders.length, icon: CheckCircle, color: '#E53935' },
     { key: 'expired' as const, label: 'Expired', count: expiredOrders.length, icon: Timer, color: '#EF4444' },
   ]
 
@@ -1638,7 +1787,7 @@ function FoodieOrdersView() {
           <ShoppingBag className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
           <h3 className="text-lg font-bold text-[#1a1c1e]">No orders yet</h3>
           <p className="text-sm text-[#414841] mt-1">Claim your first flash deal!</p>
-          <Button onClick={() => navigate('home')} className="mt-4 bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white rounded-xl">
+          <Button onClick={() => navigate('home')} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">
             Browse Deals
           </Button>
         </div>
@@ -1691,7 +1840,7 @@ function FoodieOrdersView() {
                               <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={56} height={56} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Utensils className="w-6 h-6 text-[#8FC5E8]" />
+                                <Utensils className="w-6 h-6 text-[#EF5350]" />
                               </div>
                             )}
                           </div>
@@ -1702,12 +1851,12 @@ function FoodieOrdersView() {
                                 <p className="font-bold text-sm text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
                                 <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
                               </div>
-                              <QrCode className="w-5 h-5 text-[#6CB4EE] flex-shrink-0" />
+                              <QrCode className="w-5 h-5 text-[#E53935] flex-shrink-0" />
                             </div>
                             {/* Pickup time with orange */}
                             <div className="flex items-center gap-1.5 mt-1.5">
-                              <Clock className="w-3 h-3 text-[#FB923C]" />
-                              <span className="text-[11px] font-bold text-[#FB923C]">
+                              <Clock className="w-3 h-3 text-[#E53935]" />
+                              <span className="text-[11px] font-bold text-[#E53935]">
                                 Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
@@ -1715,12 +1864,12 @@ function FoodieOrdersView() {
                             {/* Price & Status */}
                             <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#e8edea]">
                               <div>
-                                <span className="text-base font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</span>
+                                <span className="text-base font-extrabold text-[#E53935]">RM{order.dealPrice.toFixed(2)}</span>
                                 {order.originalPrice > order.dealPrice && (
                                   <span className="text-[10px] text-[#EF4444] line-through ml-1.5">RM{order.originalPrice.toFixed(2)}</span>
                                 )}
                               </div>
-                              <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg font-bold text-[10px]">
+                              <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg font-bold text-[10px]">
                                 Pending Pickup
                               </Badge>
                             </div>
@@ -1754,7 +1903,7 @@ function FoodieOrdersView() {
                               <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={48} height={48} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Utensils className="w-5 h-5 text-[#8FC5E8]" />
+                                <Utensils className="w-5 h-5 text-[#EF5350]" />
                               </div>
                             )}
                           </div>
@@ -1767,7 +1916,7 @@ function FoodieOrdersView() {
                               </div>
                               {/* Price right side */}
                               <div className="text-right flex-shrink-0">
-                                <p className="text-sm font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
+                                <p className="text-sm font-extrabold text-[#E53935]">RM{order.dealPrice.toFixed(2)}</p>
                                 {order.originalPrice > order.dealPrice && (
                                   <p className="text-[10px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
                                 )}
@@ -1845,12 +1994,12 @@ function FoodieOrdersView() {
             <div className="text-center py-4">
               {/* Deal name above QR code */}
               <p className="text-base font-bold text-[#1a1c1e] mb-3">{selectedOrder.deal?.title || 'Deal'}</p>
-              <div className="bg-white rounded-2xl p-4 inline-block border-2 border-[#6CB4EE]/20 shadow-card">
+              <div className="bg-white rounded-2xl p-4 inline-block border-2 border-[#E53935]/20 shadow-card">
                 <QRCodeImage qrCode={selectedOrder.qrCode} />
               </div>
               <p className="mt-4 font-bold text-[#1a1c1e] text-sm font-mono break-all">#{selectedOrder.orderNumber}</p>
               <p className="text-sm text-[#414841] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
-              <p className="text-xs font-bold text-[#FB923C] mt-2 flex items-center justify-center gap-1">
+              <p className="text-xs font-bold text-[#E53935] mt-2 flex items-center justify-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
                 Pickup by {new Date(selectedOrder.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
@@ -1911,7 +2060,7 @@ function FoodieProfileView() {
       businessHoursVisible: true,
     }
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('flashbite_settings')
+      const saved = localStorage.getItem('snapje_settings')
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
@@ -1931,7 +2080,7 @@ function FoodieProfileView() {
   // Save settings to localStorage whenever they change
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('flashbite_settings', JSON.stringify(settings))
+      localStorage.setItem('snapje_settings', JSON.stringify(settings))
     }
   }, [settings])
 
@@ -1943,15 +2092,22 @@ function FoodieProfileView() {
   }, [user?.avatarUrl])
 
   // Initialize Business Name from vendor profile (for the Vendor Settings section)
+  // BUGFIX (fix-logout-theme-nearme): previously referenced `roles` here, but
+  // `const roles = ...` is declared AFTER the `if (!isAuthenticated || !user)`
+  // early-return below. When the early return fires (user is null), `roles`
+  // stays in the temporal dead zone (TDZ) — so this effect would throw a
+  // ReferenceError when it fires after such a render, surfacing as the
+  // "Application error: a client-side exception has occurred" screen during
+  // logout. Use `user?.roles?.includes(...)` instead so the lookup is null-safe.
   useEffect(() => {
-    if (roles.includes('vendor') && isAuthenticated) {
+    if (isAuthenticated && user?.roles?.includes('vendor')) {
       apiFetch<{ vendors: Vendor[] }>('/api/vendors?my=true').then((res) => {
         if (res.success && res.data?.vendors?.[0]) {
           setEditBusinessName(res.data.vendors[0].businessName || '')
         }
       }).catch(() => {})
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, user?.roles])
 
   const updateSetting = <K extends keyof typeof settings>(key: K, value: (typeof settings)[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }))
@@ -1965,7 +2121,7 @@ function FoodieProfileView() {
           <User className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
           <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to your profile</h3>
           <p className="text-sm text-[#414841] mt-1">Access your account settings and more</p>
-          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white rounded-xl">
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">
             Sign In
           </Button>
         </div>
@@ -1984,22 +2140,52 @@ function FoodieProfileView() {
   }
 
   const handleLogout = async () => {
-    // CRITICAL FIX: the refresh token is no longer kept in localStorage (it
-    // lives in the httpOnly cookie). The /api/auth/logout route reads the
-    // refresh token from the cookie via `credentials: 'include'`, so no body
-    // is needed. (apiFetch already sets credentials: 'include'.)
-    await apiFetch('/api/auth/logout', {
-      method: 'POST',
-    })
-    logout()
-    // Redirect to public homepage for all roles
-    // Reset activeRole to 'foodie' so ViewRouter renders FoodieHomeView
-    // (auth-store logout() leaves useAppStore.activeRole as previous role)
-    useAppStore.getState().setActiveRole('foodie')
-    useAppStore.getState().navigate('home')
-    useAppStore.getState().setShowAuthModal(false)
-    useAppStore.getState().setSidebarOpen(false)
-    toast.success('Signed out successfully')
+    // CRITICAL FIX (fix-logout-theme-nearme): the previous implementation
+    // could trigger a client-side crash ("Application error: a client-side
+    // exception has occurred") for two reasons:
+    //   1. The vendor-profile useEffect above referenced `roles` while it was
+    //      in the temporal dead zone (now fixed).
+    //   2. If `logout()` or any subsequent store update threw, the error
+    //      bubbled to the React error boundary and trashed the whole session.
+    // We now (a) wrap the whole flow in try/catch so a failed /logout request
+    // doesn't strand the user in a broken state, (b) reset the app-store
+    // navigation state BEFORE clearing the auth store so the next render
+    // routes to FoodieHomeView (which is fully null-safe) instead of e.g.
+    // FoodieProfileView, and (c) guard each store call individually.
+    try {
+      // Best-effort server logout — ignore network/API failures so the user
+      // can still sign out even if the server is unreachable.
+      try {
+        await apiFetch('/api/auth/logout', { method: 'POST' })
+      } catch {
+        // Network/parse error — fall through to local logout.
+      }
+
+      // Reset navigation FIRST so the post-logout render lands on a null-safe
+      // view (FoodieHomeView) before the auth store clears `user`.
+      try {
+        useAppStore.getState().setActiveRole('foodie')
+        useAppStore.getState().navigate('home')
+        useAppStore.getState().setShowAuthModal(false)
+        useAppStore.getState().setSidebarOpen(false)
+      } catch {
+        // Ignore — defensive only.
+      }
+
+      // Clear the auth store last. After this, `user` becomes null and
+      // `isAuthenticated` becomes false; any component still subscribed must
+      // have its own null guard (FoodieProfileView does, via the early-return
+      // below; FoodieHomeView uses `isAuthenticated` only, never `user.*`).
+      logout()
+
+      toast.success('Signed out successfully')
+    } catch (err) {
+      // Last-resort safety net — never throw out of handleLogout.
+      console.error('[handleLogout] unexpected error:', err)
+      try { logout() } catch {}
+      try { useAppStore.getState().navigate('home') } catch {}
+      toast.success('Signed out')
+    }
   }
 
   const handleSaveProfile = async () => {
@@ -2091,7 +2277,7 @@ function FoodieProfileView() {
               onClick={() => handleRoleSwitch(role)}
               disabled={!isAvailable}
               className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
-                isActive ? 'bg-[#6CB4EE] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                isActive ? 'bg-[#E53935] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
               } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
             >
               <Icon className="w-5 h-5" />
@@ -2134,7 +2320,7 @@ function FoodieProfileView() {
               <h2 className="font-bold text-[#1a1c1e] text-sm truncate">{user?.name}</h2>
               <p className="text-[11px] text-[#414841] truncate">{user?.email}</p>
             </div>
-            <Badge className="bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px] flex-shrink-0">
+            <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-[10px] flex-shrink-0">
               {activeRole === 'foodie' ? '🍽️ Foodie' : activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
             </Badge>
           </div>
@@ -2144,7 +2330,7 @@ function FoodieProfileView() {
       {/* ===== SETTINGS SECTION ===== */}
       <div className="mb-4">
         <h3 className="font-bold text-[#1a1c1e] text-sm mb-2 flex items-center gap-2">
-          <Settings className="w-4 h-4 text-[#6CB4EE]" /> Settings
+          <Settings className="w-4 h-4 text-[#E53935]" /> Settings
         </h3>
 
         <Accordion type="multiple" defaultValue={[]} className="space-y-2">
@@ -2152,7 +2338,7 @@ function FoodieProfileView() {
           <AccordionItem value="basic" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
-                <User className="w-4 h-4 text-[#6CB4EE]" /> Basic
+                <User className="w-4 h-4 text-[#E53935]" /> Basic
               </span>
             </AccordionTrigger>
             <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2167,7 +2353,7 @@ function FoodieProfileView() {
                     <Input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+60" className="mt-1 h-9 text-sm rounded-xl" />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile} className="flex-1 h-9 rounded-xl bg-[#6CB4EE] hover:bg-[#4A96D5] text-white text-xs font-bold">
+                    <Button size="sm" onClick={handleSaveProfile} disabled={savingProfile} className="flex-1 h-9 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold">
                       {savingProfile ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <><Save className="w-3.5 h-3.5 mr-1" /> Save</>}
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => setIsEditingProfile(false)} className="flex-1 h-9 rounded-xl text-xs">Cancel</Button>
@@ -2181,7 +2367,7 @@ function FoodieProfileView() {
                       <p className="text-sm font-bold text-[#1a1c1e]">{user?.name}</p>
                     </div>
                     <button onClick={startEditProfile} className="p-1.5 rounded-lg hover:bg-[#e8edea]">
-                      <Pencil className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                      <Pencil className="w-3.5 h-3.5 text-[#E53935]" />
                     </button>
                   </div>
                   <Separator />
@@ -2196,7 +2382,7 @@ function FoodieProfileView() {
                       <p className="text-sm text-[#1a1c1e]">{user?.phone || 'Not set'}</p>
                     </div>
                     <button onClick={startEditProfile} className="p-1.5 rounded-lg hover:bg-[#e8edea]">
-                      <Pencil className="w-3.5 h-3.5 text-[#6CB4EE]" />
+                      <Pencil className="w-3.5 h-3.5 text-[#E53935]" />
                     </button>
                   </div>
                   <Separator />
@@ -2216,7 +2402,7 @@ function FoodieProfileView() {
           <AccordionItem value="notifications" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
-                <Bell className="w-4 h-4 text-[#FB923C]" /> Notifications
+                <Bell className="w-4 h-4 text-[#E53935]" /> Notifications
               </span>
             </AccordionTrigger>
             <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2337,7 +2523,7 @@ function FoodieProfileView() {
                     <button
                       key={size}
                       className={`py-2 text-[11px] font-bold rounded-lg transition-all ${
-                        size === 'Normal' ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#1a1c1e]'
+                        size === 'Normal' ? 'bg-[#E53935] text-white' : 'bg-[#e8edea] text-[#1a1c1e]'
                       }`}
                     >
                       {size}
@@ -2352,7 +2538,7 @@ function FoodieProfileView() {
           <AccordionItem value="photos" className="border-0">
             <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
               <span className="flex items-center gap-2">
-                <Camera className="w-4 h-4 text-[#6CB4EE]" /> Photos & Uploads
+                <Camera className="w-4 h-4 text-[#E53935]" /> Photos & Uploads
               </span>
             </AccordionTrigger>
             <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2422,7 +2608,7 @@ function FoodieProfileView() {
             <AccordionItem value="foodie" className="border-0">
               <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
                 <span className="flex items-center gap-2">
-                  <Utensils className="w-4 h-4 text-[#FB923C]" /> Foodie Preferences
+                  <Utensils className="w-4 h-4 text-[#E53935]" /> Foodie Preferences
                 </span>
               </AccordionTrigger>
               <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2435,7 +2621,7 @@ function FoodieProfileView() {
                         onClick={() => toggleDietaryPref(pref)}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
                           (settings.dietaryPrefs as string[]).includes(pref)
-                            ? 'bg-[#6CB4EE] text-white'
+                            ? 'bg-[#E53935] text-white'
                             : 'bg-[#e8edea] text-[#414841]'
                         }`}
                       >
@@ -2448,7 +2634,7 @@ function FoodieProfileView() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-bold text-[#1a1c1e]">Deal Alert Radius</p>
-                    <p className="text-xs font-bold text-[#6CB4EE]">{settings.dealAlertRadius} km</p>
+                    <p className="text-xs font-bold text-[#E53935]">{settings.dealAlertRadius} km</p>
                   </div>
                   <input
                     type="range"
@@ -2456,7 +2642,7 @@ function FoodieProfileView() {
                     max={50}
                     value={settings.dealAlertRadius}
                     onChange={e => updateSetting('dealAlertRadius', parseInt(e.target.value))}
-                    className="w-full h-1.5 bg-[#e8edea] rounded-full appearance-none cursor-pointer accent-[#6CB4EE]"
+                    className="w-full h-1.5 bg-[#e8edea] rounded-full appearance-none cursor-pointer accent-[#E53935]"
                   />
                   <div className="flex justify-between text-[10px] text-[#717971] mt-1">
                     <span>1 km</span>
@@ -2480,7 +2666,7 @@ function FoodieProfileView() {
             <AccordionItem value="vendor" className="border-0">
               <AccordionTrigger className="py-2.5 px-3 rounded-xl bg-[#f0f4f2] hover:no-underline hover:bg-[#dfe5e1] text-sm font-bold text-[#1a1c1e] [&[data-state=open]]:rounded-b-none">
                 <span className="flex items-center gap-2">
-                  <Store className="w-4 h-4 text-[#6CB4EE]" /> Vendor Settings
+                  <Store className="w-4 h-4 text-[#E53935]" /> Vendor Settings
                 </span>
               </AccordionTrigger>
               <AccordionContent className="bg-[#f8faf9] rounded-b-xl px-3 pb-3 pt-2 space-y-3">
@@ -2513,7 +2699,7 @@ function FoodieProfileView() {
                           }
                         }
                       }}
-                      className="h-9 px-4 rounded-xl bg-[#6CB4EE] hover:bg-[#4A96D5] text-white text-xs font-bold"
+                      className="h-9 px-4 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold"
                     >
                       <Save className="w-3.5 h-3.5" /> Save
                     </Button>
@@ -2541,7 +2727,7 @@ function FoodieProfileView() {
                   className="w-full flex items-center justify-between p-0"
                 >
                   <div className="flex items-center gap-2.5">
-                    <CreditCard className="w-4 h-4 text-[#6CB4EE]" />
+                    <CreditCard className="w-4 h-4 text-[#E53935]" />
                     <div className="text-left">
                       <p className="text-sm font-bold text-[#1a1c1e]">Subscription Plan</p>
                       <p className="text-[11px] text-[#717971]">Manage your vendor plan</p>
@@ -2555,7 +2741,7 @@ function FoodieProfileView() {
                   className="w-full flex items-center justify-between p-0"
                 >
                   <div className="flex items-center gap-2.5">
-                    <Package className="w-4 h-4 text-[#6CB4EE]" />
+                    <Package className="w-4 h-4 text-[#E53935]" />
                     <div className="text-left">
                       <p className="text-sm font-bold text-[#1a1c1e]">Inventory Management</p>
                       <p className="text-[11px] text-[#717971]">Manage your deal inventory</p>
@@ -2599,8 +2785,8 @@ function FoodieProfileView() {
                   size="sm"
                   onClick={() => {
                     if (typeof window !== 'undefined') {
-                      localStorage.removeItem('flashbite_settings')
-                      localStorage.removeItem('flashbite_cache')
+                      localStorage.removeItem('snapje_settings')
+                      localStorage.removeItem('snapje_cache')
                       toast.success('Cache cleared!')
                     }
                   }}
@@ -2623,7 +2809,7 @@ function FoodieProfileView() {
       <div className="space-y-2 mb-4">
         {roles.includes('vendor') && activeRole !== 'vendor' && (
           <button onClick={() => navigate('subscription')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors">
-            <CreditCard className="w-5 h-5 text-[#6CB4EE]" />
+            <CreditCard className="w-5 h-5 text-[#E53935]" />
             <div className="text-left flex-1">
               <p className="font-bold text-sm text-[#1a1c1e]">Subscription Plan</p>
               <p className="text-[11px] text-[#414841]">Manage your vendor subscription</p>
@@ -2632,8 +2818,8 @@ function FoodieProfileView() {
           </button>
         )}
         {!roles.includes('vendor') && (
-          <button onClick={() => navigate('register-vendor')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#8FC5E8]/20 to-[#6CB4EE]/5 hover:from-[#8FC5E8]/30 hover:to-[#6CB4EE]/10 transition-colors">
-            <Sparkles className="w-5 h-5 text-[#6CB4EE]" />
+          <button onClick={() => navigate('register-vendor')} className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-[#EF5350]/20 to-[#E53935]/5 hover:from-[#EF5350]/30 hover:to-[#E53935]/10 transition-colors">
+            <Sparkles className="w-5 h-5 text-[#E53935]" />
             <div className="text-left flex-1">
               <p className="font-bold text-sm text-[#1a1c1e]">Become a Vendor</p>
               <p className="text-[11px] text-[#414841]">Turn unsold meals into revenue</p>
@@ -2716,6 +2902,10 @@ function VendorDashboardView() {
 
   const fetchVendorData = useCallback(() => {
     setLoading(true)
+    // ISSUE 4 (fix-logout-theme-nearme): wrap the whole Promise.all in a
+    // .catch so a network/API failure doesn't reject and surface as the
+    // generic "Internal Error" / white-screen crash. We still set loading
+    // to false in .finally and show whatever data we have (or empty state).
     Promise.all([
       apiFetch<{ vendors: Vendor[]; total: number }>('/api/vendors?my=true'),
       apiFetch<{ orders: Order[] }>('/api/orders'),
@@ -2729,17 +2919,46 @@ function VendorDashboardView() {
             if (dRes.success && dRes.data) {
               setAllDeals(dRes.data.deals || [])
             }
+          }).catch((err) => {
+            console.error('[VendorDashboardView] fetch deals failed:', err)
           })
         }
+      } else if (!vRes.success) {
+        // Vendor profile API returned an error — toast so the vendor knows
+        // something went wrong, but don't crash.
+        toast.error(vRes.error || 'Failed to load vendor profile')
       }
       if (oRes.success && oRes.data) {
         const o = (oRes.data as { orders?: Order[] }).orders || oRes.data
         setOrders(Array.isArray(o) ? o : [])
+      } else if (!oRes.success) {
+        toast.error(oRes.error || 'Failed to load orders')
       }
+    }).catch((err) => {
+      console.error('[VendorDashboardView] fetchVendorData failed:', err)
+      toast.error('Failed to load dashboard data — please retry')
     }).finally(() => setLoading(false))
   }, [])
 
   useEffect(() => { fetchVendorData() }, [fetchVendorData])
+
+  // ISSUE 4: if the user logs out mid-session (user becomes null), bail out
+  // early with a friendly sign-in prompt instead of dereferencing null below.
+  if (!user) {
+    return (
+      <div className="pb-28 px-5 pt-2">
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Vendor Dashboard</h1>
+        <div className="text-center py-16">
+          <Store className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to view your dashboard</h3>
+          <p className="text-sm text-[#414841] mt-1">Manage your deals and orders</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   // Classify deals into active and expired
   const isActiveDeal = (d: Deal) => {
@@ -2899,7 +3118,7 @@ function VendorDashboardView() {
         <div className="flex items-center gap-2">
           <NotificationBell />
           <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors" aria-label="Account">
-            <User className="w-5 h-5 text-[#6CB4EE]" />
+            <User className="w-5 h-5 text-[#E53935]" />
           </button>
         </div>
       </div>
@@ -2918,14 +3137,14 @@ function VendorDashboardView() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <DollarSign className="w-6 h-6 text-[#6CB4EE] mx-auto mb-1" />
+                <DollarSign className="w-6 h-6 text-[#E53935] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Revenue</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">RM{todayRevenue.toFixed(0)}</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-card rounded-2xl">
               <CardContent className="p-4 text-center">
-                <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
+                <Flame className="w-6 h-6 text-[#E53935] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Active Deals</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{activeDeals.length}</p>
               </CardContent>
@@ -2949,14 +3168,14 @@ function VendorDashboardView() {
           {/* Quick Actions */}
           <h3 className="font-bold text-[#1a1c1e] mb-3">Quick Actions</h3>
           <div className="grid grid-cols-2 gap-3 mb-6">
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('create-deal')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 rounded-2xl shadow-chip">
-              <div className="w-10 h-10 rounded-xl bg-[#6CB4EE] flex items-center justify-center">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('create-deal')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 rounded-2xl shadow-chip">
+              <div className="w-10 h-10 rounded-xl bg-[#E53935] flex items-center justify-center">
                 <PlusCircle className="w-5 h-5 text-white" />
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Create Deal</span>
             </motion.button>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('fulfillment')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#FB923C]/20 to-[#F97316]/10 rounded-2xl shadow-chip">
-              <div className="w-10 h-10 rounded-xl bg-[#FB923C] flex items-center justify-center">
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => navigate('fulfillment')} className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-[#E53935]/20 to-[#F97316]/10 rounded-2xl shadow-chip">
+              <div className="w-10 h-10 rounded-xl bg-[#E53935] flex items-center justify-center">
                 <CheckCircle className="w-5 h-5 text-white" />
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Fulfillment</span>
@@ -2969,14 +3188,14 @@ function VendorDashboardView() {
               <CardContent className="p-0">
                 <div className="flex items-center justify-between px-4 pt-4 pb-2">
                   <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-[#FB923C]" />
+                    <MapPin className="w-4 h-4 text-[#E53935]" />
                     <h3 className="font-bold text-[#1a1c1e] text-sm">Shop Location</h3>
                   </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={openLocationModal}
-                    className="h-8 rounded-lg text-xs font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                    className="h-8 rounded-lg text-xs font-bold border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10"
                   >
                     <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                   </Button>
@@ -3003,25 +3222,25 @@ function VendorDashboardView() {
             <button
               onClick={() => setActiveTab('active')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'active' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+                activeTab === 'active' ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
               }`}
             >
               <Flame className="w-4 h-4" />
               Active
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                activeTab === 'active' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+                activeTab === 'active' ? 'bg-[#E53935] text-white' : 'bg-[#d7ddd9] text-[#717971]'
               }`}>{activeDeals.length}</span>
             </button>
             <button
               onClick={() => setActiveTab('expired')}
               className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-                activeTab === 'expired' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+                activeTab === 'expired' ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
               }`}
             >
               <Clock className="w-4 h-4" />
               Expired
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                activeTab === 'expired' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+                activeTab === 'expired' ? 'bg-[#E53935] text-white' : 'bg-[#d7ddd9] text-[#717971]'
               }`}>{expiredDeals.length}</span>
             </button>
           </div>
@@ -3063,7 +3282,7 @@ function VendorDashboardView() {
                           <p className="font-bold text-[#1a1c1e] truncate">{deal.title}</p>
                           <p className="text-xs text-[#414841] mt-0.5">
                             RM{deal.dealPrice.toFixed(2)} <span className="line-through text-[#717971]">RM{deal.originalPrice.toFixed(2)}</span>
-                            <span className="ml-1 text-[#FB923C] font-bold">-{deal.discountPercent}%</span>
+                            <span className="ml-1 text-[#E53935] font-bold">-{deal.discountPercent}%</span>
                           </p>
                         </div>
                         <Badge className={`border-0 rounded-lg text-xs flex-shrink-0 ${
@@ -3093,7 +3312,7 @@ function VendorDashboardView() {
                           variant="outline"
                           size="sm"
                           onClick={() => openEditModal(deal)}
-                          className="flex-1 h-9 rounded-xl text-xs font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                          className="flex-1 h-9 rounded-xl text-xs font-bold border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10"
                         >
                           <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
                         </Button>
@@ -3150,7 +3369,7 @@ function VendorDashboardView() {
           {selectedDeal && (
             <>
               {/* Header */}
-              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+              <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
                 <DialogHeader>
                   <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">{selectedDeal.title}</DialogTitle>
                   <DialogDescription className="text-[#414841] text-xs">
@@ -3167,7 +3386,7 @@ function VendorDashboardView() {
                   }`}>
                     {isActiveDeal(selectedDeal) ? 'Active' : selectedDeal.status}
                   </Badge>
-                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">
+                  <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-xs">
                     -{selectedDeal.discountPercent}%
                   </Badge>
                 </div>
@@ -3181,9 +3400,9 @@ function VendorDashboardView() {
                     <p className="text-xs text-[#717971]">Original</p>
                     <p className="font-bold text-[#1a1c1e] line-through">RM{selectedDeal.originalPrice.toFixed(2)}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                  <div className="bg-[#E53935]/10 rounded-xl p-3 text-center">
                     <p className="text-xs text-[#717971]">Deal Price</p>
-                    <p className="font-bold text-[#6CB4EE]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
+                    <p className="font-bold text-[#E53935]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -3193,28 +3412,28 @@ function VendorDashboardView() {
                     <p className="text-[#717971]">Total</p>
                     <p className="font-bold text-[#1a1c1e]">{selectedDeal.totalQuantity}</p>
                   </div>
-                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Reserved</p>
-                    <p className="font-bold text-[#FB923C]">{selectedDeal.reservedQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.reservedQuantity}</p>
                   </div>
                   <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
                     <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Left</p>
-                    <p className="font-bold text-[#6CB4EE]">{selectedDeal.availableQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.availableQuantity}</p>
                   </div>
                 </div>
 
                 {/* Timing */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm">
-                    <Timer className="w-4 h-4 text-[#FB923C]" />
+                    <Timer className="w-4 h-4 text-[#E53935]" />
                     <span className="text-[#414841]">Expires: {formatDate(selectedDeal.expiresAt)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-[#6CB4EE]" />
+                    <Clock className="w-4 h-4 text-[#E53935]" />
                     <span className="text-[#414841]">Created: {formatDate(selectedDeal.createdAt)}</span>
                   </div>
                 </div>
@@ -3240,7 +3459,7 @@ function VendorDashboardView() {
                 <div className="flex gap-2 pt-2">
                   <Button
                     onClick={() => openEditModal(selectedDeal)}
-                    className="flex-1 h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+                    className="flex-1 h-11 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white"
                   >
                     <Pencil className="w-4 h-4 mr-1.5" /> Edit Deal
                   </Button>
@@ -3261,7 +3480,7 @@ function VendorDashboardView() {
       {/* ===== Edit Deal Modal ===== */}
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
         <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
-          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+          <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Deal</DialogTitle>
               <DialogDescription className="text-[#414841] text-xs">
@@ -3345,7 +3564,7 @@ function VendorDashboardView() {
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
             >
               {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Changes</>}
             </Button>
@@ -3356,7 +3575,7 @@ function VendorDashboardView() {
       {/* ===== Edit Shop Location Modal ===== */}
       <Dialog open={showLocationModal} onOpenChange={setShowLocationModal}>
         <DialogContent className="rounded-2xl max-w-md max-h-[90vh] overflow-y-auto p-0 mx-4 w-[calc(100%-2rem)]">
-          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+          <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Shop Location</DialogTitle>
               <DialogDescription className="text-[#414841] text-xs">
@@ -3374,7 +3593,7 @@ function VendorDashboardView() {
             <Button
               onClick={handleSaveLocation}
               disabled={savingLocation}
-              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform relative z-[10000]"
+              className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform relative z-[10000]"
             >
               {savingLocation ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Location</>}
             </Button>
@@ -3447,11 +3666,11 @@ function VendorCreateDealView() {
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-2 flex-1">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-              s <= step ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#717971]'
+              s <= step ? 'bg-[#E53935] text-white' : 'bg-[#e8edea] text-[#717971]'
             }`}>
               {s < step ? <Check className="w-4 h-4" /> : s}
             </div>
-            {s < 3 && <div className={`flex-1 h-0.5 rounded ${s < step ? 'bg-[#6CB4EE]' : 'bg-[#e8edea]'}`} />}
+            {s < 3 && <div className={`flex-1 h-0.5 rounded ${s < step ? 'bg-[#E53935]' : 'bg-[#e8edea]'}`} />}
           </div>
         ))}
       </div>
@@ -3489,7 +3708,7 @@ function VendorCreateDealView() {
             label="Food Photo"
             sizeHint="Auto-generates thumb (200px), card (400px), full (800px), hero (1200px)"
           />
-          <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white">
+          <Button onClick={() => setStep(2)} className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white">
             Next: Pricing <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
         </motion.div>
@@ -3523,7 +3742,7 @@ function VendorCreateDealView() {
           </div>
           <div className="flex gap-3">
             <Button onClick={() => setStep(1)} variant="outline" className="flex-1 h-12 rounded-xl font-bold">Back</Button>
-            <Button onClick={() => setStep(3)} className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white">
+            <Button onClick={() => setStep(3)} className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white">
               Next: Review <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </div>
@@ -3543,8 +3762,8 @@ function VendorCreateDealView() {
               <h3 className="font-bold text-lg text-[#1a1c1e]">{form.title || 'Untitled Deal'}</h3>
               <p className="text-sm text-[#414841]">{form.description}</p>
               <div className="flex items-center gap-2">
-                <Badge className="bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg">{form.category}</Badge>
-                <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg">-{discountPercent}%</Badge>
+                <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg">{form.category}</Badge>
+                <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg">-{discountPercent}%</Badge>
               </div>
               <Separator className="bg-[#d7ddd9]" />
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -3554,7 +3773,7 @@ function VendorCreateDealView() {
                 </div>
                 <div>
                   <p className="text-[#717971]">Deal Price</p>
-                  <p className="font-bold text-[#6CB4EE] text-lg">RM{form.dealPrice}</p>
+                  <p className="font-bold text-[#E53935] text-lg">RM{form.dealPrice}</p>
                 </div>
                 <div>
                   <p className="text-[#717971]">Quantity</p>
@@ -3572,7 +3791,7 @@ function VendorCreateDealView() {
             <Button
               onClick={handleSubmit}
               disabled={loading}
-              className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+              className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
             >
               {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <>
                 <Zap className="w-5 h-5 mr-1" /> Publish Deal
@@ -3637,25 +3856,25 @@ function VendorInventoryView() {
         <button
           onClick={() => setActiveTab('active')}
           className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'active' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+            activeTab === 'active' ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
           }`}
         >
           <Flame className="w-4 h-4" />
           Active
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-            activeTab === 'active' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+            activeTab === 'active' ? 'bg-[#E53935] text-white' : 'bg-[#d7ddd9] text-[#717971]'
           }`}>{activeDeals.length}</span>
         </button>
         <button
           onClick={() => setActiveTab('expired')}
           className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'expired' ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+            activeTab === 'expired' ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
           }`}
         >
           <Clock className="w-4 h-4" />
           Expired
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-            activeTab === 'expired' ? 'bg-[#6CB4EE] text-white' : 'bg-[#d7ddd9] text-[#717971]'
+            activeTab === 'expired' ? 'bg-[#E53935] text-white' : 'bg-[#d7ddd9] text-[#717971]'
           }`}>{expiredDeals.length}</span>
         </button>
       </div>
@@ -3693,17 +3912,17 @@ function VendorInventoryView() {
                     <p className="text-[#717971]">Total</p>
                     <p className="font-bold text-[#1a1c1e]">{deal.totalQuantity}</p>
                   </div>
-                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Reserved</p>
-                    <p className="font-bold text-[#FB923C]">{deal.reservedQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{deal.reservedQuantity}</p>
                   </div>
                   <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
                     <p className="font-bold text-[#3D8AC4]">{deal.soldQuantity}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Available</p>
-                    <p className="font-bold text-[#6CB4EE]">{deal.availableQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{deal.availableQuantity}</p>
                   </div>
                 </div>
                 {/* Progress bar */}
@@ -3830,9 +4049,9 @@ function VendorFulfillmentView() {
 
       {/* QR Scanner Card — live camera scanner + manual input fallback */}
       <Card className="border-0 shadow-card rounded-2xl mb-4 overflow-hidden">
-        <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-4 pt-3 pb-1.5">
+        <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-4 pt-3 pb-1.5">
           <h3 className="font-bold text-sm text-[#1a1c1e] flex items-center gap-2">
-            <ScanLine className="w-4 h-4 text-[#6CB4EE]" /> Scan QR Code
+            <ScanLine className="w-4 h-4 text-[#E53935]" /> Scan QR Code
           </h3>
           <p className="text-[10px] text-[#414841]">Scan customer&apos;s QR to verify & complete pickup</p>
         </div>
@@ -3859,7 +4078,7 @@ function VendorFulfillmentView() {
             <Button
               onClick={handleScan}
               disabled={scanning || !qrInput.trim()}
-              className="h-10 px-4 rounded-xl font-bold text-sm bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+              className="h-10 px-4 rounded-xl font-bold text-sm bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white"
             >
               {scanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ScanLine className="w-4 h-4" />}
             </Button>
@@ -3873,7 +4092,7 @@ function VendorFulfillmentView() {
           onClick={() => setActiveTab('pending')}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === 'pending'
-              ? 'bg-[#FB923C] text-white shadow-card'
+              ? 'bg-[#E53935] text-white shadow-card'
               : 'bg-[#f0f4f2] text-[#414841]'
           }`}
         >
@@ -3883,7 +4102,7 @@ function VendorFulfillmentView() {
           onClick={() => setActiveTab('completed')}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all ${
             activeTab === 'completed'
-              ? 'bg-[#6CB4EE] text-white shadow-card'
+              ? 'bg-[#E53935] text-white shadow-card'
               : 'bg-[#f0f4f2] text-[#414841]'
           }`}
         >
@@ -3917,11 +4136,11 @@ function VendorFulfillmentView() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                    <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">Pending</Badge>
+                    <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-xs">Pending</Badge>
                     <Button
                       size="sm"
                       onClick={() => quickScan(order)}
-                      className="h-8 px-3 rounded-lg text-xs font-bold bg-[#6CB4EE] text-white hover:bg-[#4A96D5]"
+                      className="h-8 px-3 rounded-lg text-xs font-bold bg-[#E53935] text-white hover:bg-[#C62828]"
                     >
                       <QrCode className="w-3 h-3 mr-1" /> Scan
                     </Button>
@@ -3954,7 +4173,7 @@ function VendorFulfillmentView() {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Utensils className="w-4 h-4 text-[#8FC5E8]" />
+                        <Utensils className="w-4 h-4 text-[#EF5350]" />
                       </div>
                     )}
                   </div>
@@ -3969,11 +4188,11 @@ function VendorFulfillmentView() {
                     {/* Timestamps — compact */}
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
-                        <Zap className="w-2 h-2 text-[#FB923C]" />
+                        <Zap className="w-2 h-2 text-[#E53935]" />
                         {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                       <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
-                        <ScanLine className="w-2 h-2 text-[#6CB4EE]" />
+                        <ScanLine className="w-2 h-2 text-[#E53935]" />
                         Redeemed: {order.qrVerifiedAt
                           ? new Date(order.qrVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                           : new Date(order.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -3983,7 +4202,7 @@ function VendorFulfillmentView() {
                   </div>
                   {/* Price right-center */}
                   <div className="flex-shrink-0 flex flex-col items-end justify-center">
-                    <p className="text-xs font-extrabold text-[#6CB4EE]">RM{order.dealPrice.toFixed(2)}</p>
+                    <p className="text-xs font-extrabold text-[#E53935]">RM{order.dealPrice.toFixed(2)}</p>
                     {order.originalPrice > order.dealPrice && (
                       <p className="text-[9px] text-[#EF4444] line-through">RM{order.originalPrice.toFixed(2)}</p>
                     )}
@@ -4000,7 +4219,7 @@ function VendorFulfillmentView() {
         <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
           {scanResult && (
             <>
-              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+              <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
                 <DialogHeader>
                   <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Order Found</DialogTitle>
                   <DialogDescription className="text-[#414841] text-xs">
@@ -4018,7 +4237,7 @@ function VendorFulfillmentView() {
                   </div>
                   <Badge className={`border-0 rounded-lg text-xs ${
                     scanResult.order.status === 'pending_pickup'
-                      ? 'bg-[#FB923C]/10 text-[#FB923C]'
+                      ? 'bg-[#E53935]/10 text-[#E53935]'
                       : 'bg-[#7EC8E3]/10 text-[#3D8AC4]'
                   }`}>
                     {scanResult.order.status === 'pending_pickup' ? 'Pending Pickup' : scanResult.order.status}
@@ -4030,7 +4249,7 @@ function VendorFulfillmentView() {
                   <div className="bg-[#f0f4f2] rounded-xl p-3">
                     <p className="font-bold text-sm text-[#1a1c1e]">{scanResult.deal.title}</p>
                     {scanResult.deal.category && (
-                      <Badge className="mt-1 bg-[#6CB4EE]/10 text-[#6CB4EE] border-0 rounded-lg text-[10px]">
+                      <Badge className="mt-1 bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-[10px]">
                         {scanResult.deal.category}
                       </Badge>
                     )}
@@ -4051,9 +4270,9 @@ function VendorFulfillmentView() {
                       RM{(scanResult.deal?.originalPrice || 0).toFixed(2)}
                     </p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                  <div className="bg-[#E53935]/10 rounded-xl p-3 text-center">
                     <p className="text-xs text-[#717971]">Deal Price</p>
-                    <p className="font-bold text-[#6CB4EE]">
+                    <p className="font-bold text-[#E53935]">
                       RM{(scanResult.deal?.dealPrice || 0).toFixed(2)}
                     </p>
                   </div>
@@ -4065,15 +4284,15 @@ function VendorFulfillmentView() {
                     <p className="text-[#717971]">Quantity</p>
                     <p className="font-bold text-[#1a1c1e]">{scanResult.order.quantity}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2 text-center">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2 text-center">
                     <p className="text-[#717971]">Total</p>
-                    <p className="font-bold text-[#6CB4EE]">RM{scanResult.order.totalPrice.toFixed(2)}</p>
+                    <p className="font-bold text-[#E53935]">RM{scanResult.order.totalPrice.toFixed(2)}</p>
                   </div>
                 </div>
 
                 {/* Pickup Deadline */}
                 <div className="flex items-center gap-2 text-sm text-[#414841]">
-                  <Clock className="w-4 h-4 text-[#FB923C]" />
+                  <Clock className="w-4 h-4 text-[#E53935]" />
                   Pickup by: {new Date(scanResult.order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
 
@@ -4082,7 +4301,7 @@ function VendorFulfillmentView() {
                   <Button
                     onClick={handleComplete}
                     disabled={completing}
-                    className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+                    className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
                   >
                     {completing ? (
                       <RefreshCw className="w-5 h-5 animate-spin" />
@@ -4116,16 +4335,16 @@ function VendorFulfillmentView() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="w-16 h-16 rounded-full bg-[#6CB4EE]/20 flex items-center justify-center mx-auto mb-4"
+                className="w-16 h-16 rounded-full bg-[#E53935]/20 flex items-center justify-center mx-auto mb-4"
               >
-                <CheckCircle className="w-8 h-8 text-[#6CB4EE]" />
+                <CheckCircle className="w-8 h-8 text-[#E53935]" />
               </motion.div>
               <h3 className="text-xl font-extrabold text-[#1a1c1e]">Order Completed!</h3>
               <p className="text-sm text-[#414841] mt-2">
                 Order #{completedOrder.orderNumber} has been picked up successfully.
               </p>
               {completedOrder.dealTitle && (
-                <p className="text-sm text-[#6CB4EE] font-bold mt-1">{completedOrder.dealTitle}</p>
+                <p className="text-sm text-[#E53935] font-bold mt-1">{completedOrder.dealTitle}</p>
               )}
               <p className="text-lg font-extrabold text-[#1a1c1e] mt-2">RM{completedOrder.totalPrice.toFixed(2)}</p>
               <p className="text-xs text-[#717971] mt-1">
@@ -4133,7 +4352,7 @@ function VendorFulfillmentView() {
               </p>
               <Button
                 onClick={() => setCompletedOrder(null)}
-                className="mt-4 w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white"
+                className="mt-4 w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white"
               >
                 Done
               </Button>
@@ -4181,7 +4400,7 @@ function VendorSubscriptionView() {
 
       {/* Current Plan */}
       {vendor && vendor.subscriptionPlan !== 'none' && (
-        <Card className="border-0 shadow-card rounded-2xl mb-5 bg-gradient-to-br from-[#6CB4EE] to-[#4A96D5]">
+        <Card className="border-0 shadow-card rounded-2xl mb-5 bg-gradient-to-br from-[#E53935] to-[#C62828]">
           <CardContent className="p-5 text-white">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-5 h-5" />
@@ -4194,15 +4413,15 @@ function VendorSubscriptionView() {
 
       {/* Plans */}
       <div className="space-y-4">
-        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_basic' ? 'ring-2 ring-[#6CB4EE]' : ''}`}>
+        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_basic' ? 'ring-2 ring-[#E53935]' : ''}`}>
           <CardContent className="p-5">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <h3 className="font-bold text-lg text-[#1a1c1e]">Basic</h3>
-                <p className="text-2xl font-extrabold text-[#6CB4EE]">RM99<span className="text-sm font-normal text-[#717971]">/month</span></p>
+                <p className="text-2xl font-extrabold text-[#E53935]">RM99<span className="text-sm font-normal text-[#717971]">/month</span></p>
               </div>
               {vendor?.subscriptionPlan === 'vendor_basic' && (
-                <Badge className="bg-[#6CB4EE] text-white border-0 rounded-lg">Active</Badge>
+                <Badge className="bg-[#E53935] text-white border-0 rounded-lg">Active</Badge>
               )}
             </div>
             <ul className="space-y-1.5 text-sm text-[#414841]">
@@ -4212,25 +4431,25 @@ function VendorSubscriptionView() {
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#7EC8E3]" /> Basic statistics</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_basic' && (
-              <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white">
+              <Button onClick={() => handleActivate('vendor_basic')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white">
                 {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Basic'}
               </Button>
             )}
           </CardContent>
         </Card>
 
-        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_premium' ? 'ring-2 ring-[#6CB4EE]' : ''}`}>
+        <Card className={`border-0 shadow-card rounded-2xl ${vendor?.subscriptionPlan === 'vendor_premium' ? 'ring-2 ring-[#E53935]' : ''}`}>
           <CardContent className="p-5">
             <div className="flex justify-between items-start mb-3">
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="font-bold text-lg text-[#1a1c1e]">Premium</h3>
-                  <Sparkles className="w-4 h-4 text-[#FB923C]" />
+                  <Sparkles className="w-4 h-4 text-[#E53935]" />
                 </div>
-                <p className="text-2xl font-extrabold text-[#6CB4EE]">RM199<span className="text-sm font-normal text-[#717971]">/month</span></p>
+                <p className="text-2xl font-extrabold text-[#E53935]">RM199<span className="text-sm font-normal text-[#717971]">/month</span></p>
               </div>
               {vendor?.subscriptionPlan === 'vendor_premium' && (
-                <Badge className="bg-[#6CB4EE] text-white border-0 rounded-lg">Active</Badge>
+                <Badge className="bg-[#E53935] text-white border-0 rounded-lg">Active</Badge>
               )}
             </div>
             <ul className="space-y-1.5 text-sm text-[#414841]">
@@ -4242,7 +4461,7 @@ function VendorSubscriptionView() {
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-[#717971]" /> Auto-Drop (coming)</li>
             </ul>
             {vendor?.subscriptionPlan !== 'vendor_premium' && (
-              <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#FB923C] to-[#F97316] text-white">
+              <Button onClick={() => handleActivate('vendor_premium')} disabled={activating} className="w-full mt-4 h-11 rounded-xl font-bold bg-gradient-to-b from-[#E53935] to-[#F97316] text-white">
                 {activating ? <RefreshCw className="w-4 h-4 animate-spin" /> : 'Choose Premium'}
               </Button>
             )}
@@ -4270,6 +4489,54 @@ function VendorRegistrationView() {
     longitude: '101.6869',
     foodCategories: '[]',
   })
+  // ISSUE 5 (fix-logout-theme-nearme): Auto-Generate Description state.
+  // Tracks the id of the last-used template so the "RE-generate" button
+  // always produces different copy.
+  const [lastTemplateId, setLastTemplateId] = useState<string | undefined>(undefined)
+  const [generatingDesc, setGeneratingDesc] = useState(false)
+
+  // ISSUE 5: build a description from a randomly-picked template, filling in
+  // [Vendor Name], [Category], [City], [State] from the current form values.
+  // Empty fields leave the bracketed placeholder so the user knows to edit.
+  const handleAutoGenerateDesc = useCallback(async () => {
+    setGeneratingDesc(true)
+    try {
+      // Pull templates lazily so the vendor form bundle doesn't always pay
+      // the cost. We import directly from the lib (constants only — no API
+      // call needed) to keep the UX instant.
+      const { pickRandomTemplate, fillTemplate, parseAddressParts } = await import('@/lib/description-templates')
+
+      const tmpl = pickRandomTemplate(lastTemplateId)
+      const { city, state } = parseAddressParts(form.address)
+      // Use the first food category if available. The form stores categories
+      // as a JSON string array; default to a sensible label if empty.
+      let category = ''
+      try {
+        const arr = JSON.parse(form.foodCategories || '[]')
+        if (Array.isArray(arr) && arr.length > 0) {
+          category = String(arr[0])
+        }
+      } catch {
+        // ignore — leave category empty
+      }
+
+      const filled = fillTemplate(tmpl, {
+        vendorName: form.businessName,
+        category,
+        city,
+        state,
+      })
+
+      setForm(prev => ({ ...prev, description: filled }))
+      setLastTemplateId(tmpl.id)
+      toast.success('Description generated — review and edit before saving.')
+    } catch (err) {
+      console.error('[VendorRegistrationView] auto-generate failed:', err)
+      toast.error('Could not generate description — please try again.')
+    } finally {
+      setGeneratingDesc(false)
+    }
+  }, [form.businessName, form.address, form.foodCategories, lastTemplateId])
 
   const handleSubmit = async () => {
     if (!form.businessName || !form.contactEmail || !form.contactPhone || !form.address) {
@@ -4314,9 +4581,9 @@ function VendorRegistrationView() {
         <h1 className="text-xl font-extrabold text-[#1a1c1e]">Become a Vendor</h1>
       </div>
 
-      <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 rounded-2xl p-5 mb-6">
+      <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 rounded-2xl p-5 mb-6">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-12 h-12 rounded-xl bg-[#6CB4EE] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-[#E53935] flex items-center justify-center">
             <Store className="w-6 h-6 text-white" />
           </div>
           <div>
@@ -4335,8 +4602,34 @@ function VendorRegistrationView() {
           <Input value={form.businessName} onChange={(e) => setForm({...form, businessName: e.target.value})} placeholder="e.g. Kak Roti Corner" className="mt-1.5 h-12 rounded-xl" />
         </div>
         <div>
-          <Label className="font-semibold text-[#1a1c1e]">Description</Label>
+          <div className="flex items-center justify-between">
+            <Label className="font-semibold text-[#1a1c1e]">Description</Label>
+            {/* ISSUE 5: Auto-Generate Description button. Picks a random
+                template, fills in [Vendor Name]/[Category]/[City]/[State]
+                from the current form, and writes the result into the
+                description textarea. Button label flips to "RE-generate"
+                once a template has been used. */}
+            <button
+              type="button"
+              onClick={handleAutoGenerateDesc}
+              disabled={generatingDesc}
+              className="inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-[11px] font-bold bg-[#FFEBEE] text-[#C62828] border border-[#FFCDD2] hover:bg-[#FFCDD2] active:scale-95 transition-all disabled:opacity-50"
+              title="Auto-generate a vendor description from a template"
+            >
+              {generatingDesc ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              {lastTemplateId ? 'RE-generate desc.' : 'Auto Generate Desc.'}
+            </button>
+          </div>
           <Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} placeholder="Tell customers about your food..." className="mt-1.5 rounded-xl min-h-[80px]" />
+          {lastTemplateId && (
+            <p className="text-[11px] text-[#717971] mt-1">
+              Tip: edit any leftover [bracketed] placeholders before saving.
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -4362,7 +4655,7 @@ function VendorRegistrationView() {
         <Button
           onClick={handleSubmit}
           disabled={loading}
-          className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+          className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
         >
           {loading ? <RefreshCw className="w-5 h-5 animate-spin" /> : <>
             <Store className="w-5 h-5 mr-1.5" /> Register as Vendor
@@ -4378,15 +4671,46 @@ function VendorRegistrationView() {
 // ============================================
 function AdminDashboardView() {
   const { navigate } = useAppStore()
+  const { user } = useAuthStore()
   const [analytics, setAnalytics] = useState<{ overview: Record<string, number>; dealsByStatus: Record<string, number>; ordersByStatus: Record<string, number> } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     setLoading(true)
+    // ISSUE 4 (fix-logout-theme-nearme): wrap in try/catch + .catch so a
+    // failed /api/admin/analytics (e.g. after logout, or a 500) doesn't
+    // crash the dashboard to a white screen — toast + fall through to the
+    // empty state below.
     apiFetch<Record<string, unknown>>('/api/admin/analytics').then((res) => {
-      if (res.success && res.data) setAnalytics(res.data)
+      if (res.success && res.data) {
+        setAnalytics(res.data as typeof analytics)
+      } else if (!res.success) {
+        toast.error(res.error || 'Failed to load admin analytics')
+      }
+    }).catch((err) => {
+      console.error('[AdminDashboardView] analytics fetch failed:', err)
+      toast.error('Failed to load admin analytics — please retry')
     }).finally(() => setLoading(false))
   }, [])
+
+  // ISSUE 4: defensive null-user guard. After logout the ViewRouter may
+  // briefly render AdminDashboardView before the activeRole flips back to
+  // 'foodie'. Show a friendly sign-in prompt instead of crashing.
+  if (!user) {
+    return (
+      <div className="pb-28 px-5 pt-2">
+        <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Admin Dashboard</h1>
+        <div className="text-center py-16">
+          <Shield className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">Sign in to view the admin dashboard</h3>
+          <p className="text-sm text-[#414841] mt-1">Manage vendors, users, and platform analytics</p>
+          <Button onClick={() => useAppStore.getState().setShowAuthModal(true)} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="pb-28 px-5 pt-2">
@@ -4395,7 +4719,7 @@ function AdminDashboardView() {
         <div className="flex items-center gap-2">
           <NotificationBell />
           <button onClick={() => navigate('profile')} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors" aria-label="Account">
-            <User className="w-5 h-5 text-[#6CB4EE]" />
+            <User className="w-5 h-5 text-[#E53935]" />
           </button>
         </div>
       </div>
@@ -4409,7 +4733,7 @@ function AdminDashboardView() {
           <div className="grid grid-cols-2 gap-3 mb-6">
             <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('users')}>
               <CardContent className="p-4 text-center">
-                <Users className="w-6 h-6 text-[#6CB4EE] mx-auto mb-1" />
+                <Users className="w-6 h-6 text-[#E53935] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Total Users</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.overview?.totalUsers as number) || 0}</p>
               </CardContent>
@@ -4423,7 +4747,7 @@ function AdminDashboardView() {
             </Card>
             <Card className="border-0 shadow-card rounded-2xl cursor-pointer hover:shadow-card-hover transition-shadow active:scale-95" onClick={() => navigate('admin-deals')}>
               <CardContent className="p-4 text-center">
-                <Flame className="w-6 h-6 text-[#FB923C] mx-auto mb-1" />
+                <Flame className="w-6 h-6 text-[#E53935] mx-auto mb-1" />
                 <p className="text-xs text-[#414841]">Active Deals</p>
                 <p className="text-lg font-extrabold text-[#1a1c1e]">{(analytics?.dealsByStatus as Record<string, number>)?.active || 0}</p>
               </CardContent>
@@ -4441,10 +4765,10 @@ function AdminDashboardView() {
           <div className="space-y-2">
             {[
               { icon: Store, label: 'Vendor Management', view: 'vendors' as AppView, color: 'text-[#7EC8E3]' },
-              { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#6CB4EE]' },
-              { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#FB923C]' },
-              { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#8FC5E8]' },
-              { icon: ImageIcon, label: 'Media Settings', view: 'media' as AppView, color: 'text-[#FB923C]' },
+              { icon: Users, label: 'User Management', view: 'users' as AppView, color: 'text-[#E53935]' },
+              { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#E53935]' },
+              { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#EF5350]' },
+              { icon: ImageIcon, label: 'Media Settings', view: 'media' as AppView, color: 'text-[#E53935]' },
             ].map((item) => (
               <motion.button
                 key={item.view}
@@ -4523,8 +4847,8 @@ function AdminDealsView() {
                 className="cursor-pointer"
               >
                 <div className="flex items-center gap-3 p-3 bg-white shadow-card rounded-xl hover:shadow-card-hover transition-shadow">
-                  <div className="w-10 h-10 rounded-lg bg-[#6CB4EE]/10 flex items-center justify-center flex-shrink-0">
-                    <Flame className="w-5 h-5 text-[#6CB4EE]" />
+                  <div className="w-10 h-10 rounded-lg bg-[#E53935]/10 flex items-center justify-center flex-shrink-0">
+                    <Flame className="w-5 h-5 text-[#E53935]" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-sm text-[#1a1c1e] truncate">{deal.title}</p>
@@ -4533,7 +4857,7 @@ function AdminDealsView() {
                     </p>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0 gap-0.5">
-                    <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-md text-[10px] px-1.5 py-0">
+                    <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-md text-[10px] px-1.5 py-0">
                       -{deal.discountPercent}%
                     </Badge>
                     <span className="text-[10px] text-[#717971]">{deal.availableQuantity} left</span>
@@ -4577,7 +4901,7 @@ function AdminDealsView() {
         <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
           {selectedDeal && (
             <>
-              <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+              <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
                 <DialogHeader>
                   <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">{selectedDeal.title}</DialogTitle>
                   <DialogDescription className="text-[#414841] text-xs">
@@ -4590,7 +4914,7 @@ function AdminDealsView() {
                 {/* Status & Discount */}
                 <div className="flex items-center gap-2">
                   <Badge className="bg-[#7EC8E3]/10 text-[#3D8AC4] border-0 rounded-lg text-xs">Active</Badge>
-                  <Badge className="bg-[#FB923C]/10 text-[#FB923C] border-0 rounded-lg text-xs">-{selectedDeal.discountPercent}%</Badge>
+                  <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg text-xs">-{selectedDeal.discountPercent}%</Badge>
                 </div>
 
                 {/* Description */}
@@ -4600,14 +4924,14 @@ function AdminDealsView() {
                 {selectedDeal.vendor && (
                   <div className="bg-[#f0f4f2] rounded-xl p-3 space-y-1.5">
                     <p className="text-xs font-bold text-[#1a1c1e] flex items-center gap-1.5">
-                      <Store className="w-3.5 h-3.5 text-[#6CB4EE]" /> Vendor Details
+                      <Store className="w-3.5 h-3.5 text-[#E53935]" /> Vendor Details
                     </p>
                     <p className="text-xs text-[#414841]"><span className="font-semibold">Name:</span> {selectedDeal.vendor.businessName}</p>
                     <p className="text-xs text-[#414841]"><span className="font-semibold">Address:</span> {selectedDeal.vendor.address}</p>
                     <p className="text-xs text-[#414841]"><span className="font-semibold">Email:</span> {selectedDeal.vendor.contactEmail}</p>
                     <Badge className={`border-0 rounded-md text-[10px] px-1.5 py-0 ${
                       selectedDeal.vendor.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
-                      selectedDeal.vendor.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
+                      selectedDeal.vendor.verificationStatus === 'pending' ? 'bg-[#E53935]/10 text-[#E53935]' :
                       'bg-[#717971]/10 text-[#717971]'
                     }`}>
                       {selectedDeal.vendor.verificationStatus}
@@ -4621,9 +4945,9 @@ function AdminDealsView() {
                     <p className="text-xs text-[#717971]">Original</p>
                     <p className="font-bold text-[#1a1c1e] line-through">RM{selectedDeal.originalPrice.toFixed(2)}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-xl p-3 text-center">
+                  <div className="bg-[#E53935]/10 rounded-xl p-3 text-center">
                     <p className="text-xs text-[#717971]">Deal Price</p>
-                    <p className="font-bold text-[#6CB4EE]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
+                    <p className="font-bold text-[#E53935]">RM{selectedDeal.dealPrice.toFixed(2)}</p>
                   </div>
                 </div>
 
@@ -4633,28 +4957,28 @@ function AdminDealsView() {
                     <p className="text-[#717971]">Total</p>
                     <p className="font-bold text-[#1a1c1e]">{selectedDeal.totalQuantity}</p>
                   </div>
-                  <div className="bg-[#FB923C]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Reserved</p>
-                    <p className="font-bold text-[#FB923C]">{selectedDeal.reservedQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.reservedQuantity}</p>
                   </div>
                   <div className="bg-[#7EC8E3]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Sold</p>
                     <p className="font-bold text-[#3D8AC4]">{selectedDeal.soldQuantity}</p>
                   </div>
-                  <div className="bg-[#6CB4EE]/10 rounded-lg p-2">
+                  <div className="bg-[#E53935]/10 rounded-lg p-2">
                     <p className="text-[#717971]">Left</p>
-                    <p className="font-bold text-[#6CB4EE]">{selectedDeal.availableQuantity}</p>
+                    <p className="font-bold text-[#E53935]">{selectedDeal.availableQuantity}</p>
                   </div>
                 </div>
 
                 {/* Timing */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-[#414841]">
-                    <Timer className="w-4 h-4 text-[#FB923C]" />
+                    <Timer className="w-4 h-4 text-[#E53935]" />
                     Expires: {new Date(selectedDeal.expiresAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-[#414841]">
-                    <Clock className="w-4 h-4 text-[#6CB4EE]" />
+                    <Clock className="w-4 h-4 text-[#E53935]" />
                     Created: {new Date(selectedDeal.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
@@ -4795,7 +5119,7 @@ function AdminVendorsView() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize flex-shrink-0 transition-all ${
-              filter === f ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#414841]'
+              filter === f ? 'bg-[#E53935] text-white' : 'bg-[#e8edea] text-[#414841]'
             }`}
           >
             {f === 'new' ? '🆕 New' : f}
@@ -4823,7 +5147,7 @@ function AdminVendorsView() {
                     <p className="font-bold text-xs text-[#1a1c1e] truncate">{v.businessName}</p>
                     <Badge className={`border-0 rounded-md text-[9px] px-1 py-0 flex-shrink-0 ${
                       v.verificationStatus === 'approved' ? 'bg-[#7EC8E3]/10 text-[#3D8AC4]' :
-                      v.verificationStatus === 'pending' ? 'bg-[#FB923C]/10 text-[#FB923C]' :
+                      v.verificationStatus === 'pending' ? 'bg-[#E53935]/10 text-[#E53935]' :
                       v.verificationStatus === 'rejected' ? 'bg-[#EF4444]/10 text-[#EF4444]' :
                       'bg-[#717971]/10 text-[#717971]'
                     }`}>
@@ -4844,7 +5168,7 @@ function AdminVendorsView() {
                     </>
                   )}
                   {v.verificationStatus === 'suspended' && (
-                    <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="h-7 px-2 rounded-lg text-[10px] font-bold bg-[#6CB4EE] text-white">
+                    <Button size="sm" onClick={() => handleAction(v.id, 'restore')} className="h-7 px-2 rounded-lg text-[10px] font-bold bg-[#E53935] text-white">
                       ↻
                     </Button>
                   )}
@@ -4852,7 +5176,7 @@ function AdminVendorsView() {
                     size="sm"
                     variant="outline"
                     onClick={() => openEditModal(v)}
-                    className="h-7 px-2 rounded-lg text-[10px] font-bold border-[#6CB4EE]/30 text-[#6CB4EE] hover:bg-[#6CB4EE]/10"
+                    className="h-7 px-2 rounded-lg text-[10px] font-bold border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10"
                   >
                     <Pencil className="w-3 h-3" />
                   </Button>
@@ -4875,7 +5199,7 @@ function AdminVendorsView() {
       {/* Edit Vendor Modal */}
       <Dialog open={!!editVendor} onOpenChange={() => setEditVendor(null)}>
         <DialogContent className="rounded-2xl max-w-sm max-h-[85vh] overflow-y-auto p-0">
-          <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-5 pt-5 pb-3">
+          <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit Vendor</DialogTitle>
               <DialogDescription className="text-[#414841] text-xs">
@@ -4938,7 +5262,7 @@ function AdminVendorsView() {
             <Button
               onClick={handleSaveEdit}
               disabled={saving}
-              className="w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+              className="w-full h-11 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
             >
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" /> Save Changes</>}
             </Button>
@@ -5027,7 +5351,7 @@ function AdminUsersView() {
             key={f}
             onClick={() => setFilter(f)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold capitalize flex-shrink-0 transition-all ${
-              filter === f ? 'bg-[#6CB4EE] text-white' : 'bg-[#e8edea] text-[#414841]'
+              filter === f ? 'bg-[#E53935] text-white' : 'bg-[#e8edea] text-[#414841]'
             }`}
           >
             {f === 'new' ? '🆕 New' : f}
@@ -5050,21 +5374,21 @@ function AdminUsersView() {
                   key={u.id}
                   className="flex items-center gap-2.5 p-2.5 bg-white shadow-card rounded-lg"
                 >
-                  <div className="w-8 h-8 rounded-lg bg-[#6CB4EE]/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-xs font-bold text-[#6CB4EE]">{u.name.charAt(0).toUpperCase()}</span>
+                  <div className="w-8 h-8 rounded-lg bg-[#E53935]/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-[#E53935]">{u.name.charAt(0).toUpperCase()}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="font-bold text-xs text-[#1a1c1e] truncate">{u.name}</p>
                       {isNew && (
-                        <span className="text-[8px] font-bold text-[#6CB4EE] bg-[#6CB4EE]/10 px-1 py-0 rounded">NEW</span>
+                        <span className="text-[8px] font-bold text-[#E53935] bg-[#E53935]/10 px-1 py-0 rounded">NEW</span>
                       )}
                     </div>
                     <p className="text-[10px] text-[#717971] truncate">{u.email}</p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     {getRoles(u.roles).map((r) => (
-                      <Badge key={r} className="bg-[#e8edea] text-[#6CB4EE] border-0 rounded-md text-[9px] px-1 py-0">
+                      <Badge key={r} className="bg-[#e8edea] text-[#E53935] border-0 rounded-md text-[9px] px-1 py-0">
                         {r}
                       </Badge>
                     ))}
@@ -5131,8 +5455,17 @@ function AdminAnalyticsView() {
 
   useEffect(() => {
     setLoading(true)
+    // ISSUE 4: defensive .catch so a failed analytics fetch surfaces a toast
+    // instead of an "Internal Error" white screen.
     apiFetch<Record<string, unknown>>('/api/admin/analytics').then((res) => {
-      if (res.success && res.data) setAnalytics(res.data)
+      if (res.success && res.data) {
+        setAnalytics(res.data as typeof analytics)
+      } else if (!res.success) {
+        toast.error(res.error || 'Failed to load analytics')
+      }
+    }).catch((err) => {
+      console.error('[AdminAnalyticsView] fetch failed:', err)
+      toast.error('Failed to load analytics — please retry')
     }).finally(() => setLoading(false))
   }, [])
 
@@ -5158,11 +5491,11 @@ function AdminAnalyticsView() {
           {/* Compact Stats Grid - 2 columns */}
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#6CB4EE]', bg: 'bg-[#6CB4EE]/10' },
+              { label: 'Total Users', value: analytics?.overview?.totalUsers || 0, icon: Users, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
               { label: 'Total Vendors', value: analytics?.overview?.totalVendors || 0, icon: Store, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
-              { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#FB923C]', bg: 'bg-[#FB923C]/10' },
+              { label: 'Active Deals', value: (analytics?.dealsByStatus as Record<string, number>)?.active || 0, icon: Flame, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
               { label: 'Total Orders', value: analytics?.overview?.totalOrders || 0, icon: ShoppingBag, color: 'text-[#4A6A8A]', bg: 'bg-[#4A6A8A]/10' },
-              { label: 'Total Revenue', value: `RM${(analytics?.overview?.totalRevenue || 0).toFixed(0)}`, icon: DollarSign, color: 'text-[#6CB4EE]', bg: 'bg-[#6CB4EE]/10' },
+              { label: 'Total Revenue', value: `RM${(analytics?.overview?.totalRevenue || 0).toFixed(0)}`, icon: DollarSign, color: 'text-[#E53935]', bg: 'bg-[#E53935]/10' },
               { label: 'Meals Saved', value: analytics?.overview?.totalOrders || 0, icon: Heart, color: 'text-[#7EC8E3]', bg: 'bg-[#7EC8E3]/10' },
             ].map((item) => (
               <div key={item.label} className="bg-white shadow-card rounded-xl p-3 flex items-center gap-2.5">
@@ -5181,10 +5514,10 @@ function AdminAnalyticsView() {
           <div className="space-y-3">
             <h3 className="font-bold text-sm text-[#1a1c1e]">Historical Analysis (14 days)</h3>
             {analytics?.historical?.dailyDeals && (
-              <AdminBarChart data={analytics.historical.dailyDeals} label="Active Deals" color="#6CB4EE" />
+              <AdminBarChart data={analytics.historical.dailyDeals} label="Active Deals" color="#E53935" />
             )}
             {analytics?.historical?.dailyOrders && (
-              <AdminBarChart data={analytics.historical.dailyOrders} label="Total Orders" color="#FB923C" />
+              <AdminBarChart data={analytics.historical.dailyOrders} label="Total Orders" color="#E53935" />
             )}
           </div>
         </div>
@@ -5205,7 +5538,7 @@ const NotificationBell = memo(function NotificationBell() {
       onClick={() => navigate('orders')}
       className="relative p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors"
     >
-      <Bell className="w-5 h-5 text-[#6CB4EE]" />
+      <Bell className="w-5 h-5 text-[#E53935]" />
       {unreadCount > 0 && (
         <motion.span
           initial={{ scale: 0 }}
@@ -5253,7 +5586,7 @@ interface MediaData {
 
 const ALERT_COLORS: Record<string, { bg: string; text: string; border: string; dot: string; label: string }> = {
   none: { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', dot: 'bg-green-500', label: 'OK' },
-  info: { bg: 'bg-[#eaf4fb]', text: 'text-[#2563a8]', border: 'border-[#bfe0f5]', dot: 'bg-[#6CB4EE]', label: 'Info' },
+  info: { bg: 'bg-[#FFEBEE]', text: 'text-[#2563a8]', border: 'border-[#FFCDD2]', dot: 'bg-[#E53935]', label: 'Info' },
   warning: { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', dot: 'bg-orange-500', label: 'Warning' },
   critical: { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', dot: 'bg-red-500', label: 'Critical' },
 }
@@ -5317,7 +5650,7 @@ function AdminMediaView() {
               <Card className="border-0 shadow-card rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <FileImage className="w-4 h-4 text-[#6CB4EE]" />
+                    <FileImage className="w-4 h-4 text-[#E53935]" />
                     <span className="text-xs font-semibold text-[#717971] uppercase tracking-wide">Total Files</span>
                   </div>
                   <p className="text-2xl font-extrabold text-[#1a1c1e]">{data.overview.totalFiles}</p>
@@ -5326,7 +5659,7 @@ function AdminMediaView() {
               <Card className="border-0 shadow-card rounded-2xl">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-1">
-                    <HardDrive className="w-4 h-4 text-[#FB923C]" />
+                    <HardDrive className="w-4 h-4 text-[#E53935]" />
                     <span className="text-xs font-semibold text-[#717971] uppercase tracking-wide">Total Size</span>
                   </div>
                   <p className="text-2xl font-extrabold text-[#1a1c1e]">{fmtSize(data.overview.totalSizeMB)}</p>
@@ -5398,7 +5731,7 @@ function AdminMediaView() {
                 <div className="mt-3 pt-3 border-t border-[#e8edea] flex items-center justify-between text-xs text-[#717971]">
                   <span>Thresholds:</span>
                   <span className="flex items-center gap-2">
-                    <span className="text-[#6CB4EE]">&lt;700KB</span>·
+                    <span className="text-[#E53935]">&lt;700KB</span>·
                     <span className="text-orange-500">&gt;700KB</span>·
                     <span className="text-red-500">&gt;1.5MB</span>
                   </span>
@@ -5429,7 +5762,7 @@ function AdminMediaView() {
                           className={`flex items-center gap-3 p-2.5 rounded-xl border ${c.border} ${c.bg}`}
                         >
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 font-extrabold text-xs ${
-                            isLargest ? 'bg-[#FB923C] text-white' : 'bg-white text-[#717971] border border-[#e8edea]'
+                            isLargest ? 'bg-[#E53935] text-white' : 'bg-white text-[#717971] border border-[#e8edea]'
                           }`}>
                             #{idx + 1}
                           </div>
@@ -5531,7 +5864,7 @@ function AdminMediaView() {
                           style={{
                             height: `${h}%`,
                             background: hasAlert
-                              ? 'linear-gradient(to top, #6CB4EE, #FB923C)'
+                              ? 'linear-gradient(to top, #E53935, #E53935)'
                               : '#e8edea',
                           }}
                           title={`${day.date}: ${day.count} uploads`}
@@ -5635,7 +5968,7 @@ function AdminUploadSettingsView() {
           <Card className="border-0 shadow-card rounded-2xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Shield className="w-4 h-4 text-[#6CB4EE]" /> File Limits
+                <Shield className="w-4 h-4 text-[#E53935]" /> File Limits
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
@@ -5690,7 +6023,7 @@ function AdminUploadSettingsView() {
           <Card className="border-0 shadow-card rounded-2xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[#6CB4EE]" /> Auto-Processing
+                <Sparkles className="w-4 h-4 text-[#E53935]" /> Auto-Processing
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
@@ -5739,7 +6072,7 @@ function AdminUploadSettingsView() {
           <Card className="border-0 shadow-card rounded-2xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Eye className="w-4 h-4 text-[#6CB4EE]" /> Moderation
+                <Eye className="w-4 h-4 text-[#E53935]" /> Moderation
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
@@ -5777,7 +6110,7 @@ function AdminUploadSettingsView() {
                       onClick={() => updateField('moderationMode', mode.value)}
                       className={`p-2 rounded-lg text-center transition-all ${
                         settings.moderationMode === mode.value
-                          ? 'bg-[#6CB4EE] text-white'
+                          ? 'bg-[#E53935] text-white'
                           : 'bg-[#f0f4f2] text-[#1a1c1e]'
                       }`}
                     >
@@ -5796,7 +6129,7 @@ function AdminUploadSettingsView() {
           <Card className="border-0 shadow-card rounded-2xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Globe className="w-4 h-4 text-[#6CB4EE]" /> CDN
+                <Globe className="w-4 h-4 text-[#E53935]" /> CDN
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4 space-y-3">
@@ -5828,7 +6161,7 @@ function AdminUploadSettingsView() {
           <Card className="border-0 shadow-card rounded-2xl">
             <CardHeader className="pb-2 pt-4 px-4">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Camera className="w-4 h-4 text-[#6CB4EE]" /> Size Reference
+                <Camera className="w-4 h-4 text-[#E53935]" /> Size Reference
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-4">
@@ -5847,7 +6180,7 @@ function AdminUploadSettingsView() {
                       <p className="text-xs font-bold text-[#1a1c1e]">{item.label}</p>
                       <p className="text-[10px] text-[#717971]">{item.group}</p>
                     </div>
-                    <code className="text-[10px] text-[#6CB4EE] bg-[#6CB4EE]/5 px-2 py-0.5 rounded">
+                    <code className="text-[10px] text-[#E53935] bg-[#E53935]/5 px-2 py-0.5 rounded">
                       {item.sizes}
                     </code>
                   </div>
@@ -5860,7 +6193,7 @@ function AdminUploadSettingsView() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white active:scale-95 transition-transform"
+            className="w-full h-12 rounded-xl font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white active:scale-95 transition-transform"
           >
             {saving ? <RefreshCw className="w-5 h-5 animate-spin" /> : <><Save className="w-5 h-5 mr-1.5" /> Save Settings</>}
           </Button>
@@ -5902,16 +6235,16 @@ function FoodieBottomNav() {
                 }
               }}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 transition-all min-w-[56px] ${
-                isActive ? 'text-[#6CB4EE]' : 'text-[#717971]'
+                isActive ? 'text-[#E53935]' : 'text-[#717971]'
               }`}
             >
               <div className="relative">
                 <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
                 {isActive && (
-                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#6CB4EE]" />
+                  <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#E53935]" />
                 )}
               </div>
-              <span className={`text-[10px] font-semibold ${isActive ? 'text-[#6CB4EE]' : ''}`}>{tab.label}</span>
+              <span className={`text-[10px] font-semibold ${isActive ? 'text-[#E53935]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -5944,14 +6277,14 @@ function VendorBottomNav() {
               key={tab.view}
               onClick={() => navigate(tab.view)}
               className={`flex flex-col items-center gap-0.5 px-2 py-1.5 transition-all min-w-[52px] ${
-                isActive ? 'text-[#6CB4EE]' : 'text-[#717971]'
+                isActive ? 'text-[#E53935]' : 'text-[#717971]'
               }`}
             >
               <div className="relative">
                 <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
-                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#6CB4EE]" />}
+                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#E53935]" />}
               </div>
-              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#6CB4EE]' : ''}`}>{tab.label}</span>
+              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#E53935]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -5984,14 +6317,14 @@ function AdminBottomNav() {
               key={tab.view}
               onClick={() => navigate(tab.view)}
               className={`flex flex-col items-center gap-0.5 px-2 py-1.5 transition-all min-w-[52px] ${
-                isActive ? 'text-[#6CB4EE]' : 'text-[#717971]'
+                isActive ? 'text-[#E53935]' : 'text-[#717971]'
               }`}
             >
               <div className="relative">
                 <tab.icon className="w-5 h-5" strokeWidth={isActive ? 2.5 : 1.5} />
-                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#6CB4EE]" />}
+                {isActive && <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-[#E53935]" />}
               </div>
-              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#6CB4EE]' : ''}`}>{tab.label}</span>
+              <span className={`text-[9px] font-semibold ${isActive ? 'text-[#E53935]' : ''}`}>{tab.label}</span>
             </button>
           )
         })}
@@ -6148,7 +6481,7 @@ function AuthModal() {
     <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
       <DialogContent className="rounded-2xl max-w-sm p-0 overflow-hidden">
         {/* Header gradient */}
-        <div className="bg-gradient-to-br from-[#8FC5E8]/20 to-[#6CB4EE]/10 px-6 pt-6 pb-2">
+        <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-6 pt-6 pb-2">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-[#1a1c1e]">
               {isLogin ? 'Welcome Back' : 'Join SnapJe'}
@@ -6165,7 +6498,7 @@ function AuthModal() {
             <button
               onClick={() => setIsLogin(true)}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+                isLogin ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
               }`}
             >
               Sign In
@@ -6173,7 +6506,7 @@ function AuthModal() {
             <button
               onClick={() => setIsLogin(false)}
               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${
-                !isLogin ? 'bg-white text-[#6CB4EE] shadow-chip' : 'text-[#414841]'
+                !isLogin ? 'bg-white text-[#E53935] shadow-chip' : 'text-[#414841]'
               }`}
             >
               Sign Up
@@ -6241,24 +6574,24 @@ function AuthModal() {
                     onClick={() => setRole('foodie')}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                       role === 'foodie'
-                        ? 'border-[#6CB4EE] bg-[#6CB4EE]/10'
+                        ? 'border-[#E53935] bg-[#E53935]/10'
                         : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
                     }`}
                   >
-                    <Utensils className={`w-5 h-5 ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
-                    <span className={`text-xs font-bold ${role === 'foodie' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>Find Deals</span>
+                    <Utensils className={`w-5 h-5 ${role === 'foodie' ? 'text-[#E53935]' : 'text-[#717971]'}`} />
+                    <span className={`text-xs font-bold ${role === 'foodie' ? 'text-[#E53935]' : 'text-[#414841]'}`}>Find Deals</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setRole('vendor')}
                     className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all ${
                       role === 'vendor'
-                        ? 'border-[#6CB4EE] bg-[#6CB4EE]/10'
+                        ? 'border-[#E53935] bg-[#E53935]/10'
                         : 'border-[#e8edea] bg-white hover:border-[#d7ddd9]'
                     }`}
                   >
-                    <Store className={`w-5 h-5 ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#717971]'}`} />
-                    <span className={`text-xs font-bold ${role === 'vendor' ? 'text-[#6CB4EE]' : 'text-[#414841]'}`}>Sell Food</span>
+                    <Store className={`w-5 h-5 ${role === 'vendor' ? 'text-[#E53935]' : 'text-[#717971]'}`} />
+                    <span className={`text-xs font-bold ${role === 'vendor' ? 'text-[#E53935]' : 'text-[#414841]'}`}>Sell Food</span>
                   </button>
                 </div>
               </div>
@@ -6266,7 +6599,7 @@ function AuthModal() {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 rounded-xl text-base font-bold bg-gradient-to-b from-[#8FC5E8] to-[#6CB4EE] text-white hover:opacity-90 active:scale-95 transition-all"
+              className="w-full h-11 rounded-xl text-base font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white hover:opacity-90 active:scale-95 transition-all"
             >
               {loading ? (
                 <RefreshCw className="w-5 h-5 animate-spin" />
@@ -6294,7 +6627,7 @@ function AuthModal() {
 // ============================================
 // MAIN APP
 // ============================================
-export default function FlashBiteApp() {
+export default function SnapJeApp() {
   const { isAuthenticated, isLoading, login, logout, setLoading } = useAuthStore()
 
   // Initialize socket connection
@@ -6347,7 +6680,7 @@ export default function FlashBiteApp() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#8FC5E8] to-[#6CB4EE] mb-4 shadow-card">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-[#EF5350] to-[#E53935] mb-4 shadow-card">
             <Flame className="w-10 h-10 text-white" />
           </div>
           <p className="text-[#414841] text-sm">Loading SnapJe...</p>

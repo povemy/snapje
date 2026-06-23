@@ -75,9 +75,9 @@ export function GeolocationGate() {
           transition={{ type: 'spring', stiffness: 260, damping: 30 }}
           className="fixed bottom-20 left-4 right-4 z-40 mx-auto max-w-md"
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-[#8FC5E8]/30 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl border border-[#EF5350]/30 overflow-hidden">
             <div className="flex items-start gap-3 p-4">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#8FC5E8] to-[#6CB4EE] flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#EF5350] to-[#E53935] flex items-center justify-center flex-shrink-0">
                 <Navigation className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1 min-w-0">
@@ -95,7 +95,7 @@ export function GeolocationGate() {
                     onClick={handleEnable}
                     disabled={loading}
                     size="sm"
-                    className="h-9 px-4 rounded-lg bg-gradient-to-r from-[#6CB4EE] to-[#4A96D5] text-white font-semibold text-xs hover:opacity-90 active:scale-95 transition-all"
+                    className="h-9 px-4 rounded-lg bg-gradient-to-r from-[#E53935] to-[#C62828] text-white font-semibold text-xs hover:opacity-90 active:scale-95 transition-all"
                   >
                     {loading ? (
                       <span className="flex items-center gap-1">

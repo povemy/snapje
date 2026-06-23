@@ -16,40 +16,78 @@ export function useSocket() {
   useEffect(() => {
     if (!isAuthenticated || !user) {
       if (socketRef.current) {
-        socketRef.current.disconnect()
+        // BUGFIX (fix-logout-theme-nearme): wrap disconnect in try/catch so
+        // a socket that's already half-closed (e.g. the server hung up
+        // during the logout request) doesn't throw and crash the React
+        // tree as "Application error: a client-side exception has occurred".
+        try {
+          socketRef.current.removeAllListeners?.()
+          socketRef.current.disconnect()
+        } catch (err) {
+          console.warn('[useSocket] disconnect error (ignored):', err)
+        }
         socketRef.current = null
       }
       return
     }
 
-    // Connect to Socket.io via gateway
-    const socket = io('/?XTransformPort=' + REALTIME_PORT, {
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    })
+    let socket: Socket
+    try {
+      // Connect to Socket.io via gateway
+      socket = io('/?XTransformPort=' + REALTIME_PORT, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+      })
+    } catch (err) {
+      // io() can throw if the URL is malformed or the transport is
+      // unsupported — never crash the React tree over a realtime socket.
+      console.error('[useSocket] failed to connect:', err)
+      return
+    }
+
+    const safeAddNotification = (n: AppNotification) => {
+      try {
+        addNotification(n)
+      } catch (err) {
+        console.warn('[useSocket] addNotification error (ignored):', err)
+      }
+    }
 
     socket.on('connect', () => {
       // Subscribe to user's personal channel
-      socket.emit('user:subscribe', user.id)
+      try {
+        socket.emit('user:subscribe', user.id)
+      } catch (err) {
+        console.warn('[useSocket] emit user:subscribe failed:', err)
+      }
     })
 
     // Listen for notifications
     socket.on('notification:new', (notification: AppNotification) => {
-      addNotification(notification)
+      safeAddNotification(notification)
     })
 
     // Listen for order status updates
     socket.on('order:status_update', (data: { orderId: string; status: OrderStatus }) => {
-      console.log('[Socket] Order status update:', data)
+      try {
+        console.log('[Socket] Order status update:', data)
+      } catch {
+        // ignore
+      }
     })
 
     socketRef.current = socket
 
     return () => {
-      socket.disconnect()
+      try {
+        socket.removeAllListeners?.()
+        socket.disconnect()
+      } catch (err) {
+        console.warn('[useSocket] cleanup disconnect error (ignored):', err)
+      }
       socketRef.current = null
     }
   // Use user?.id instead of user to avoid reconnection on role switch

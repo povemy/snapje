@@ -13,7 +13,7 @@ export interface GeolocationState {
   request: () => void
 }
 
-const LOCALSTORAGE_KEY = 'flashbite-user-location'
+const LOCALSTORAGE_KEY = 'snapje-user-location'
 
 interface CachedLocation {
   latitude: number
@@ -60,7 +60,7 @@ function writeCached(loc: { latitude: number; longitude: number }) {
  * - On mount, attempts to read the initial permission state via the
  *   Permissions API (if available) and seeds `location` from a cached
  *   localStorage entry (so the UI can render instantly on reload).
- * - On success, persists to `localStorage` under `flashbite-user-location`
+ * - On success, persists to `localStorage` under `snapje-user-location`
  *   and updates the Zustand `useLocationStore` on the first successful fix.
  */
 export function useGeolocation(): GeolocationState {

@@ -204,12 +204,14 @@ export async function uploadImageVariants(
 
   // Upload — attach Bearer token from localStorage so auth works in preview
   // iframes where third-party cookies are blocked. The token is persisted by
-  // the Zustand auth store under the 'flashbite-auth' key.
+  // the Zustand auth store under the 'snapje-auth' key.
   const headers: Record<string, string> = {}
   try {
-    const raw = localStorage.getItem('flashbite-auth')
-    if (raw) {
-      const parsed = JSON.parse(raw)
+    const raw = localStorage.getItem('snapje-auth')
+    // Migration: if snapje-auth doesn't exist, try the old flashbite-auth key
+    const rawToUse = raw || localStorage.getItem('flashbite-auth')
+    if (rawToUse) {
+      const parsed = JSON.parse(rawToUse)
       const accessToken = parsed?.state?.accessToken
       if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`
     }

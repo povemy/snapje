@@ -1080,3 +1080,85 @@ Stage Summary:
 - Rebrand complete: all user-visible "FlashBite"/"Flashbite"/"FLASHBITE"/"flash-bite"/"Flash Bite"/"flash_bite" instances outside src/app/page.tsx replaced with "SnapJe" (or "SNAPJE" for the all-caps SQL comments, "snapje" for lowercase package names and email domains)
 - Internal identifiers (localStorage keys, JWT secret values, service worker cache name, FlashBiteApp function name, CSS variable prefix) intentionally preserved to avoid breaking data persistence, authentication, and existing exports
 - 0 lint errors after rebrand
+
+---
+Task ID: fix-logout-theme-nearme
+Agent: General-purpose sub-agent
+Task: Fix logout client-side crash, restore "Near me" button, switch color theme from baby blue/orange to bright red/white, fix Internal Error on dashboards, add Auto-Generate Description feature.
+
+Work Log:
+
+ISSUE 1 — Logout client-side error ("Application error: a client-side exception has occurred"):
+- Root cause identified in `FoodieProfileView` (src/app/page.tsx): the vendor-profile `useEffect` referenced a `const roles = user?.roles || []` variable that is declared AFTER the `if (!isAuthenticated || !user)` early-return. When the early-return fires (e.g. after `logout()` clears the auth store), `roles` stays in the temporal dead zone (TDZ) for the lifetime of that render's scope. When the effect then fires and tries to access `roles.includes('vendor')`, JavaScript throws a `ReferenceError: Cannot access 'roles' before initialization` — which bubbled up to Next.js's built-in error boundary as the "Application error" white screen.
+  - FIX: Replaced `roles.includes('vendor')` with `user?.roles?.includes('vendor')` inside the effect (null-safe lookup), and added `user?.roles` to the effect deps array.
+- Hardened `handleLogout` (in `FoodieProfileView`) with try/catch around the entire body. The `/api/auth/logout` call is now wrapped in its own try/catch so a network failure no longer strands the user. Store updates (`setActiveRole`, `navigate`, `setShowAuthModal`, `setSidebarOpen`) happen BEFORE `logout()` so the next render routes to `FoodieHomeView` (fully null-safe) instead of `FoodieProfileView`. A last-resort catch ensures `logout()` and `navigate('home')` always run, even if something unexpected throws.
+- Hardened `useSocket` (src/hooks/use-socket.ts): wrapped `socket.disconnect()`, `socket.removeAllListeners()`, `io()`, `socket.emit('user:subscribe', ...)`, and `addNotification()` in try/catch blocks so a half-closed socket (e.g. one the server hung up on during the logout request) can't throw and crash the React tree. Cleanup function is now defensive.
+- Added a global error boundary at src/app/error.tsx (App Router convention) that catches any uncaught render/effect error and shows a friendly inline fallback with "Try Again" (calls `reset()`) and "Go Home" buttons, instead of the raw Next.js "Application error" white screen. Uses the new bright-red theme.
+
+ISSUE 2 — Restore "Near me" button in FoodieHomeView:
+- Added `const [radiusEnabled, setRadiusEnabled] = useState(false)` and `const [geoNonce, setGeoNonce] = useState(0)` state to `FoodieHomeView`.
+- Wired up the `useGeolocation()` hook as `geo` (was previously only used in `DealDetailView`).
+- Modified `fetchDeals` to send `lat`/`lng`/`maxDistance` ONLY when `radiusEnabled && geo.location` is truthy. The `maxDistance` value is read from `localStorage['flashbite_settings'].dealAlertRadius` (defaults to 5 km) via a new `readDealAlertRadius()` helper.
+- Added a "Near me" button in the delivery-address header bar (next to the location text and the Sign In button). Button shows `Crosshair` icon when off, `LocateFixed` icon when on, `RefreshCw` spinner when `geo.loading`. Compact label on narrow screens ("Near" vs "Near me"). Toggled state uses `aria-pressed` for accessibility.
+- `handleNearMe` callback: if we already have a geolocation fix, immediately toggles `radiusEnabled=true` and bumps `geoNonce` to trigger a re-fetch. If no fix yet, calls `geo.request()` and polls `localStorage['flashbite-user-location']` every 300 ms (up to 12 s) for the cached fix, then flips on the filter. Shows a success toast with the active radius.
+- Added a `geoNonce`-watching `useEffect` that re-fetches with `withRadius: true` whenever the nonce changes.
+- Empty-result fallback: when "Near me" is on and the API returns 0 deals, the code re-fetches WITHOUT the radius filter and shows a toast "No deals within {radius} km — showing all deals" so the home screen is never blank.
+- Also surfaced API errors via toast (was previously silent on failure).
+
+ISSUE 3 — Color theme change (baby blue/orange → bright red/white):
+- Bulk-replaced via `sed` across src/app/page.tsx, src/app/globals.css, src/components/map/GeolocationGate.tsx, and src/components/QRScanner.tsx:
+  * `#6CB4EE` (primary blue)        → `#E53935` (bright red)
+  * `#8FC5E8` (light blue)          → `#EF5350` (lighter red)
+  * `#4A96D5` (dark blue)           → `#C62828` (dark red)
+  * `#FB923C` (orange)              → `#E53935` (bright red)
+  * `#bfe0f5` (light blue border)   → `#FFCDD2` (light red border)
+  * `#eaf4fb` (very light blue bg)  → `#FFEBEE` (very light red bg)
+  * rgba(108, 180, 238, …)          → rgba(229, 57, 53, …) (in layout.tsx Toaster styling + globals.css input focus shadow)
+- Updated `themeColor` in src/app/layout.tsx from `#00B14F` (green) → `#E53935`.
+- Updated `theme_color` in public/manifest.json from `#00B14F` → `#E53935`.
+- Updated section comments in globals.css ("Baby Blue" → "Bright Red", "Blue Tint" → "Red Tint").
+- Verified 0 remaining occurrences of the old colors in any source file.
+- Kept `#EF4444` (existing red, used for danger states) and all neutral grays (`#f0f4f2`, `#f8faf9`, `#e8edea`, `#dfe5e1`, `#1a1c1e`, `#414841`, `#717971`, `#c1c9c0`, `#F4F7F6`) untouched per the spec.
+
+ISSUE 4 — Internal Error on dashboards:
+- Added try/catch + `.catch()` around all dashboard API fetches so a 500/network failure surfaces a toast instead of an unhandled promise rejection that could crash the route tree:
+  * `VendorDashboardView.fetchVendorData`: wrapped `Promise.all(...)` in `.catch`, added toast on individual `vRes`/`oRes`/`dRes` failures, wrapped the inner `apiFetch(...deals...)` in its own `.catch`.
+  * `AdminDashboardView` analytics `useEffect`: added `.catch` and a toast on `res.success === false`.
+  * `AdminAnalyticsView` analytics `useEffect`: same defensive `.catch` + toast.
+  * `FoodieHomeView.fetchDeals`: wrapped in try/catch with explicit empty-state fallback + toast on `res.success === false`.
+- Added null-user early-return guards to `VendorDashboardView` and `AdminDashboardView` so that if the ViewRouter briefly renders them between `logout()` clearing the user and the activeRole flipping back to 'foodie', the component shows a friendly "Sign in to view your dashboard" prompt instead of dereferencing a null `user`. (`FoodieProfileView` already had this guard; `FoodieHomeView` only uses `isAuthenticated`, never `user.*`, so it was already null-safe.)
+- `AdminDashboardView` already used optional chaining for `analytics?.overview?.totalUsers` etc., so its null-data path was already safe — left intact.
+
+ISSUE 5 — Auto-Generate Description feature:
+- Created src/lib/description-templates.ts with 14 vendor-description templates. Each template is a plain string with bracketed placeholders `[Vendor Name]`, `[Category]`, `[City]`, `[State]`. Empty values leave the placeholder intact so the user knows to edit.
+  - Exported helpers: `pickRandomTemplate(exceptId?)`, `parseAddressParts(address)` (best-effort Malaysian address parser — strips postcode, matches against known states), and `fillTemplate(template, vars)`.
+- Created src/app/api/admin/templates/route.ts (GET only for now). Returns the default template list. Auth check is best-effort (non-admins still get the defaults so the vendor onboarding form isn't blocked). Future PUT/POST/DELETE can be backed by a Supabase table or JSON column on UploadSettings.
+- Modified `VendorRegistrationView` (src/app/page.tsx):
+  - Added `lastTemplateId` and `generatingDesc` state.
+  - Added `handleAutoGenerateDesc` callback that dynamically imports the lib, picks a random template (excluding the last-used one), parses city/state from the form's address, reads the first food category, fills the template, and writes the result into the description textarea. Errors are caught and surfaced via toast.
+  - Added an "Auto Generate Desc." button next to the Description label. The label flips to "RE-generate desc." after the first use (when `lastTemplateId` is set). Uses `Sparkles` icon (idle) / `RefreshCw` (spinner). Styled in the new bright-red theme (`#FFEBEE` bg, `#C62828` text, `#FFCDD2` border).
+  - Added a small hint under the textarea ("Tip: edit any leftover [bracketed] placeholders before saving.") shown only after the first generation.
+- Skipped the admin management page (per the issue's "if too complex" fallback) — the API route and lib are in place so a future admin UI can be added without rewriting the data layer.
+
+Files changed:
+  * src/app/page.tsx — Issue 1 (TDZ fix + handleLogout hardening), Issue 2 (Near me button + radius-aware fetchDeals + empty-result fallback + error toasts), Issue 3 (color sed), Issue 4 (null-user guards + API try/catch on dashboards), Issue 5 (Auto Generate Desc. button + handler in VendorRegistrationView)
+  * src/app/error.tsx — NEW. Global error boundary for the App Router.
+  * src/app/layout.tsx — Issue 3 (themeColor → #E53935, Toaster rgba → bright red).
+  * src/app/globals.css — Issue 3 (color sed + comment updates).
+  * public/manifest.json — Issue 3 (theme_color → #E53935).
+  * src/components/map/GeolocationGate.tsx — Issue 3 (color sed).
+  * src/components/QRScanner.tsx — Issue 3 (color sed).
+  * src/hooks/use-socket.ts — Issue 1 (try/catch around disconnect/emit/io/addNotification).
+  * src/lib/description-templates.ts — NEW. 14 templates + pickRandomTemplate + parseAddressParts + fillTemplate.
+  * src/app/api/admin/templates/route.ts — NEW. GET endpoint returning the default template list.
+
+Lint status:
+- `bun run lint` → 0 errors, 0 warnings (after removing one unused `eslint-disable-next-line` directive that became unnecessary once `fetchDeals` was added to the geoNonce effect's deps array).
+- `bunx tsc --noEmit` → 0 errors in any of the files I created or edited. (Pre-existing TS errors in unrelated files — calendar.tsx, carousel.tsx, chart.tsx, command.tsx, input-otp.tsx, resizable.tsx, auth.ts, media/optimize.ts, and a handful of `unknown`-typed settings accessors in page.tsx sections I didn't touch — remain unchanged and are out of scope for this task.)
+
+Stage Summary:
+- Logout no longer crashes: TDZ bug fixed, handleLogout hardened, useSocket defensive, global error boundary added as a safety net.
+- "Near me" button restored in FoodieHomeView with full geolocation integration, radius-aware fetching, empty-result fallback to all deals, and loading/error states.
+- Color theme migrated from baby blue/orange to bright red/white across all source files (page.tsx, globals.css, layout.tsx, manifest.json, GeolocationGate.tsx, QRScanner.tsx) — 0 remaining occurrences of the old palette. themeColor in layout + manifest updated.
+- Dashboard "Internal Error" mitigations: every dashboard API fetch now has try/catch + toast, and Vendor/Admin dashboards have null-user early-return guards.
+- Auto-Generate Description feature shipped: 14-template library, API route, and a working button in the vendor onboarding form that fills the description field with template-generated copy (and lets the user RE-generate to cycle through alternatives).

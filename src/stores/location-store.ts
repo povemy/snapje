@@ -24,7 +24,7 @@ interface LocationStore {
  * - `hasPrompted`: have we ever shown the geolocation prompt to the user?
  * - `hasDenied`: did the user deny the geolocation prompt?
  *
- * Persisted to localStorage under the key `flashbite-location`.
+ * Persisted to localStorage under the key `snapje-location`.
  */
 export const useLocationStore = create<LocationStore>()(
   persist(
@@ -38,7 +38,7 @@ export const useLocationStore = create<LocationStore>()(
       clear: () => set({ location: null, hasPrompted: false, hasDenied: false }),
     }),
     {
-      name: 'flashbite-location',
+      name: 'snapje-location',
     }
   )
 )
