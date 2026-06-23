@@ -12,7 +12,9 @@ export async function GET() {
       )
     }
 
-    // Fetch fresh user data from DB with vendor relation
+    // Fetch fresh user data from DB with vendor relation.
+    // NOTE: vipFlag is included in the response so the client (VendorDashboard)
+    // can gate the "Broadcast Deal" button on `vipFlag === true`.
     const { data: user, error: userError } = await supabase
       .from('User')
       .select('*, vendor:Vendor(*)')

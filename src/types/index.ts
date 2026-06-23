@@ -15,6 +15,10 @@ export interface AuthUser {
   roles: string[]
   activeRole: string
   emailVerified: boolean
+  isBanned?: boolean
+  vipFlag?: boolean
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface AuthState {
@@ -50,6 +54,7 @@ export type FoodieView =
   | 'profile'
   | 'subscriptions'
   | 'register-vendor'
+  | 'vendor-public'
 
 export type VendorView =
   | 'dashboard'
@@ -69,6 +74,7 @@ export type AdminView =
   | 'admin-deals'
   | 'upload-settings'
   | 'media'
+  | 'broadcast-log'
 
 export type AppView = FoodieView | VendorView | AdminView
 

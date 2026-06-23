@@ -25,7 +25,9 @@ export async function POST(request: Request) {
       )
     }
 
-    // Find user
+    // Find user. select('*') includes the vipFlag column added in
+    // scripts/add-vipflag.mts — login response exposes it so the client can
+    // gate VIP features (e.g. Broadcast Deal button in VendorDashboard).
     const { data: user, error: userError } = await supabase
       .from('User')
       .select('*')

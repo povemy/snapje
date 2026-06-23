@@ -76,7 +76,9 @@ export async function POST(request: Request) {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10)
 
-    // Create user
+    // Create user. select('*') returns the full row including vipFlag
+    // (defaults to false) so the client can gate VIP features immediately
+    // after registration.
     const user = unwrap(
       await supabase
         .from('User')

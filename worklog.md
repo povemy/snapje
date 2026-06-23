@@ -1162,3 +1162,53 @@ Stage Summary:
 - Color theme migrated from baby blue/orange to bright red/white across all source files (page.tsx, globals.css, layout.tsx, manifest.json, GeolocationGate.tsx, QRScanner.tsx) — 0 remaining occurrences of the old palette. themeColor in layout + manifest updated.
 - Dashboard "Internal Error" mitigations: every dashboard API fetch now has try/catch + toast, and Vendor/Admin dashboards have null-user early-return guards.
 - Auto-Generate Description feature shipped: 14-template library, API route, and a working button in the vendor onboarding form that fills the description field with template-generated copy (and lets the user RE-generate to cycle through alternatives).
+
+---
+
+## Task ID: vendor-public-broadcast-admin
+
+Three new features shipped in one pass. All work verified with `bun run lint` → 0 errors, 0 warnings.
+
+### Feature 1 — Vendor Public Page (storefront, no auth)
+- `src/app/api/vendors/[id]/public/route.ts` — NEW. Public GET (no auth) returning vendor profile fields (businessName, description, address, logoUrl, coverImageUrl, rating, totalSales, foodCategories, operatingHours, verificationStatus) plus the vendor's ACTIVE deals (status='active' AND expiresAt > now). PII (contactEmail / contactPhone / verificationDocs) is stripped. Optional `lat`/`lng` query params trigger a haversine distance calc against the vendor's coords.
+- `src/app/page.tsx` — `VendorPublicView` component (lines ~5875–6168). Renders: cover image, logo, business name, rating/totalSales/verified badge, address + distance, description, food category chips, operating-hours card (parses the `operatingHours` JSON string into a Mon–Sun table with "Today" highlight), active-deals grid (reuses `DealCard`), and a Subscribe/Unsubscribe button. Subscriptions are localStorage-only MVP (key `snapje_vendor_subscriptions`, array of vendor IDs); unauthenticated users are bounced to the auth modal.
+- `src/types/index.ts` — `'vendor-public'` added to `FoodieView` (and therefore `AppView`). `AuthUser` already had `vipFlag?` / `isBanned?`.
+- `ViewRouter` — case added in foodie, vendor, AND admin role branches; bottom nav is suppressed on `vendor-public` (full-screen view).
+
+### Feature 2 — Broadcast System (VIP-gated vendor push)
+- DB migration: ran `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "vipFlag" BOOLEAN DEFAULT false;` against the Supabase session pooler (port 5432) via `scripts/add-vipflag.mts` (uses `pg` Pool). Column now confirmed present in `information_schema.columns`.
+- `prisma/schema.prisma` — `vipFlag Boolean @default(false)` added to `User` model with a comment ("VIP vendor flag — gates broadcast feature"). `bun run db:generate` re-ran successfully (Prisma Client v6.19.2).
+- Auth response selects: `auth/me`, `auth/login`, `auth/register` all use `select('*')` on `User`, so `vipFlag` flows through automatically in the JSON response (and is persisted into the zustand auth store, which stores the full `AuthUser` object). Inline comments added to each route explaining why `vipFlag` is included.
+- `src/app/api/vendors/[id]/broadcast/route.ts` — NEW. POST, `requireVendor()` auth, ownership check (vendor.userId must match authUser.userId), fetches `vipFlag` from the User row and 403s if false. Body: `{ message: string, dealId?: string }` (message trimmed, ≤500 chars). Optional dealId is verified to belong to the vendor. Fans out by inserting one `Notification` row per non-banned user (type='broadcast', title=`<businessName> broadcast`, data JSON carries vendorId/dealId/senderUserId). Inserts are chunked at 500 rows; partial-fan-out tolerated. Returns `{ recipients, vendorId, title, message, dealId }`.
+- `VendorDashboardView` — "Broadcast Deal" button (Megaphone icon, amber VIP styling) appears ONLY when `user?.vipFlag && vendor` are truthy. Opens a `Dialog` modal with a 500-char `Textarea`, an optional deal-attach `Select` populated from `activeDeals`, and a Send button that POSTs to the broadcast route and toasts the recipient count on success. Full state: `showBroadcastModal`, `broadcastMessage`, `broadcastDealId`, `sendingBroadcast`.
+
+### Feature 3 — Admin Broadcast Log + User Edit
+- `src/app/api/admin/broadcasts/route.ts` — NEW. GET, `requireAdmin()` only. Fetches `Notification` rows where `type='broadcast'` (over-fetches 10× pageSize, capped at 500, because each broadcast fans out to N rows). Deduplicates in JS by `(vendorId|message|title)` to collapse each broadcast into one row with a `recipients` count and the most recent `createdAt`. Looks up vendor business names in a single `Vendor.in('id', vendorIds)` query. Returns paginated `{ broadcasts, total, page, pageSize, totalPages }`.
+- `src/types/index.ts` — `'broadcast-log'` added to `AdminView`.
+- `src/app/page.tsx` — `AdminBroadcastLogView` component (lines ~6185–6357). Renders: back button + total count header, empty state (Megaphone icon), and a list of broadcast cards showing vendor name (or "Unknown vendor"), message, recipient count, attached deal indicator, and timestamp. Pagination controls (Prev/Next) when `totalPages > 1`.
+- `AdminDashboardView` admin nav — new "Broadcast Log" tile added (`Megaphone` icon, amber color, navigates to `broadcast-log`).
+- `ViewRouter` admin branch — `case 'broadcast-log': return <AdminBroadcastLogView />` added.
+- `src/app/api/admin/users/route.ts` — NEW `PATCH` handler (alongside existing GET). `requireAdmin()` only. Body: `{ userId, vipFlag?, isBanned?, roles?, activeRole? }`. Validates userId, normalizes roles (accepts string[] or comma-separated string, parses via `parseRoles`, requires ≥1 valid role), sanity-checks activeRole format, and if activeRole is changing, confirms it's present in the (new or existing) roles list. Re-fetches the updated row with the same vendor-join shape as GET so the client can drop-in replace. Returns `{ ...user, roles: string[] }`.
+- `AdminUsersView` — Edit button (Pencil icon) per user row opens a `Dialog` modal seeded from the clicked user. Modal contains: VIP Flag `Switch` (amber, with Crown icon, caption "Enables Broadcast Deal button"), Banned `Switch` (red, with Ban icon), Roles `Input` (comma-separated, e.g. "foodie,vendor"), Active Role `Select` (foodie/vendor/admin), Cancel + Save buttons. Save POSTs to PATCH `/api/admin/users` with all four fields; on success replaces the edited user in the local list (no refetch needed) and toasts "User updated successfully". Edit modal state: `editUser`, `editVipFlag`, `editIsBanned`, `editRoles`, `editActiveRole`, `savingEdit`. User rows also now show VIP and BAN badges next to the name when those flags are set.
+
+### Files touched
+NEW:
+- `src/app/api/vendors/[id]/public/route.ts`
+- `src/app/api/vendors/[id]/broadcast/route.ts`
+- `src/app/api/admin/broadcasts/route.ts`
+- `scripts/add-vipflag.mts` (runs the ALTER TABLE via pg)
+
+EDITED:
+- `prisma/schema.prisma` (User.vipFlag)
+- `src/app/api/auth/me/route.ts` (comment noting vipFlag inclusion)
+- `src/app/api/auth/login/route.ts` (comment noting vipFlag inclusion)
+- `src/app/api/auth/register/route.ts` (comment noting vipFlag inclusion)
+- `src/app/api/admin/users/route.ts` (added PATCH handler)
+- `src/app/page.tsx` (VendorPublicView, AdminBroadcastLogView, AdminUsersView edit modal, VendorDashboardView broadcast button/modal, admin nav Broadcast Log tile, ViewRouter entries)
+- `src/types/index.ts` (vendor-public + broadcast-log already present)
+
+### Verification
+- `bun run restore-env` → ✅
+- `bun run scripts/add-vipflag.mts` → ✅ ALTER TABLE applied, column confirmed in information_schema
+- `bun run db:generate` → ✅ Prisma Client v6.19.2 regenerated
+- `bun run lint` → ✅ 0 errors, 0 warnings

@@ -28,6 +28,7 @@ model User {
   activeRole    String   @default("foodie")
   emailVerified Boolean  @default(false)
   isBanned      Boolean  @default(false)
+  vipFlag       Boolean  @default(false) // VIP vendor flag — gates broadcast feature
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

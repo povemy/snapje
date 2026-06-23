@@ -1548,44 +1548,45 @@ function DealDetailView() {
           </div>
         )}
 
-        {/* Claimed Success */}
-        {claimed && order && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="mt-5 bg-[#FFF7ED] border border-[#E53935]/30 rounded-xl p-4"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle className="w-5 h-5 text-[#F97316]" />
-              <span className="font-bold text-[#F97316]">
-                Claimed {quantity}x for RM{totalPrice.toFixed(2)}!
-              </span>
-            </div>
-            <p className="text-xs text-[#9A3412] break-all">
-              Order <span className="font-mono">{order.orderNumber || '—'}</span>
-            </p>
-            {order.pickupDeadline && (
-              <p className="text-xs text-[#9A3412] mt-1 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                Pickup by{' '}
-                {new Date(order.pickupDeadline).toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-            )}
-            <Button
-              onClick={() => navigate('orders')}
-              className="mt-3 w-full h-10 rounded-xl text-sm font-bold bg-gradient-to-b from-[#E53935] to-[#F97316] text-white hover:opacity-90 active:scale-95 transition-all"
-            >
-              <QrCode className="w-4 h-4 mr-1.5" />
-              View QR Code &amp; Pickup Details
-            </Button>
-          </motion.div>
-        )}
       </div>
 
-      {/* Sticky Bottom — Quantity + Claim Deal (side by side, same h-14) */}
+      {/* Sticky Bottom — Order Success Card (above floating bar) + Quantity + Claim Deal */}
+      {/* Compact order success card — positioned just above the floating bottom bar */}
+      {order && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-[88px] left-3 right-3 z-50 max-w-lg mx-auto"
+        >
+          <div className="bg-white border border-[#E53935]/30 rounded-2xl shadow-lg p-3 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#E53935]/10 flex items-center justify-center flex-shrink-0">
+              <CheckCircle className="w-5 h-5 text-[#E53935]" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-[#1a1c1e] truncate">
+                Claimed {quantity}x · RM{totalPrice.toFixed(2)}
+              </p>
+              <div className="flex items-center gap-2 text-[10px] text-[#717971]">
+                <span className="font-mono">{order.orderNumber || '—'}</span>
+                {order.pickupDeadline && (
+                  <span className="flex items-center gap-0.5">
+                    · <Clock className="w-2.5 h-2.5" />
+                    {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('orders')}
+              size="sm"
+              className="h-8 px-3 rounded-lg text-[11px] font-bold bg-[#E53935] hover:bg-[#C62828] text-white flex-shrink-0"
+            >
+              View QR
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e8edea] px-5 py-3 z-50 pb-[max(12px,env(safe-area-inset-bottom,12px))]">
         <div className="flex items-center gap-3 max-w-lg mx-auto">
           {/* Quantity selector — same height as button (h-14) */}
@@ -2870,6 +2871,11 @@ function VendorDashboardView() {
     address: '',
   })
   const [savingLocation, setSavingLocation] = useState(false)
+  // Broadcast modal state (VIP vendors only — gated by user.vipFlag).
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+  const [broadcastMessage, setBroadcastMessage] = useState('')
+  const [broadcastDealId, setBroadcastDealId] = useState<string>('')
+  const [sendingBroadcast, setSendingBroadcast] = useState(false)
 
   const fetchVendorData = useCallback(() => {
     setLoading(true)
@@ -3074,6 +3080,45 @@ function VendorDashboardView() {
     }
   }
 
+  // VIP-only: send a broadcast to all users (creates a Notification row per
+  // user with type='broadcast'). Gated by user.vipFlag on the server too.
+  const handleSendBroadcast = async () => {
+    if (!vendor) return
+    const trimmed = broadcastMessage.trim()
+    if (!trimmed) {
+      toast.error('Please enter a message')
+      return
+    }
+    if (trimmed.length > 500) {
+      toast.error('Message must be 500 characters or fewer')
+      return
+    }
+    setSendingBroadcast(true)
+    try {
+      const res = await apiFetch<{ recipients: number; vendorId: string; title: string }>(
+        `/api/vendors/${vendor.id}/broadcast`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            message: trimmed,
+            dealId: broadcastDealId || undefined,
+          }),
+        }
+      )
+      if (res.success) {
+        const count = res.data?.recipients ?? 0
+        toast.success(`Broadcast sent to ${count} user${count === 1 ? '' : 's'}! 📣`)
+        setShowBroadcastModal(false)
+        setBroadcastMessage('')
+        setBroadcastDealId('')
+      } else {
+        toast.error(res.error || 'Failed to send broadcast')
+      }
+    } finally {
+      setSendingBroadcast(false)
+    }
+  }
+
   // Calculate discount for edit form
   const editDiscount = editForm.originalPrice && editForm.dealPrice
     ? Math.round(((parseFloat(editForm.originalPrice) - parseFloat(editForm.dealPrice)) / parseFloat(editForm.originalPrice)) * 100)
@@ -3151,6 +3196,23 @@ function VendorDashboardView() {
               </div>
               <span className="text-xs font-bold text-[#1a1c1e]">Fulfillment</span>
             </motion.button>
+            {user?.vipFlag && vendor && (
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setBroadcastMessage('')
+                  setBroadcastDealId('')
+                  setShowBroadcastModal(true)
+                }}
+                className="flex flex-col items-center gap-2 p-4 bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-300 rounded-2xl shadow-chip"
+              >
+                <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
+                  <Megaphone className="w-5 h-5 text-white" />
+                </div>
+                <span className="text-xs font-bold text-[#1a1c1e]">Broadcast Deal</span>
+                <span className="text-[9px] font-bold text-amber-700 bg-amber-200 px-1.5 py-0.5 rounded-full">VIP</span>
+              </motion.button>
+            )}
           </div>
 
           {/* Shop Location */}
@@ -3571,6 +3633,81 @@ function VendorDashboardView() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ===== Broadcast Modal (VIP vendors only) ===== */}
+      <Dialog open={showBroadcastModal} onOpenChange={setShowBroadcastModal}>
+        <DialogContent className="rounded-2xl max-w-sm p-0">
+          <div className="bg-gradient-to-br from-amber-100/60 to-amber-50 px-5 pt-5 pb-3">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
+                <Megaphone className="w-5 h-5 text-amber-600" />
+                Broadcast to Subscribers
+              </DialogTitle>
+              <DialogDescription className="text-[#414841] text-xs">
+                Send a notification to all SnapJe users about a new deal or promotion.
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-5 pb-5 space-y-4">
+            <div>
+              <Label htmlFor="broadcast-message" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                Message <span className="text-[#717971] font-normal">({broadcastMessage.length}/500)</span>
+              </Label>
+              <Textarea
+                id="broadcast-message"
+                value={broadcastMessage}
+                onChange={(e) => setBroadcastMessage(e.target.value.slice(0, 500))}
+                placeholder="e.g. Flash sale! 50% off all nasi lemak this weekend only."
+                className="rounded-xl min-h-[100px] text-sm resize-none"
+                maxLength={500}
+              />
+            </div>
+
+            {activeDeals.length > 0 && (
+              <div>
+                <Label htmlFor="broadcast-deal" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                  Attach a deal (optional)
+                </Label>
+                <Select value={broadcastDealId} onValueChange={setBroadcastDealId}>
+                  <SelectTrigger id="broadcast-deal" className="h-10 rounded-xl">
+                    <SelectValue placeholder="No deal attached" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeDeals.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.title} — RM{d.dealPrice.toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowBroadcastModal(false)}
+                disabled={sendingBroadcast}
+                className="flex-1 h-11 rounded-xl text-sm font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendBroadcast}
+                disabled={sendingBroadcast || !broadcastMessage.trim()}
+                className="flex-1 h-11 rounded-xl text-sm font-bold bg-gradient-to-b from-amber-500 to-amber-600 text-white hover:opacity-90 active:scale-95 transition-all"
+              >
+                {sendingBroadcast ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <><Megaphone className="w-4 h-4 mr-1.5" /> Send Broadcast</>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -3587,6 +3724,7 @@ function VendorCreateDealView() {
   const [form, setForm] = useState({
     title: '', description: '', category: 'Malay',
     originalPrice: '', dealPrice: '', totalQuantity: '',
+    maxClaimsPerUser: '1',
     expiresAt: '', pickupInstructions: '',
   })
 
@@ -3608,7 +3746,7 @@ function VendorCreateDealView() {
           originalPrice: parseFloat(form.originalPrice),
           dealPrice: parseFloat(form.dealPrice),
           totalQuantity: parseInt(form.totalQuantity),
-          maxClaimsPerUser: 1,
+          maxClaimsPerUser: Math.max(1, Math.min(99, parseInt(form.maxClaimsPerUser) || 1)),
           imageUrl: dealImageUrl || dealImageUrls?.medium || dealImageUrls?.large || undefined,
         }),
       })
@@ -3706,6 +3844,22 @@ function VendorCreateDealView() {
           <div>
             <Label className="font-semibold text-[#1a1c1e]">Available Quantity *</Label>
             <Input type="number" value={form.totalQuantity} onChange={(e) => setForm({...form, totalQuantity: e.target.value})} placeholder="20" className="mt-1.5 h-12 rounded-xl" />
+          </div>
+          <div>
+            <Label className="font-semibold text-[#1a1c1e]">Max Claims Per User *</Label>
+            <Input
+              type="number"
+              value={form.maxClaimsPerUser}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10)
+                setForm({...form, maxClaimsPerUser: String(Math.max(1, Math.min(99, isNaN(v) ? 1 : v)))})
+              }}
+              min={1}
+              max={99}
+              placeholder="1"
+              className="mt-1.5 h-12 rounded-xl"
+            />
+            <p className="text-[10px] text-[#717971] mt-1">How many times a single foodie can claim this deal (1-99).</p>
           </div>
           <div>
             <Label className="font-semibold text-[#1a1c1e]">Deal Expires At *</Label>
@@ -4740,6 +4894,7 @@ function AdminDashboardView() {
               { icon: BarChart3, label: 'Analytics', view: 'analytics' as AppView, color: 'text-[#E53935]' },
               { icon: Camera, label: 'Upload Settings', view: 'upload-settings' as AppView, color: 'text-[#EF5350]' },
               { icon: ImageIcon, label: 'Media Settings', view: 'media' as AppView, color: 'text-[#E53935]' },
+              { icon: Megaphone, label: 'Broadcast Log', view: 'broadcast-log' as AppView, color: 'text-amber-600' },
             ].map((item) => (
               <motion.button
                 key={item.view}
@@ -5257,6 +5412,14 @@ function AdminUsersView() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  // User edit modal state — admin can toggle vipFlag/isBanned, edit roles, and
+  // set activeRole. PATCH /api/admin/users updates the DB.
+  const [editUser, setEditUser] = useState<AuthUser | null>(null)
+  const [editVipFlag, setEditVipFlag] = useState(false)
+  const [editIsBanned, setEditIsBanned] = useState(false)
+  const [editRoles, setEditRoles] = useState('foodie')
+  const [editActiveRole, setEditActiveRole] = useState('foodie')
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const pageSize = 20
 
@@ -5281,6 +5444,49 @@ function AdminUsersView() {
   }, [])
 
   useEffect(() => { fetchUsers(1, debouncedSearch) }, [debouncedSearch, fetchUsers])
+
+  // Open the edit modal seeded from the clicked user row.
+  const openEditModal = (u: AuthUser) => {
+    const rolesList = Array.isArray(u.roles) ? u.roles : []
+    setEditUser(u)
+    setEditVipFlag(!!(u as AuthUser & { vipFlag?: boolean }).vipFlag)
+    setEditIsBanned(!!(u as AuthUser & { isBanned?: boolean }).isBanned)
+    setEditRoles(rolesList.length > 0 ? rolesList.join(',') : 'foodie')
+    setEditActiveRole(u.activeRole || 'foodie')
+  }
+
+  // Save the edited user fields via PATCH /api/admin/users.
+  const handleSaveEdit = async () => {
+    if (!editUser) return
+    setSavingEdit(true)
+    try {
+      const res = await apiFetch<AuthUser>('/api/admin/users', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          userId: editUser.id,
+          vipFlag: editVipFlag,
+          isBanned: editIsBanned,
+          roles: editRoles,
+          activeRole: editActiveRole,
+        }),
+      })
+      if (res.success) {
+        toast.success('User updated successfully')
+        // Replace the edited user in the local list so the UI updates
+        // immediately without a refetch. Extract to a local so TS narrows the
+        // type inside the .map closure.
+        const updated = res.data
+        if (updated) {
+          setUsers(prev => prev.map(u => (u.id === editUser.id ? updated : u)))
+        }
+        setEditUser(null)
+      } else {
+        toast.error(res.error || 'Failed to update user')
+      }
+    } finally {
+      setSavingEdit(false)
+    }
+  }
 
   // Client-side filter for "new" (registered within 3 days)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
@@ -5338,8 +5544,10 @@ function AdminUsersView() {
         <>
           <div className="space-y-1.5">
             {filteredUsers.map((u) => {
-              const userWithDate = u as AuthUser & { createdAt?: string }
+              const userWithDate = u as AuthUser & { createdAt?: string; vipFlag?: boolean; isBanned?: boolean }
               const isNew = userWithDate.createdAt && new Date(userWithDate.createdAt) >= threeDaysAgo
+              const isVip = !!userWithDate.vipFlag
+              const isBanned = !!userWithDate.isBanned
               return (
                 <div
                   key={u.id}
@@ -5354,15 +5562,30 @@ function AdminUsersView() {
                       {isNew && (
                         <span className="text-[8px] font-bold text-[#E53935] bg-[#E53935]/10 px-1 py-0 rounded">NEW</span>
                       )}
+                      {isVip && (
+                        <span className="text-[8px] font-bold text-amber-700 bg-amber-200 px-1 py-0 rounded" title="VIP vendor">VIP</span>
+                      )}
+                      {isBanned && (
+                        <span className="text-[8px] font-bold text-white bg-[#EF4444] px-1 py-0 rounded" title="Banned">BAN</span>
+                      )}
                     </div>
                     <p className="text-[10px] text-[#717971] truncate">{u.email}</p>
                   </div>
-                  <div className="flex gap-1 flex-shrink-0">
+                  <div className="flex gap-1 flex-shrink-0 items-center">
                     {getRoles(u.roles).map((r) => (
                       <Badge key={r} className="bg-[#e8edea] text-[#E53935] border-0 rounded-md text-[9px] px-1 py-0">
                         {r}
                       </Badge>
                     ))}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditModal(u)}
+                      className="h-7 w-7 p-0 rounded-lg border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10"
+                      aria-label={`Edit ${u.name}`}
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               )
@@ -5379,6 +5602,99 @@ function AdminUsersView() {
           )}
         </>
       )}
+
+      {/* ===== User Edit Modal ===== */}
+      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null) }}>
+        <DialogContent className="rounded-2xl max-w-sm p-0">
+          {editUser && (
+            <>
+              <div className="bg-gradient-to-br from-[#EF5350]/20 to-[#E53935]/10 px-5 pt-5 pb-3">
+                <DialogHeader>
+                  <DialogTitle className="text-lg font-extrabold text-[#1a1c1e]">Edit User</DialogTitle>
+                  <DialogDescription className="text-[#414841] text-xs truncate">
+                    {editUser.name} &lt;{editUser.email}&gt;
+                  </DialogDescription>
+                </DialogHeader>
+              </div>
+
+              <div className="px-5 pb-5 space-y-4">
+                {/* VIP Flag */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <div className="flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-amber-600" />
+                    <div>
+                      <p className="text-sm font-bold text-[#1a1c1e]">VIP Flag</p>
+                      <p className="text-[10px] text-[#717971]">Enables Broadcast Deal button</p>
+                    </div>
+                  </div>
+                  <Switch checked={editVipFlag} onCheckedChange={setEditVipFlag} />
+                </div>
+
+                {/* Banned */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#EF4444]/5 border border-[#EF4444]/20">
+                  <div className="flex items-center gap-2">
+                    <Ban className="w-4 h-4 text-[#EF4444]" />
+                    <div>
+                      <p className="text-sm font-bold text-[#1a1c1e]">Banned</p>
+                      <p className="text-[10px] text-[#717971]">Suspends account access</p>
+                    </div>
+                  </div>
+                  <Switch checked={editIsBanned} onCheckedChange={setEditIsBanned} />
+                </div>
+
+                {/* Roles (editable as comma-separated text) */}
+                <div>
+                  <Label htmlFor="edit-roles" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                    Roles <span className="text-[#717971] font-normal">(comma-separated: foodie, vendor, admin)</span>
+                  </Label>
+                  <Input
+                    id="edit-roles"
+                    value={editRoles}
+                    onChange={(e) => setEditRoles(e.target.value)}
+                    placeholder="foodie,vendor"
+                    className="h-10 rounded-xl text-sm"
+                  />
+                </div>
+
+                {/* Active Role dropdown */}
+                <div>
+                  <Label htmlFor="edit-active-role" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                    Active Role
+                  </Label>
+                  <Select value={editActiveRole} onValueChange={setEditActiveRole}>
+                    <SelectTrigger id="edit-active-role" className="h-10 rounded-xl">
+                      <SelectValue placeholder="Select active role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="foodie">foodie</SelectItem>
+                      <SelectItem value="vendor">vendor</SelectItem>
+                      <SelectItem value="admin">admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditUser(null)}
+                    disabled={savingEdit}
+                    className="flex-1 h-11 rounded-xl text-sm font-bold"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSaveEdit}
+                    disabled={savingEdit}
+                    className="flex-1 h-11 rounded-xl text-sm font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white hover:opacity-90 active:scale-95 transition-all"
+                  >
+                    {savingEdit ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4 mr-1.5" /> Save</>}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -5492,6 +5808,483 @@ function AdminAnalyticsView() {
             )}
           </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================
+// VENDOR PUBLIC VIEW (storefront page, no auth required)
+// ============================================
+// localStorage key for the simple MVP subscriptions. A foodie can subscribe to
+// a vendor; the list is just an array of vendor IDs.
+const VENDOR_SUBSCRIPTIONS_KEY = 'snapje_vendor_subscriptions'
+
+function readSubscribedVendorIds(): string[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = window.localStorage.getItem(VENDOR_SUBSCRIPTIONS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed)) return parsed.filter((v) => typeof v === 'string')
+    return []
+  } catch {
+    return []
+  }
+}
+
+function writeSubscribedVendorIds(ids: string[]) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(VENDOR_SUBSCRIPTIONS_KEY, JSON.stringify(ids))
+  } catch {
+    // ignore
+  }
+}
+
+const DAY_LABELS: Record<string, string> = {
+  mon: 'Monday',
+  tue: 'Tuesday',
+  wed: 'Wednesday',
+  thu: 'Thursday',
+  fri: 'Friday',
+  sat: 'Saturday',
+  sun: 'Sunday',
+}
+const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+interface PublicVendorData {
+  id: string
+  businessName: string
+  description: string | null
+  address: string
+  latitude: number
+  longitude: number
+  logoUrl: string | null
+  coverImageUrl: string | null
+  rating: number
+  totalSales: number
+  foodCategories: string
+  operatingHours: string
+  verificationStatus: string
+  createdAt: string
+  deals: Deal[]
+  distance: number
+}
+
+function VendorPublicView() {
+  const { viewParams, goBack, navigate, setShowAuthModal } = useAppStore()
+  const { isAuthenticated } = useAuthStore()
+  const [vendor, setVendor] = useState<PublicVendorData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [subscribed, setSubscribed] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // Fetch vendor public data
+  useEffect(() => {
+    if (!viewParams.id) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    apiFetch<PublicVendorData>(`/api/vendors/${viewParams.id}/public`).then((res) => {
+      if (cancelled) return
+      if (res.success && res.data) {
+        setVendor(res.data)
+      } else {
+        setError(res.error || 'Vendor not found')
+      }
+    }).catch((err) => {
+      console.error('[VendorPublicView] fetch failed:', err)
+      if (!cancelled) setError('Failed to load vendor')
+    }).finally(() => {
+      if (!cancelled) setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [viewParams.id])
+
+  // Sync subscribe state from localStorage on mount + when vendor id changes.
+  useEffect(() => {
+    if (!viewParams.id) return
+    setSubscribed(readSubscribedVendorIds().includes(viewParams.id))
+  }, [viewParams.id])
+
+  const handleSubscribe = () => {
+    if (!vendor) return
+    if (!isAuthenticated) {
+      setShowAuthModal(true)
+      return
+    }
+    const current = readSubscribedVendorIds()
+    if (current.includes(vendor.id)) {
+      // Already subscribed — unsubscribe (toggle).
+      const next = current.filter((id) => id !== vendor.id)
+      writeSubscribedVendorIds(next)
+      setSubscribed(false)
+      toast.success(`Unsubscribed from ${vendor.businessName}`)
+    } else {
+      writeSubscribedVendorIds([...current, vendor.id])
+      setSubscribed(true)
+      toast.success(`Subscribed to ${vendor.businessName}! 🔔`)
+    }
+  }
+
+  // Parse operating hours JSON.
+  let operatingHours: Record<string, string> = {}
+  if (vendor?.operatingHours) {
+    try {
+      const parsed = JSON.parse(vendor.operatingHours)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        operatingHours = parsed as Record<string, string>
+      }
+    } catch {
+      // ignore — render as "not available"
+    }
+  }
+  // Parse food categories JSON.
+  let foodCategories: string[] = []
+  if (vendor?.foodCategories) {
+    try {
+      const parsed = JSON.parse(vendor.foodCategories)
+      if (Array.isArray(parsed)) {
+        foodCategories = parsed.filter((c) => typeof c === 'string')
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Helper to render the deals list. Reuse DealCard by injecting the vendor
+  // info so DealCard's `deal.vendor` shape is satisfied. The public API doesn't
+  // join the vendor onto each deal (they all belong to the same vendor), so we
+  // build a minimal vendor object here. Cast through `unknown` because the
+  // DealCard prop type intersects with the full Vendor shape from the Deal
+  // type, but DealCard only actually reads businessName/address/logoUrl.
+  const vendorInfo = vendor
+    ? ({ businessName: vendor.businessName, address: vendor.address, logoUrl: vendor.logoUrl } as unknown as Vendor)
+    : undefined
+
+  return (
+    <div className="pb-28 bg-[#F4F7F6] min-h-screen">
+      {/* Header */}
+      <div className="sticky top-0 z-30 bg-white border-b border-[#e8edea] px-4 py-3 flex items-center gap-3">
+        <button onClick={goBack} className="p-2 -ml-1 rounded-xl hover:bg-[#e8edea]" aria-label="Back">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <h1 className="text-base font-bold text-[#1a1c1e] flex-1 truncate">Vendor Profile</h1>
+        <Button
+          onClick={handleSubscribe}
+          disabled={loading || !vendor}
+          className={`h-9 rounded-xl text-xs font-bold ${
+            subscribed
+              ? 'bg-[#f0f4f2] text-[#1a1c1e] hover:bg-[#e8edea]'
+              : 'bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white'
+          }`}
+        >
+          {subscribed ? (
+            <span className="flex items-center gap-1">
+              <Check className="w-3.5 h-3.5" /> Subscribed
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <Bell className="w-3.5 h-3.5" /> Subscribe
+            </span>
+          )}
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-3 p-4">
+          <Skeleton className="h-40 rounded-2xl" />
+          <Skeleton className="h-8 w-2/3 rounded-lg" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-16 px-5">
+          <Store className="w-16 h-16 text-[#c1c9c0] mx-auto mb-3" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">{error}</h3>
+          <Button onClick={goBack} className="mt-4 bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white rounded-xl">Go Back</Button>
+        </div>
+      ) : vendor ? (
+        <>
+          {/* Cover Image */}
+          <div className="relative h-40 bg-[#e8edea]">
+            {vendor.coverImageUrl ? (
+              <Image
+                src={vendor.coverImageUrl}
+                alt={vendor.businessName}
+                fill
+                className="object-cover"
+                sizes="(max-width: 640px) 100vw, 400px"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#FFEBEE] to-[#F4F7F6]">
+                <Store className="w-12 h-12 text-[#E53935]/30" />
+              </div>
+            )}
+          </div>
+
+          {/* Vendor identity block */}
+          <div className="px-4 -mt-10 relative">
+            <div className="flex items-end gap-3">
+              <div className="w-20 h-20 rounded-2xl bg-white shadow-card border-4 border-white overflow-hidden flex-shrink-0">
+                {vendor.logoUrl ? (
+                  <Image
+                    src={vendor.logoUrl}
+                    alt={vendor.businessName}
+                    width={80}
+                    height={80}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-[#FFEBEE]">
+                    <span className="text-2xl font-extrabold text-[#E53935]">
+                      {vendor.businessName.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 pb-1 min-w-0">
+                <h2 className="text-lg font-extrabold text-[#1a1c1e] truncate">{vendor.businessName}</h2>
+                <div className="flex items-center gap-2 text-[11px] text-[#717971]">
+                  <span className="flex items-center gap-0.5">
+                    <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    {vendor.rating ? vendor.rating.toFixed(1) : 'New'}
+                  </span>
+                  <span>•</span>
+                  <span>{vendor.totalSales} sold</span>
+                  {vendor.verificationStatus === 'approved' && (
+                    <>
+                      <span>•</span>
+                      <span className="flex items-center gap-0.5 text-[#3D8AC4] font-semibold">
+                        <CheckCircle className="w-3 h-3" /> Verified
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Address + distance */}
+            <div className="mt-3 flex items-start gap-2 text-xs text-[#414841]">
+              <MapPin className="w-3.5 h-3.5 text-[#E53935] mt-0.5 flex-shrink-0" />
+              <div>
+                <p>{vendor.address}</p>
+                {typeof vendor.distance === 'number' && (
+                  <p className="text-[10px] text-[#717971] mt-0.5">{vendor.distance.toFixed(1)} km from default location</p>
+                )}
+              </div>
+            </div>
+
+            {/* Description */}
+            {vendor.description && (
+              <p className="text-sm text-[#414841] leading-relaxed mt-3">{vendor.description}</p>
+            )}
+
+            {/* Food categories */}
+            {foodCategories.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-3">
+                {foodCategories.map((c) => (
+                  <span key={c} className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFEBEE] text-[#C62828]">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Operating Hours */}
+          <div className="px-4 mt-5">
+            <Card className="border-0 shadow-card rounded-2xl">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="w-4 h-4 text-[#E53935]" />
+                  <h3 className="font-bold text-sm text-[#1a1c1e]">Operating Hours</h3>
+                </div>
+                {DAY_ORDER.every((d) => !operatingHours[d]) ? (
+                  <p className="text-xs text-[#717971]">No operating hours specified.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {DAY_ORDER.map((day) => {
+                      const hours = operatingHours[day]
+                      const isClosed = !hours || hours.toLowerCase() === 'closed'
+                      const isToday = new Date().getDay() === (DAY_ORDER.indexOf(day) + 1) % 7
+                      return (
+                        <div
+                          key={day}
+                          className={`flex items-center justify-between text-xs px-2 py-1 rounded-lg ${
+                            isToday ? 'bg-[#FFEBEE]' : ''
+                          }`}
+                        >
+                          <span className={`font-semibold ${isToday ? 'text-[#C62828]' : 'text-[#1a1c1e]'}`}>
+                            {DAY_LABELS[day]}{isToday && ' (Today)'}
+                          </span>
+                          <span className={isClosed ? 'text-[#717971]' : 'text-[#414841]'}>
+                            {isClosed ? 'Closed' : hours}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Active Deals */}
+          <div className="px-4 mt-5">
+            <h3 className="font-bold text-sm text-[#1a1c1e] mb-3 flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-[#E53935]" />
+              Active Deals
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#E53935] text-white">
+                {vendor.deals.length}
+              </span>
+            </h3>
+            {vendor.deals.length === 0 ? (
+              <Card className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-6 text-center">
+                  <Flame className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
+                  <p className="text-sm text-[#414841]">No active deals right now.</p>
+                  <p className="text-xs text-[#717971] mt-0.5">Subscribe to be notified when new deals drop!</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {vendor.deals.map((deal) => (
+                  <DealCard
+                    key={deal.id}
+                    deal={{ ...deal, vendor: vendorInfo }}
+                    onSelect={() => navigate('deal-detail', { id: deal.id })}
+                    size="medium"
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+// ============================================
+// ADMIN: BROADCAST LOG VIEW
+// ============================================
+interface BroadcastLogItem {
+  vendorId: string | null
+  dealId: string | null
+  senderUserId: string | null
+  title: string
+  message: string
+  createdAt: string
+  recipients: number
+  sampleId: string
+  vendorName: string | null
+}
+
+function AdminBroadcastLogView() {
+  const { goBack, navigate } = useAppStore()
+  const [items, setItems] = useState<BroadcastLogItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const pageSize = 20
+
+  const fetchBroadcasts = useCallback((p: number) => {
+    setLoading(true)
+    apiFetch<{ broadcasts: BroadcastLogItem[]; total: number; page: number; pageSize: number; totalPages: number }>(
+      `/api/admin/broadcasts?page=${p}&pageSize=${pageSize}`
+    ).then((res) => {
+      if (res.success && res.data) {
+        setItems(res.data.broadcasts || [])
+        setTotal(res.data.total || 0)
+        setTotalPages(res.data.totalPages || 1)
+        setPage(p)
+      } else if (!res.success) {
+        toast.error(res.error || 'Failed to load broadcasts')
+      }
+    }).catch((err) => {
+      console.error('[AdminBroadcastLogView] fetch failed:', err)
+      toast.error('Failed to load broadcasts')
+    }).finally(() => setLoading(false))
+  }, [])
+
+  useEffect(() => { fetchBroadcasts(1) }, [fetchBroadcasts])
+
+  const fmtDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleString('en-MY', {
+        day: 'numeric', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      })
+    } catch {
+      return iso
+    }
+  }
+
+  return (
+    <div className="pb-28 px-5 pt-2">
+      <div className="flex items-center gap-3 mb-5">
+        <button onClick={goBack} className="p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1]">
+          <ArrowLeft className="w-5 h-5 text-[#1a1c1e]" />
+        </button>
+        <div>
+          <h1 className="text-xl font-extrabold text-[#1a1c1e]">Broadcast Log</h1>
+          <p className="text-xs text-[#717971]">{total} broadcast{total === 1 ? '' : 's'} total</p>
+        </div>
+      </div>
+
+      {loading ? (
+        Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl mb-3" />)
+      ) : items.length === 0 ? (
+        <div className="text-center py-16">
+          <Megaphone className="w-16 h-16 text-[#c1c9c0] mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-[#1a1c1e]">No broadcasts yet</h3>
+          <p className="text-sm text-[#414841] mt-1">Vendor broadcasts will appear here.</p>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {items.map((b) => (
+              <Card key={b.sampleId} className="border-0 shadow-card rounded-2xl">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Megaphone className="w-3.5 h-3.5 text-[#E53935] flex-shrink-0" />
+                        <p className="font-bold text-sm text-[#1a1c1e] truncate">{b.vendorName || 'Unknown Vendor'}</p>
+                      </div>
+                      <p className="text-[10px] text-[#717971] mt-0.5">{fmtDate(b.createdAt)}</p>
+                    </div>
+                    <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-md text-[10px] flex-shrink-0">
+                      {b.recipients} recipient{b.recipients === 1 ? '' : 's'}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-[#414841] leading-relaxed mb-2">{b.message}</p>
+                  {b.dealId && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('deal-detail', { id: b.dealId! })}
+                      className="h-7 rounded-lg text-[10px] font-bold border-[#E53935]/30 text-[#E53935] hover:bg-[#E53935]/10 px-2"
+                    >
+                      <Flame className="w-3 h-3 mr-1" /> View Deal
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-4">
+              <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => fetchBroadcasts(page - 1)} className="h-8 px-3 rounded-lg text-xs">Prev</Button>
+              <span className="text-xs text-[#717971] font-medium">{page} / {totalPages}</span>
+              <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => fetchBroadcasts(page + 1)} className="h-8 px-3 rounded-lg text-xs">Next</Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
@@ -6328,6 +7121,7 @@ function ViewRouter() {
         case 'orders': return <FoodieOrdersView />
         case 'profile': return <FoodieProfileView />
         case 'register-vendor': return <VendorRegistrationView />
+        case 'vendor-public': return <VendorPublicView />
         default: return <FoodieHomeView />
       }
     }
@@ -6341,6 +7135,7 @@ function ViewRouter() {
         case 'fulfillment': return <VendorFulfillmentView />
         case 'subscription': return <VendorSubscriptionView />
         case 'profile': return <FoodieProfileView />
+        case 'vendor-public': return <VendorPublicView />
         default: return <VendorDashboardView />
       }
     }
@@ -6357,6 +7152,8 @@ function ViewRouter() {
         case 'media': return <AdminMediaView />
         case 'profile': return <FoodieProfileView />
         case 'register-vendor': return <VendorRegistrationView />
+        case 'broadcast-log': return <AdminBroadcastLogView />
+        case 'vendor-public': return <VendorPublicView />
         default: return <AdminDashboardView />
       }
     }
@@ -6365,8 +7162,12 @@ function ViewRouter() {
   }
 
   const renderBottomNav = () => {
-    // Don't show bottom nav on deal-detail or register-vendor views
-    if (currentView === 'deal-detail' || currentView === 'register-vendor') return null
+    // Don't show bottom nav on detail/full-screen views
+    if (
+      currentView === 'deal-detail' ||
+      currentView === 'register-vendor' ||
+      currentView === 'vendor-public'
+    ) return null
     switch (activeRole) {
       case 'foodie': return <FoodieBottomNav />
       case 'vendor': return <VendorBottomNav />
