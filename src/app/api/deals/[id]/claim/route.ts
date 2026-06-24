@@ -19,9 +19,37 @@ export async function POST(
       )
     }
 
-    // Parse quantity from request body (clamp 1-99)
-    const body = await request.json().catch(() => ({} as { quantity?: number }))
+    // Parse quantity + pickupDeadline from request body.
+    // Task 2: foodie selects the pickup time when claiming. The pickupDeadline
+    // is validated here (min 10 min from now, max = deal.expiresAt) and stored
+    // on the Reservation row. The confirm endpoint copies it onto the Order.
+    const body = await request.json().catch(() => ({} as { quantity?: number; pickupDeadline?: string }))
     const quantity = Math.max(1, Math.min(Math.floor(body.quantity || 1), 99))
+
+    // ── Validate foodie-selected pickupDeadline ──
+    // Min: 10 minutes from now (gives the vendor time to prepare).
+    // Max: the deal's own expiry (can't pick up after the deal ends).
+    // If not provided, fall back to now + 2h (legacy behavior) so older
+    // clients don't break.
+    const MIN_PICKUP_MS = 10 * 60 * 1000 // 10 minutes
+    let pickupDeadlineIso: string | null = null
+    if (typeof body.pickupDeadline === 'string' && body.pickupDeadline.trim()) {
+      const ts = new Date(body.pickupDeadline).getTime()
+      if (isNaN(ts)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid pickup time' },
+          { status: 400 }
+        )
+      }
+      const nowMs = Date.now()
+      if (ts - nowMs < MIN_PICKUP_MS) {
+        return NextResponse.json(
+          { success: false, error: 'Pickup time must be at least 10 minutes from now' },
+          { status: 400 }
+        )
+      }
+      pickupDeadlineIso = new Date(body.pickupDeadline).toISOString()
+    }
 
     // Rate limit per user
     if (!rateLimiter.check(`claim:${authUser.userId}`, 10, 60_000)) {
@@ -55,6 +83,15 @@ export async function POST(
       await supabase.from('Deal').update({ status: 'expired' }).eq('id', id)
       return NextResponse.json(
         { success: false, error: 'This deal has expired' },
+        { status: 400 }
+      )
+    }
+
+    // Task 2: pickupDeadline cannot be later than the deal's own expiry.
+    const dealExpiresMs = new Date(deal.expiresAt + 'Z').getTime()
+    if (pickupDeadlineIso && new Date(pickupDeadlineIso).getTime() > dealExpiresMs) {
+      return NextResponse.json(
+        { success: false, error: 'Pickup time cannot be later than the deal expiry time' },
         { status: 400 }
       )
     }
@@ -186,6 +223,10 @@ export async function POST(
           quantity: quantity,
           status: 'pending',
           expiresAt: expiresAt.toISOString(),
+          // Task 2: persist the foodie-selected pickup time on the reservation
+          // so the confirm endpoint can copy it onto the Order. Null for
+          // backward-compat with older clients that don't send a pickup time.
+          pickupDeadline: pickupDeadlineIso,
         }).select().single(),
         'Create reservation'
       )

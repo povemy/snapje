@@ -221,3 +221,32 @@ CREATE POLICY "Allow all on Subscription" ON "Subscription" FOR ALL USING (true)
 ALTER PUBLICATION supabase_realtime ADD TABLE "Deal";
 ALTER PUBLICATION supabase_realtime ADD TABLE "Order";
 ALTER PUBLICATION supabase_realtime ADD TABLE "Notification";
+
+-- Task 2: Add pickupDeadline to Reservation (foodie-selected pickup time at claim)
+ALTER TABLE "Reservation" ADD COLUMN IF NOT EXISTS "pickupDeadline" TIMESTAMP(3);
+
+-- Task 4: VendorSubscription (foodie follows a vendor to receive broadcasts)
+CREATE TABLE IF NOT EXISTS "VendorSubscription" (
+  "id" TEXT PRIMARY KEY,
+  "userId" TEXT NOT NULL REFERENCES "User"("id") ON DELETE CASCADE,
+  "vendorId" TEXT NOT NULL REFERENCES "Vendor"("id") ON DELETE CASCADE,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE("userId", "vendorId")
+);
+CREATE INDEX IF NOT EXISTS "VendorSubscription_userId_idx" ON "VendorSubscription"("userId");
+CREATE INDEX IF NOT EXISTS "VendorSubscription_vendorId_idx" ON "VendorSubscription"("vendorId");
+
+-- Task 5: ScheduledBroadcast (vendor schedules a broadcast for future execution)
+CREATE TABLE IF NOT EXISTS "ScheduledBroadcast" (
+  "id" TEXT PRIMARY KEY,
+  "vendorId" TEXT NOT NULL REFERENCES "Vendor"("id") ON DELETE CASCADE,
+  "message" TEXT NOT NULL,
+  "dealId" TEXT,
+  "scheduledAt" TIMESTAMP(3) NOT NULL,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "sentAt" TIMESTAMP(3),
+  "recipientCount" INTEGER DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS "ScheduledBroadcast_vendorId_idx" ON "ScheduledBroadcast"("vendorId");
+CREATE INDEX IF NOT EXISTS "ScheduledBroadcast_status_scheduledAt_idx" ON "ScheduledBroadcast"("status", "scheduledAt");

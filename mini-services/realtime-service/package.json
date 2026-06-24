@@ -6,6 +6,7 @@
     "dev": "bun --hot index.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
     "socket.io": "^4.8.3"
   }
 }

@@ -1089,29 +1089,6 @@ function FoodieHomeView() {
               <ChevronRight className="w-3.5 h-3.5 text-[#717971] flex-shrink-0" />
             </div>
             <div className="flex items-center gap-2 ml-2">
-              {/* ISSUE 2: "Near me" button. Toggles distance-based filtering
-                  on the deals list using the user's deal-alert radius. */}
-              <button
-                onClick={handleNearMe}
-                disabled={geo.loading}
-                aria-pressed={radiusEnabled}
-                title={radiusEnabled ? `Showing deals within ${readDealAlertRadius()} km` : 'Show deals near me'}
-                className={`h-8 px-3 rounded-full text-[11px] font-bold flex items-center gap-1 transition-all active:scale-95 disabled:opacity-50 ${
-                  radiusEnabled
-                    ? 'bg-[#E53935] text-white shadow-chip'
-                    : 'bg-[#F4F7F6] text-[#414841] hover:bg-[#e8edea]'
-                }`}
-              >
-                {geo.loading ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : radiusEnabled ? (
-                  <LocateFixed className="w-3.5 h-3.5" />
-                ) : (
-                  <Crosshair className="w-3.5 h-3.5" />
-                )}
-                <span className="hidden xs:inline">Near me</span>
-                <span className="xs:hidden">Near</span>
-              </button>
               {isAuthenticated ? (
                 <NotificationBell />
               ) : (
@@ -1157,6 +1134,28 @@ function FoodieHomeView() {
               className="flex-1 flex gap-1.5 overflow-x-auto scroll-smooth snap-x"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}
             >
+              {/* Task 3: "Near" pill — moved from the top header into the
+                  category bar so it sits next to "Flash Deals" as a filter.
+                  Toggles distance-based filtering using the user's deal-alert
+                  radius (default 5km, configurable in Settings). */}
+              <button
+                onClick={handleNearMe}
+                disabled={geo.loading}
+                aria-pressed={radiusEnabled}
+                title={radiusEnabled ? `Showing deals within ${readDealAlertRadius()} km` : 'Show deals near me'}
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full flex-shrink-0 snap-start transition-all duration-150 active:scale-95 ${
+                  radiusEnabled ? 'bg-[#E53935] text-white' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                }`}
+              >
+                {geo.loading ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : radiusEnabled ? (
+                  <LocateFixed className="w-3.5 h-3.5" />
+                ) : (
+                  <Crosshair className="w-3.5 h-3.5" style={{ color: radiusEnabled ? '#fff' : '#E53935' }} />
+                )}
+                <span className="text-[10px] font-bold leading-none">Near</span>
+              </button>
               {CATEGORY_ICONS.map((cat) => {
                 const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
                 const Icon = cat.icon
@@ -1273,6 +1272,12 @@ function DealDetailView() {
   const [claimed, setClaimed] = useState(false)
   const [order, setOrder] = useState<Order | null>(null)
   const [quantity, setQuantity] = useState(1)
+  // Task 2: foodie-selected pickup time (ISO string). Populated from the
+  // dropdown below the quantity selector. The dropdown shows 5-minute
+  // interval slots starting from now + 10 minutes up to the deal's expiry.
+  const [pickupTime, setPickupTime] = useState<string>('')
+  const [pickupSlots, setPickupSlots] = useState<string[]>([])
+  const [pickupOpen, setPickupOpen] = useState(false)
   const { user, isAuthenticated } = useAuthStore()
   const { location, request: requestLocation } = useGeolocation()
   const [distance, setDistance] = useState<number | null>(null)
@@ -1299,7 +1304,34 @@ function DealDetailView() {
   // Reset quantity when deal changes
   useEffect(() => {
     setQuantity(1)
+    setPickupTime('')
+    setPickupSlots([])
   }, [viewParams.id])
+
+  // Task 2: generate pickup time slots in 5-minute intervals.
+  // Start = now + 10 min (rounded UP to the next 5-min boundary so the
+  // dropdown shows clean times like 10:30, 10:35, 10:40 — not 10:23, 10:28).
+  // End = min(deal.expiresAt, now + 6 hours) — cap at 6h so the list isn't
+  // absurdly long for long-running deals.
+  useEffect(() => {
+    if (!deal) return
+    const now = Date.now()
+    const startMs = now + 10 * 60 * 1000 // +10 min
+    // Round up to the next 5-minute boundary
+    const roundedStart = Math.ceil(startMs / (5 * 60 * 1000)) * (5 * 60 * 1000)
+    const dealExpiryMs = parseDbDate(deal.expiresAt).getTime()
+    const capMs = now + 6 * 60 * 60 * 1000 // 6h cap
+    const endMs = Math.min(dealExpiryMs, capMs)
+    const slots: string[] = []
+    for (let t = roundedStart; t <= endMs; t += 5 * 60 * 1000) {
+      slots.push(new Date(t).toISOString())
+    }
+    setPickupSlots(slots)
+    // Auto-select the first slot
+    if (slots.length > 0 && !pickupTime) {
+      setPickupTime(slots[0])
+    }
+  }, [deal?.id, pickupTime])
 
   // Calculate distance + travel times when deal or user location changes
   useEffect(() => {
@@ -1330,14 +1362,19 @@ function DealDetailView() {
       toast.error(`Quantity must be between 1 and ${deal.availableQuantity}`)
       return
     }
+    // Task 2: require a pickup time selection
+    if (!pickupTime) {
+      toast.error('Please select a pickup time')
+      return
+    }
     setClaiming(true)
     try {
-      // Step 1: Claim (create reservation with quantity)
+      // Step 1: Claim (create reservation with quantity + foodie-selected pickup time)
       const claimRes = await apiFetch<{ reservation: { id: string }; quantity: number; totalPrice: number }>(
         `/api/deals/${deal.id}/claim`,
         {
           method: 'POST',
-          body: JSON.stringify({ quantity }),
+          body: JSON.stringify({ quantity, pickupDeadline: pickupTime }),
         }
       )
       if (!claimRes.success) {
@@ -1599,6 +1636,82 @@ function DealDetailView() {
             <h3 className="font-bold text-[#1a1c1e] mb-2">Pickup Instructions</h3>
             <div className="bg-[#f0f4f2] rounded-xl p-4">
               <p className="text-sm text-[#414841]">{deal.pickupInstructions}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Task 2: Pickup Time Selector — foodie chooses their pickup time slot */}
+        {!claimed && !isSoldOut && pickupSlots.length > 0 && (
+          <div className="mt-5">
+            <h3 className="font-bold text-[#1a1c1e] mb-2 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-[#E53935]" /> Choose Pickup Time
+            </h3>
+            <p className="text-xs text-[#717971] mb-2">
+              Select when you'll pick up your order. Minimum 10 minutes from now to give the vendor time to prepare.
+            </p>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setPickupOpen((v) => !v)}
+                className="w-full flex items-center justify-between bg-white border-2 border-[#E53935]/30 rounded-xl px-4 py-3 text-left transition-all hover:border-[#E53935]/60 active:scale-[0.99]"
+                aria-haspopup="listbox"
+                aria-expanded={pickupOpen}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-lg bg-[#FFEBEE] flex items-center justify-center flex-shrink-0">
+                    <Clock className="w-4 h-4 text-[#E53935]" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-[#717971] font-medium leading-none uppercase tracking-wide">Pickup at</p>
+                    <p className="text-sm font-bold text-[#1a1c1e] leading-tight mt-0.5">
+                      {pickupTime ? parseDbDate(pickupTime).toLocaleString([], {
+                        weekday: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      }) : 'Select a time'}
+                    </p>
+                  </div>
+                </div>
+                <ChevronRight className={`w-4 h-4 text-[#717971] transition-transform ${pickupOpen ? 'rotate-90' : ''}`} />
+              </button>
+              {pickupOpen && (
+                <div
+                  className="absolute z-30 left-0 right-0 mt-1 bg-white border border-[#e8edea] rounded-xl shadow-lg max-h-64 overflow-y-auto"
+                  role="listbox"
+                >
+                  {pickupSlots.map((slot) => {
+                    const slotDate = parseDbDate(slot)
+                    const isSelected = slot === pickupTime
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          setPickupTime(slot)
+                          setPickupOpen(false)
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors ${
+                          isSelected
+                            ? 'bg-[#E53935] text-white font-bold'
+                            : 'text-[#1a1c1e] hover:bg-[#f0f4f2]'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#E53935]'}`} />
+                          {slotDate.toLocaleString([], {
+                            weekday: 'short',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        {isSelected && <Check className="w-4 h-4" />}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -2986,6 +3099,14 @@ function VendorDashboardView() {
   const [broadcastMessage, setBroadcastMessage] = useState('')
   const [broadcastDealId, setBroadcastDealId] = useState<string>('')
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
+  // Task 5: Now/Schedule tabs in the broadcast modal + scheduled-broadcast state
+  const [broadcastTab, setBroadcastTab] = useState<'now' | 'schedule'>('now')
+  const [scheduledAt, setScheduledAt] = useState<string>('') // datetime-local string
+  const [scheduledList, setScheduledList] = useState<Array<{
+    id: string; message: string; dealId: string | null; scheduledAt: string;
+    status: string; sentAt: string | null; recipientCount: number
+  }>>([])
+  const [loadingScheduled, setLoadingScheduled] = useState(false)
 
   const fetchVendorData = useCallback(() => {
     setLoading(true)
@@ -3028,6 +3149,22 @@ function VendorDashboardView() {
   }, [])
 
   useEffect(() => { fetchVendorData() }, [fetchVendorData])
+
+  // Task 5: fetch the vendor's scheduled broadcasts (for the Schedule tab list).
+  // NOTE: must be defined BEFORE the `if (!user) return ...` early return below
+  // to comply with React's rules-of-hooks (hooks can't be after a conditional return).
+  const fetchScheduledBroadcasts = useCallback(() => {
+    if (!vendor) return
+    setLoadingScheduled(true)
+    apiFetch<{ scheduled: Array<{
+      id: string; message: string; dealId: string | null; scheduledAt: string;
+      status: string; sentAt: string | null; recipientCount: number
+    }> }>(`/api/vendors/${vendor.id}/scheduled-broadcasts`).then((res) => {
+      if (res.success && res.data) {
+        setScheduledList(res.data.scheduled || [])
+      }
+    }).catch(() => { /* non-fatal */ }).finally(() => setLoadingScheduled(false))
+  }, [vendor])
 
   // ISSUE 4: if the user logs out mid-session (user becomes null), bail out
   // early with a friendly sign-in prompt instead of dereferencing null below.
@@ -3190,8 +3327,10 @@ function VendorDashboardView() {
     }
   }
 
-  // VIP-only: send a broadcast to all users (creates a Notification row per
-  // user with type='broadcast'). Gated by user.vipFlag on the server too.
+  // VIP-only: send a broadcast (Now tab) or schedule one (Schedule tab).
+  // Task 4: recipients = foodie users subscribed to this vendor.
+  // Task 5: Schedule tab creates a ScheduledBroadcast row that the
+  // realtime-service scheduler picks up at the scheduled time.
   const handleSendBroadcast = async () => {
     if (!vendor) return
     const trimmed = broadcastMessage.trim()
@@ -3203,6 +3342,61 @@ function VendorDashboardView() {
       toast.error('Message must be 500 characters or fewer')
       return
     }
+
+    // Schedule tab: validate the datetime, then POST to /scheduled-broadcasts
+    if (broadcastTab === 'schedule') {
+      if (!scheduledAt) {
+        toast.error('Please choose a date and time')
+        return
+      }
+      // Convert the datetime-local string (interpreted as local time) to ISO
+      const scheduledDate = new Date(scheduledAt)
+      if (isNaN(scheduledDate.getTime())) {
+        toast.error('Invalid date/time')
+        return
+      }
+      const now = new Date()
+      const minTime = new Date(now.getTime() + 60 * 1000)
+      const maxTime = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000)
+      if (scheduledDate < minTime) {
+        toast.error('Scheduled time must be at least 1 minute in the future')
+        return
+      }
+      if (scheduledDate > maxTime) {
+        toast.error('Scheduled time cannot be more than 5 days in the future')
+        return
+      }
+      setSendingBroadcast(true)
+      try {
+        const res = await apiFetch(
+          `/api/vendors/${vendor.id}/scheduled-broadcasts`,
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              message: trimmed,
+              dealId: broadcastDealId || undefined,
+              scheduledAt: scheduledDate.toISOString(),
+            }),
+          }
+        )
+        if (res.success) {
+          toast.success(`Broadcast scheduled for ${scheduledDate.toLocaleString()} ⏰`)
+          setShowBroadcastModal(false)
+          setBroadcastMessage('')
+          setBroadcastDealId('')
+          setScheduledAt('')
+          // Refresh the scheduled list so the new entry appears
+          fetchScheduledBroadcasts()
+        } else {
+          toast.error(res.error || 'Failed to schedule broadcast')
+        }
+      } finally {
+        setSendingBroadcast(false)
+      }
+      return
+    }
+
+    // Now tab: send immediately via /broadcast
     setSendingBroadcast(true)
     try {
       const res = await apiFetch<{ recipients: number; vendorId: string; title: string }>(
@@ -3217,7 +3411,11 @@ function VendorDashboardView() {
       )
       if (res.success) {
         const count = res.data?.recipients ?? 0
-        toast.success(`Broadcast sent to ${count} user${count === 1 ? '' : 's'}! 📣`)
+        if (count === 0) {
+          toast.info('No subscribers yet — ask foodies to subscribe to your store!')
+        } else {
+          toast.success(`Broadcast sent to ${count} subscriber${count === 1 ? '' : 's'}! 📣`)
+        }
         setShowBroadcastModal(false)
         setBroadcastMessage('')
         setBroadcastDealId('')
@@ -3226,6 +3424,25 @@ function VendorDashboardView() {
       }
     } finally {
       setSendingBroadcast(false)
+    }
+  }
+
+  // Task 5: cancel a pending scheduled broadcast
+  const handleCancelScheduled = async (id: string) => {
+    if (!vendor) return
+    try {
+      const res = await apiFetch(
+        `/api/vendors/${vendor.id}/scheduled-broadcasts?id=${encodeURIComponent(id)}`,
+        { method: 'DELETE' }
+      )
+      if (res.success) {
+        toast.success('Scheduled broadcast cancelled')
+        setScheduledList((prev) => prev.filter((s) => s.id !== id))
+      } else {
+        toast.error(res.error || 'Failed to cancel')
+      }
+    } catch {
+      toast.error('Failed to cancel')
     }
   }
 
@@ -3744,9 +3961,21 @@ function VendorDashboardView() {
         </DialogContent>
       </Dialog>
 
-      {/* ===== Broadcast Modal (VIP vendors only) ===== */}
-      <Dialog open={showBroadcastModal} onOpenChange={setShowBroadcastModal}>
-        <DialogContent className="rounded-2xl max-w-sm p-0 overflow-hidden">
+      {/* ===== Broadcast Modal (VIP vendors only) — Now / Schedule tabs ===== */}
+      <Dialog
+        open={showBroadcastModal}
+        onOpenChange={(v) => {
+          setShowBroadcastModal(v)
+          if (v) {
+            // Task 5: when opening the modal, fetch the scheduled list so the
+            // vendor can see their upcoming/past scheduled broadcasts.
+            fetchScheduledBroadcasts()
+            // Reset to the "Now" tab each time the modal opens
+            setBroadcastTab('now')
+          }
+        }}
+      >
+        <DialogContent className="rounded-2xl max-w-md w-[calc(100%-1.5rem)] mx-auto p-0 overflow-hidden">
           <div className="bg-gradient-to-br from-[#E53935]/10 to-[#E53935]/5 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
@@ -3754,12 +3983,37 @@ function VendorDashboardView() {
                 Broadcast to Subscribers
               </DialogTitle>
               <DialogDescription className="text-[#414841] text-xs">
-                Send a notification to all SnapJe users about a new deal or promotion.
+                Task 4: Only foodies subscribed to your store receive broadcasts.
               </DialogDescription>
             </DialogHeader>
           </div>
 
+          {/* Task 5: Now / Schedule tabs */}
+          <div className="px-5 pt-3">
+            <div className="flex gap-1 bg-[#f0f4f2] p-1 rounded-xl">
+              <button
+                onClick={() => setBroadcastTab('now')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                  broadcastTab === 'now' ? 'bg-white shadow-sm text-[#1a1c1e]' : 'text-[#717971]'
+                }`}
+              >
+                <Zap className="w-3.5 h-3.5 inline mr-1" style={{ color: broadcastTab === 'now' ? '#E53935' : undefined }} />
+                Now
+              </button>
+              <button
+                onClick={() => setBroadcastTab('schedule')}
+                className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                  broadcastTab === 'schedule' ? 'bg-white shadow-sm text-[#1a1c1e]' : 'text-[#717971]'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5 inline mr-1" style={{ color: broadcastTab === 'schedule' ? '#E53935' : undefined }} />
+                Schedule
+              </button>
+            </div>
+          </div>
+
           <div className="px-5 pb-5 space-y-4">
+            {/* ── Message input (shared by both tabs) ── */}
             <div>
               <Label htmlFor="broadcast-message" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
                 Message <span className="text-[#717971] font-normal">({broadcastMessage.length}/500)</span>
@@ -3774,6 +4028,28 @@ function VendorDashboardView() {
               />
             </div>
 
+            {/* ── Schedule-tab-only: datetime picker ── */}
+            {broadcastTab === 'schedule' && (
+              <div>
+                <Label htmlFor="scheduled-at" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                  Schedule for <span className="text-[#717971] font-normal">(max 5 days, 1 per day)</span>
+                </Label>
+                <Input
+                  id="scheduled-at"
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="rounded-xl h-11 text-sm"
+                  min={new Date(Date.now() + 60 * 1000).toISOString().slice(0, 16)}
+                  max={new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
+                />
+                <p className="text-[10px] text-[#717971] mt-1">
+                  The broadcast will be sent automatically at the chosen time. Only 1 scheduled broadcast per calendar day is allowed.
+                </p>
+              </div>
+            )}
+
+            {/* ── Deal attachment (shared) ── */}
             {activeDeals.length > 0 && (
               <div>
                 <Label className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
@@ -3820,6 +4096,54 @@ function VendorDashboardView() {
               </div>
             )}
 
+            {/* ── Schedule tab: list of upcoming/past scheduled broadcasts ── */}
+            {broadcastTab === 'schedule' && (
+              <div className="border-t border-[#e8edea] pt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-bold text-[#1a1c1e]">Your Scheduled Broadcasts</p>
+                  {loadingScheduled && <RefreshCw className="w-3 h-3 animate-spin text-[#717971]" />}
+                </div>
+                {scheduledList.length === 0 ? (
+                  <p className="text-[10px] text-[#717971] py-3 text-center">No scheduled broadcasts yet.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
+                    {scheduledList.map((s) => (
+                      <div key={s.id} className="bg-[#f8faf9] rounded-lg p-2.5 border border-[#e8edea]">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] font-bold text-[#1a1c1e] truncate">{s.message}</p>
+                            <p className="text-[9px] text-[#717971] mt-0.5">
+                              {parseDbDate(s.scheduledAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <Badge
+                            className={`text-[9px] rounded ${
+                              s.status === 'pending'
+                                ? 'bg-[#E53935]/10 text-[#E53935]'
+                                : s.status === 'sent'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}
+                          >
+                            {s.status}
+                            {s.status === 'sent' && s.recipientCount > 0 ? ` · ${s.recipientCount}` : ''}
+                          </Badge>
+                        </div>
+                        {s.status === 'pending' && (
+                          <button
+                            onClick={() => handleCancelScheduled(s.id)}
+                            className="text-[10px] text-[#EF4444] font-bold mt-1 hover:underline"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -3831,13 +4155,19 @@ function VendorDashboardView() {
               </Button>
               <Button
                 onClick={handleSendBroadcast}
-                disabled={sendingBroadcast || !broadcastMessage.trim()}
+                disabled={
+                  sendingBroadcast ||
+                  !broadcastMessage.trim() ||
+                  (broadcastTab === 'schedule' && !scheduledAt)
+                }
                 className="flex-1 h-11 rounded-xl text-sm font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white hover:opacity-90 active:scale-95 transition-all"
               >
                 {sendingBroadcast ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : broadcastTab === 'schedule' ? (
+                  <><Clock className="w-4 h-4 mr-1.5" /> Schedule</>
                 ) : (
-                  <><Megaphone className="w-4 h-4 mr-1.5" /> Send Broadcast</>
+                  <><Megaphone className="w-4 h-4 mr-1.5" /> Send Now</>
                 )}
               </Button>
             </div>
@@ -6042,29 +6372,55 @@ function VendorPublicView() {
     return () => { cancelled = true }
   }, [viewParams.id])
 
-  // Sync subscribe state from localStorage on mount + when vendor id changes.
+  // Task 4: Fetch subscription status from the server when the user is
+  // authenticated and the vendor id changes. Falls back to false when not
+  // authenticated (the Subscribe button will prompt for sign-in).
   useEffect(() => {
     if (!viewParams.id) return
-    setSubscribed(readSubscribedVendorIds().includes(viewParams.id))
-  }, [viewParams.id])
+    if (!isAuthenticated) {
+      setSubscribed(false)
+      return
+    }
+    let cancelled = false
+    apiFetch<{ subscribed: boolean }>(`/api/vendors/${viewParams.id}/subscription`).then((res) => {
+      if (cancelled) return
+      if (res.success && res.data) setSubscribed(!!res.data.subscribed)
+    }).catch(() => { /* ignore — non-fatal */ })
+    return () => { cancelled = true }
+  }, [viewParams.id, isAuthenticated])
 
-  const handleSubscribe = () => {
+  const handleSubscribe = async () => {
     if (!vendor) return
     if (!isAuthenticated) {
       setShowAuthModal(true)
       return
     }
-    const current = readSubscribedVendorIds()
-    if (current.includes(vendor.id)) {
-      // Already subscribed — unsubscribe (toggle).
-      const next = current.filter((id) => id !== vendor.id)
-      writeSubscribedVendorIds(next)
-      setSubscribed(false)
-      toast.success(`Unsubscribed from ${vendor.businessName}`)
+    if (subscribed) {
+      // Unsubscribe (toggle off)
+      try {
+        const res = await apiFetch(`/api/vendors/${vendor.id}/subscribe`, { method: 'DELETE' })
+        if (res.success) {
+          setSubscribed(false)
+          toast.success(`Unsubscribed from ${vendor.businessName}`)
+        } else {
+          toast.error(res.error || 'Failed to unsubscribe')
+        }
+      } catch {
+        toast.error('Failed to unsubscribe')
+      }
     } else {
-      writeSubscribedVendorIds([...current, vendor.id])
-      setSubscribed(true)
-      toast.success(`Subscribed to ${vendor.businessName}! 🔔`)
+      // Subscribe
+      try {
+        const res = await apiFetch(`/api/vendors/${vendor.id}/subscribe`, { method: 'POST' })
+        if (res.success) {
+          setSubscribed(true)
+          toast.success(`Subscribed to ${vendor.businessName}! 🔔`)
+        } else {
+          toast.error(res.error || 'Failed to subscribe')
+        }
+      } catch {
+        toast.error('Failed to subscribe')
+      }
     }
   }
 

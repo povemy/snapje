@@ -112,8 +112,13 @@ export async function POST(
     // Use a long random token so external scanners cannot enumerate orders.
     const qrCode = crypto.randomUUID() + crypto.randomUUID().replace(/-/g, '')
 
-    // Calculate pickup deadline (2 hours from now)
-    const pickupDeadline = new Date(Date.now() + 2 * 60 * 60 * 1000)
+    // Task 2: use the foodie-selected pickup deadline from the Reservation
+    // (chosen at claim time). Fall back to now + 2h for legacy reservations
+    // that don't have a pickupDeadline column populated.
+    const reservationPickup = (reservation as { pickupDeadline?: string | null }).pickupDeadline
+    const pickupDeadline = reservationPickup
+      ? new Date(reservationPickup)
+      : new Date(Date.now() + 2 * 60 * 60 * 1000)
 
     // Sequential operations (Supabase REST API doesn't support transactions)
     // 1. Create order

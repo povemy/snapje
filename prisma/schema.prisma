@@ -33,12 +33,13 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  vendor        Vendor?
-  orders        Order[]
-  notifications Notification[]
-  refreshTokens RefreshToken[]
-  subscriptions Subscription[]
-  mediaFiles    MediaFile[]
+  vendor              Vendor?
+  orders              Order[]
+  notifications       Notification[]
+  refreshTokens       RefreshToken[]
+  subscriptions       Subscription[]
+  vendorSubscriptions VendorSubscription[]
+  mediaFiles          MediaFile[]
 
   @@index([email])
 }
@@ -88,8 +89,10 @@ model Vendor {
   updatedAt         DateTime @updatedAt
 
   // Relations
-  deals      Deal[]
-  orders     Order[]
+  deals                Deal[]
+  orders               Order[]
+  vendorSubscriptions  VendorSubscription[]
+  scheduledBroadcasts  ScheduledBroadcast[]
 
   @@index([verificationStatus])
   @@index([latitude, longitude])
@@ -141,15 +144,18 @@ model Deal {
 // ============================================
 
 model Reservation {
-  id          String   @id @default(cuid())
-  dealId      String
-  deal        Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  userId      String
-  quantity    Int      @default(1)
-  status      String   @default("pending") // pending, confirmed, expired, cancelled
-  expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  dealId         String
+  deal           Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  userId         String
+  quantity       Int      @default(1)
+  status         String   @default("pending") // pending, confirmed, expired, cancelled
+  expiresAt      DateTime
+  // Task 2: foodie-selected pickup time (chosen at claim, copied to Order at confirm).
+  // Nullable for backward compat with pre-existing reservations.
+  pickupDeadline DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([dealId, status])
   @@index([dealId, userId, status])
@@ -252,4 +258,51 @@ model MediaFile {
   @@index([uploaderId])
   @@index([alertLevel])
   @@index([fileSize])
+}
+
+// ============================================
+// VENDOR SUBSCRIPTIONS (foodie follows a vendor)
+// ============================================
+// A foodie subscribes to a vendor to receive that vendor's broadcast
+// notifications. One row per (userId, vendorId) pair — enforced by the
+// @@unique constraint. Vendors and admins are excluded from receiving
+// broadcasts (see /api/vendors/[id]/broadcast route).
+model VendorSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendorId  String
+  vendor    Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, vendorId])
+  @@index([userId])
+  @@index([vendorId])
+}
+
+// ============================================
+// SCHEDULED BROADCASTS
+// ============================================
+// A VIP vendor schedules a broadcast for automatic future execution.
+// The scheduler (runs in the realtime-service mini-service) polls every
+// 60s for rows where status='pending' AND scheduledAt <= now, executes
+// them (fans out notifications to subscribers), and marks them 'sent'.
+//
+// Constraints enforced at the API layer:
+//   - scheduledAt must be <= now + 5 days
+//   - only 1 scheduled broadcast per (vendorId, DATE(scheduledAt))
+model ScheduledBroadcast {
+  id             String   @id @default(cuid())
+  vendorId       String
+  vendor         Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  message        String
+  dealId         String?
+  scheduledAt    DateTime
+  status         String   @default("pending") // pending, sent, cancelled
+  createdAt      DateTime @default(now())
+  sentAt         DateTime?
+  recipientCount Int      @default(0)
+
+  @@index([vendorId])
+  @@index([status, scheduledAt])
 }

@@ -1267,3 +1267,55 @@ Stage Summary:
 - claim_confirmed notifications show an order-id card (orderNumber + status + total) that navigates to My Orders on click.
 - Notification modal has proper mobile margins (no longer 100% viewport width).
 - Files changed: src/lib/utils.ts (parseDbDate + toDatetimeLocalString), src/types/index.ts (NotificationType + 'broadcast' + 'deal_new'), src/hooks/use-socket.tsx (renamed from .ts, broadcast toast format), src/app/page.tsx (parseDbDate applied everywhere, NotificationBell rewritten, polling reconciliation with pendingReadsCount + shownToastNotifIds, broadcast toast format), src/app/api/deals/[id]/confirm/route.ts (TZ-safe Reservation.expiresAt parse), src/app/api/admin/media/route.ts (TZ-safe createdAt parse).
+
+---
+Task ID: 5-tasks-toast-pickup-near-subscribe-schedule
+Agent: Main Agent
+Task: 5 features: (1) bottom toast w/ app theme red + 90% width, (2) foodie-selected pickup time, (3) move Near button into categories, (4) subscription-based broadcast, (5) scheduled broadcasts w/ Now/Schedule tabs + server scheduler.
+
+Work Log:
+- **Task 1 (Toast styling)**: Rewrote the Toaster config in `src/app/layout.tsx`. Changed position from `top-center` to `bottom-center`. Removed all glassmorphism (`backdropFilter: blur(...)`, `rgba(...)` backgrounds). New style: solid `#E53935` bright-red background, white text, `width: 90vw` / `maxWidth: 440px`, `borderRadius: 16px`, larger fonts (title 15px/800 weight, description 13.5px/600 weight). Added two keyframes: `snapjeToastIn` (slides UP from bottom: `translateY(120%) → translateY(0)`) and `snapjeToastOut` (slides DOWN: `translateY(0) → translateY(120%)`). The `[data-state="closed"]` selector triggers the exit animation so toasts slide back down the way they came. Auto-dismisses after 3s. Verified: captured a toast via `getBoundingClientRect()` — bg `rgb(229,57,53)`, width 440px, height 66px.
+
+- **Task 2 (Foodie-selected pickup time)**: End-to-end implementation across 3 layers:
+  - **DB**: Added `pickupDeadline DateTime?` column to `Reservation` model (nullable for backward compat). Migration applied to Supabase via `pg` Pool.
+  - **API claim route** (`/api/deals/[id]/claim/route.ts`): Accepts `pickupDeadline` in the POST body. Validates: must be ≥ 10 min from now, must be ≤ deal.expiresAt. Stores on the Reservation row.
+  - **API confirm route** (`/api/deals/[id]/confirm/route.ts`): Reads `reservation.pickupDeadline` and copies it onto the Order (instead of hardcoding `now + 2h`). Falls back to `now + 2h` for legacy reservations without a pickupDeadline.
+  - **Frontend** (`DealDetailView`): Added `pickupTime` + `pickupSlots` + `pickupOpen` state. A `useEffect` generates 5-minute interval slots from `now + 10 min` (rounded UP to the next 5-min boundary) to `min(deal.expiresAt, now + 6h)`. Auto-selects the first slot. Renders a "Choose Pickup Time" section with a dropdown button showing "PICKUP AT Wed 07:35 AM" and a listbox of all slots. The `handleClaim` function sends `pickupDeadline: pickupTime` in the claim request and validates a time is selected before claiming.
+  - **Verified**: Selected "07:40 AM" → claimed "Korean Fried Rice Bowl" → order appeared in My Orders with "Pickup by 07:40 AM". Pickup time persisted correctly through claim→confirm→order.
+
+- **Task 3 (Move Near button)**: Removed the "Near me" button from the top-right header (it was next to the Sign In / NotificationBell). Added it as the FIRST pill in the category scroll bar (before "Flash Deals"), styled identically to the other category pills (`bg-[#f0f4f2]` inactive, `bg-[#E53935] text-white` active). Same `handleNearMe` toggle logic — uses `geo.location` + `readDealAlertRadius()`. Verified: snapshot shows `button "Near" [ref=e45]` immediately before `button "Flash Deals" [ref=e46]`.
+
+- **Task 4 (Subscription-based broadcast)**:
+  - **DB**: Created new `VendorSubscription` table (id, userId, vendorId, createdAt) with `UNIQUE(userId, vendorId)` constraint. Migration applied to Supabase. Updated Prisma schema + regenerated Prisma Client.
+  - **Shared helper** (`src/lib/broadcast.ts`): Extracted the fan-out logic into `fanOutBroadcast({ vendorId, vendorBusinessName, message, dealId, senderUserId })`. Queries `VendorSubscription` for the vendor's subscribers, excludes the broadcaster, filters to foodie-only (excludes vendors/admins/banned), inserts Notification rows (chunked at 500), and fires the realtime-service `/broadcast` endpoint.
+  - **Broadcast API** (`/api/vendors/[id]/broadcast/route.ts`): Refactored to delegate to `fanOutBroadcast`. Removed the old "fan out to ALL users" logic.
+  - **Subscribe API** (`/api/vendors/[id]/subscribe/route.ts`): NEW. POST subscribes (upsert with `ignoreDuplicates` for idempotency), DELETE unsubscribes.
+  - **Subscription status API** (`/api/vendors/[id]/subscription/route.ts`): NEW. GET returns `{ subscribed: boolean }`.
+  - **VendorPublicView** (`src/app/page.tsx`): Replaced the old localStorage-only subscribe toggle with server-side API calls. Fetches status on mount, POSTs/DELETEs on click.
+  - **Verified**: Subscribed `user_foodie` to Aurynz Eatery → triggered broadcast → result was "recipients: 1" (only the subscriber), NOT 11 (all users) like before.
+
+- **Task 5 (Scheduled broadcasts)**:
+  - **DB**: Created new `ScheduledBroadcast` table (id, vendorId, message, dealId, scheduledAt, status, createdAt, sentAt, recipientCount) with indexes on `(vendorId)` and `(status, scheduledAt)`. Migration applied. Prisma schema + client updated.
+  - **Scheduled-broadcasts API** (`/api/vendors/[id]/scheduled-broadcasts/route.ts`): NEW. GET lists the vendor's scheduled broadcasts. POST creates one with validation: scheduledAt ≥ now + 1 min, ≤ now + 5 days, and **only 1 pending scheduled broadcast per UTC calendar date** (queries existing pending rows for the same date, returns 409 if one exists). DELETE marks a pending broadcast as 'cancelled' (preserves audit trail). All endpoints check vendor ownership + VIP flag.
+  - **Broadcast modal** (`src/app/page.tsx`): Added Now/Schedule tab toggle. The Schedule tab shows a `<input type="datetime-local">` picker (min = now+1min, max = now+5days) + a list of the vendor's scheduled broadcasts (with status badges and a Cancel button for pending ones). The "Send Now" / "Schedule" button label + behavior changes based on the active tab. On modal open, fetches the scheduled list + resets to the "Now" tab.
+  - **Server-side scheduler** (`mini-services/realtime-service/index.ts`): Added a `schedulerTick()` function that runs every 60s (plus once 5s after startup). Queries for `ScheduledBroadcast` rows where `status='pending' AND scheduledAt <= now`, then for each: atomically claims it (conditional update `status='pending' → 'sent'` to prevent double-fire), fetches the vendor's subscribers, filters to foodie-only, inserts Notification rows (chunked), emits socket.io `notification:new` events in-process, and updates `recipientCount`. The realtime-service now loads `.env` from the parent project (manual parser) so it can talk to Supabase.
+  - **Rules-of-hooks fix**: Moved `fetchScheduledBroadcasts` useCallback ABOVE the `if (!user) return` early return in VendorDashboardView to satisfy React's rules-of-hooks.
+  - **Verified end-to-end**: Created a scheduled broadcast due in 90s → waited ~100s → realtime log showed `[Scheduler] Found 1 due scheduled broadcast(s)` → `[Scheduler] Executing scheduled broadcast sb_...` → `[Scheduler] Broadcast sb_... sent to 1 subscribers`. DB row updated to `status=sent, sentAt=07:35:02, recipientCount=1`. Also verified the per-day uniqueness constraint: a second broadcast for the same day returned 409 with the correct error.
+
+- **Lint**: `bun run lint` → 0 errors, 0 warnings (fixed 1 rules-of-hooks error + 1 unused eslint-disable warning during implementation).
+
+- **Browser verification (Agent Browser)**:
+  - Task 1: Captured toast — bg `rgb(229,57,53)` (#E53935), width 440px, title "📣 Aurynz Eatery:", description in bold. ✅
+  - Task 2: Selected "07:40 AM" → claimed Korean Fried Rice Bowl → order shows "Pickup by 07:40 AM" in My Orders. ✅
+  - Task 3: Snapshot shows `button "Near" [ref=e45]` as the first pill in the category bar, before "Flash Deals". ✅
+  - Task 4: Broadcast sent to "1 subscriber" (only the subscribed foodie), not 11 users. ✅
+  - Task 5: Broadcast modal shows Now/Schedule tabs. Schedule tab has datetime picker + scheduled list. API created scheduled broadcast, scheduler executed it 26s after the scheduled time, marked it 'sent' with recipientCount=1. Per-day uniqueness returns 409. ✅
+
+Stage Summary:
+- All 5 features implemented and verified end-to-end.
+- Toast: bottom-positioned, slides up/down, solid bright-red theme, 90% width, larger fonts, no glassmorphism.
+- Pickup time: foodie selects from a 5-min interval dropdown (min 10min, max = deal expiry). Persists through claim→confirm→order. Replaces the old hardcoded "2 hours from now".
+- Near button: moved into the category bar as the first pill, next to "Flash Deals".
+- Broadcast: now goes ONLY to foodie subscribers (VendorSubscription table). Vendors, admins, and the broadcaster are excluded. A foodie subscribed to multiple vendors receives broadcasts from each.
+- Scheduled broadcasts: VIP vendors can schedule up to 5 days in advance, 1 per calendar day. A server-side scheduler in the realtime-service polls every 60s and auto-executes due broadcasts. Now/Schedule tabs in the broadcast modal.
+- Files changed: src/app/layout.tsx, src/lib/utils.ts (parseDbDate already existed), src/lib/broadcast.ts (NEW), prisma/schema.prisma (Reservation.pickupDeadline, VendorSubscription, ScheduledBroadcast models), prisma/migrations/supabase-schema.sql (appended), src/app/api/deals/[id]/claim/route.ts, src/app/api/deals/[id]/confirm/route.ts, src/app/api/vendors/[id]/broadcast/route.ts, src/app/api/vendors/[id]/subscribe/route.ts (NEW), src/app/api/vendors/[id]/subscription/route.ts (NEW), src/app/api/vendors/[id]/scheduled-broadcasts/route.ts (NEW), mini-services/realtime-service/index.ts (scheduler + .env loader), mini-services/realtime-service/package.json (+ @supabase/supabase-js), src/app/page.tsx (DealDetailView pickup selector, Near button move, VendorPublicView server-side subscribe, broadcast modal Now/Schedule tabs, fetchScheduledBroadcasts/handleCancelScheduled).

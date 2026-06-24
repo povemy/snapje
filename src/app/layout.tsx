@@ -242,40 +242,101 @@ export default function RootLayout({
       >
         {children}
         <Toaster
-          position="top-center"
+          position="bottom-center"
           duration={3000}
+          // Render toasts in a portal fixed to the viewport so they slide up
+          // from the bottom of the screen and don't shift the page layout.
+          containerAriaLabel="Notifications"
+          className="snapje-toaster"
           toastOptions={{
+            // Default style — solid bright-red theme color, NO glassmorphism.
+            // 90% viewport width, larger fonts per user spec.
             style: {
               fontFamily: '"Nunito Sans", sans-serif',
-              borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.5)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(229, 57, 53, 0.2)',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-              animation: 'toastFadeIn 0.3s ease-out, toastFadeOut 2s ease-in 1s forwards',
+              width: '90vw',
+              maxWidth: '440px',
+              minWidth: '280px',
+              borderRadius: '16px',
+              background: '#E53935',
+              color: '#ffffff',
+              border: 'none',
+              boxShadow: '0 10px 30px rgba(229, 57, 53, 0.35), 0 2px 8px rgba(0,0,0,0.15)',
+              padding: '14px 18px',
+              fontSize: '14px',
+              fontWeight: 700,
+              animation: 'snapjeToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
             },
+            // Info toasts (used for broadcasts) — bright red, white text
+            info: {
+              style: {
+                background: '#E53935',
+                color: '#ffffff',
+              },
+            },
+            // Success toasts — slightly darker red for visual distinction
             success: {
               style: {
-                background: 'rgba(229, 57, 53, 0.5)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                color: '#fff',
-                border: '1px solid rgba(229, 57, 53, 0.3)',
-                boxShadow: '0 8px 32px rgba(229, 57, 53, 0.2)',
-                animation: 'toastFadeIn 0.3s ease-out, toastFadeOut 2s ease-in 1s forwards',
+                background: '#C62828',
+                color: '#ffffff',
+              },
+            },
+            // Error toasts — deep red
+            error: {
+              style: {
+                background: '#B71C1C',
+                color: '#ffffff',
               },
             },
           }}
         />
         <style dangerouslySetInnerHTML={{ __html: `
-          @keyframes toastFadeIn {
-            from { opacity: 0; transform: translateY(-16px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+          @keyframes snapjeToastIn {
+            from {
+              opacity: 0;
+              transform: translateY(120%) scale(0.95);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
           }
-          @keyframes toastFadeOut {
-            from { opacity: 1; }
-            to { opacity: 0; transform: translateY(-8px); }
+          @keyframes snapjeToastOut {
+            from {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+            to {
+              opacity: 0;
+              transform: translateY(120%) scale(0.95);
+            }
+          }
+          /* Sonner applies [data-state="closed"] when a toast is leaving —
+             animate it sliding downwards (back the way it came). */
+          [data-sonner-toast][data-state="closed"] {
+            animation: snapjeToastOut 0.3s cubic-bezier(0.55, 0, 0.65, 0.35) forwards !important;
+          }
+          [data-sonner-toast] {
+            margin-bottom: 10px !important;
+          }
+          /* Larger title + description text per user spec (90% width toast) */
+          [data-sonner-toast] [data-title] {
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            line-height: 1.25 !important;
+          }
+          [data-sonner-toast] [data-description] {
+            font-size: 13.5px !important;
+            font-weight: 600 !important;
+            line-height: 1.3 !important;
+            opacity: 0.98 !important;
+          }
+          [data-sonner-toast] [data-icon] svg {
+            width: 20px !important;
+            height: 20px !important;
+          }
+          /* Hide the close button — the toast auto-dismisses after 3s */
+          [data-sonner-toast] [data-close-button] {
+            display: none !important;
           }
         `}} />
       </body>

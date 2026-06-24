@@ -1,17 +1,21 @@
 import { NextResponse } from 'next/server'
-import { supabase, unwrap, genId } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { requireVendor } from '@/lib/auth-helpers'
+import { fanOutBroadcast } from '@/lib/broadcast'
 
 /**
  * POST /api/vendors/[id]/broadcast
  *
- * VIP-gated vendor broadcast. A vendor with `vipFlag === true` on their User
- * row may send a one-shot broadcast message that fans out to ALL users as a
- * Notification row (type='broadcast', title=`<businessName> broadcast`).
+ * VIP-gated vendor broadcast (IMMEDIATE send). Fans out a notification to
+ * the vendor's subscribers via the shared `fanOutBroadcast` helper.
  *
- * Subscriptions are localStorage-only for MVP — there is no server-side
- * subscriber list — so we fan out to every user. Future work: replace the
- * full fan-out with a Subscription-table lookup.
+ * Task 4: recipients = foodie users subscribed to this vendor (via
+ * VendorSubscription table). Vendors, admins, and the broadcaster themselves
+ * are excluded.
+ *
+ * Task 5: for scheduling a broadcast at a future date/time, see
+ * /api/vendors/[id]/scheduled-broadcasts — the scheduler in realtime-service
+ * polls every 60s for due rows and calls `fanOutBroadcast` to send them.
  *
  * Body: { message: string, dealId?: string }
  */
@@ -122,93 +126,28 @@ export async function POST(
       }
     }
 
-    // Fan out: create a Notification row for every user AND emit via socket.
-    const { data: allUsers, error: usersError } = await supabase
-      .from('User')
-      .select('id')
-      .eq('isBanned', false)
-
-    if (usersError) {
-      console.error('Broadcast user list error:', usersError.message)
-      return NextResponse.json(
-        { success: false, error: 'Internal server error' },
-        { status: 500 }
-      )
-    }
-
-    const users = (allUsers ?? []) as { id: string }[]
-    if (users.length === 0) {
-      return NextResponse.json({
-        success: true,
-        data: { recipients: 0, message: 'No users to broadcast to' },
-      })
-    }
-
-    const title = `${vendor.businessName}`
-    const dataPayload = JSON.stringify({
+    // Task 4 + Task 5: delegate fan-out to the shared helper so the same
+    // logic is reused by the scheduled-broadcast scheduler.
+    const recipients = await fanOutBroadcast({
       vendorId: vendor.id,
+      vendorBusinessName: vendor.businessName,
+      message,
       dealId,
       senderUserId: authUser.userId,
     })
 
-    const rows = users.map((u) => ({
-      id: genId('notif'),
-      userId: u.id,
-      type: 'broadcast' as const,
-      title,
-      message,
-      data: dataPayload,
-      read: false,
-    }))
-
-    // Insert notifications in chunks
-    const CHUNK = 500
-    let inserted = 0
-    for (let i = 0; i < rows.length; i += CHUNK) {
-      const slice = rows.slice(i, i + CHUNK)
-      const ins = await supabase.from('Notification').insert(slice)
-      if (ins.error) {
-        console.error('Broadcast insert chunk error:', ins.error.message)
-      } else {
-        inserted += slice.length
-      }
-    }
-
-    // Emit real-time notifications via the socket.io service.
-    // The realtime service listens for HTTP POST on /broadcast which then
-    // emits 'notification:new' to each user's personal room.
-    // This is non-blocking — if the socket service is down, the DB
-    // notifications still exist and will be picked up by polling.
-    try {
-      await fetch(`http://127.0.0.1:3003/broadcast`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userIds: users.map(u => u.id),
-          notification: {
-            type: 'broadcast',
-            title,
-            message,
-            data: dataPayload,
-            dealId: dealId || undefined,
-          },
-        }),
-        signal: AbortSignal.timeout(3000),
-      })
-    } catch (socketErr) {
-      console.warn('Socket emit failed (non-fatal — DB notifications still created):', socketErr instanceof Error ? socketErr.message : socketErr)
-    }
-
     return NextResponse.json({
       success: true,
       data: {
-        recipients: inserted,
+        recipients,
         vendorId: vendor.id,
-        title,
+        title: vendor.businessName,
         message,
         dealId,
       },
-      message: `Broadcast sent to ${inserted} user${inserted === 1 ? '' : 's'}`,
+      message: recipients === 0
+        ? 'No subscribers to broadcast to yet'
+        : `Broadcast sent to ${recipients} subscriber${recipients === 1 ? '' : 's'}`,
     })
   } catch (error) {
     console.error('Vendor broadcast error:', error)
