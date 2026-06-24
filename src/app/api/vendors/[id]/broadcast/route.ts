@@ -144,7 +144,7 @@ export async function POST(
       })
     }
 
-    const title = `${vendor.businessName} broadcast`
+    const title = `${vendor.businessName}`
     const dataPayload = JSON.stringify({
       vendorId: vendor.id,
       dealId,

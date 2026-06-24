@@ -1784,9 +1784,10 @@ function FoodieOrdersView() {
   const completedOrders = orders.filter(o => o.status === 'completed')
   const expiredOrders = orders.filter(o => o.status === 'expired' || o.status === 'cancelled')
   // Burnt = pickup overdue (deadline passed but still pending_pickup — no refund)
+  // Only pending_pickup orders can be burnt; picked_up orders are already being processed.
   const now = Date.now()
-  const burntOrders = activeOrders.filter(o => o.pickupDeadline && new Date(o.pickupDeadline).getTime() < now)
-  const nonBurntActive = activeOrders.filter(o => !o.pickupDeadline || new Date(o.pickupDeadline).getTime() >= now)
+  const burntOrders = orders.filter(o => o.status === 'pending_pickup' && o.pickupDeadline && new Date(o.pickupDeadline).getTime() < now)
+  const nonBurntActive = activeOrders.filter(o => !burntOrders.some(b => b.id === o.id))
 
   const tabConfig = [
     { key: 'active' as const, label: 'Active', count: nonBurntActive.length, icon: Clock, color: '#E53935' },
@@ -6391,19 +6392,54 @@ function AdminBroadcastLogView() {
 // NOTIFICATION BELL
 // ============================================
 const NotificationBell = memo(function NotificationBell() {
-  const { unreadCount, markAllAsRead } = useNotificationStore()
+  const { unreadCount, markAllAsRead, setUnreadCount, clearAll } = useNotificationStore()
   const { navigate } = useAppStore()
   const [showModal, setShowModal] = useState(false)
   const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null)
-  const [fullNotifs, setFullNotifs] = useState<AppNotification[]>([])
+  const [topNotifs, setTopNotifs] = useState<AppNotification[]>([])
+  const [notifDeal, setNotifDeal] = useState<Deal | null>(null)
 
+  // Fetch top 10 notifications when modal opens, and mark all as read server-side
   useEffect(() => {
     if (showModal) {
-      apiFetch<{ notifications: AppNotification[] }>('/api/notifications?pageSize=50').then((res) => {
-        if (res.success && res.data) setFullNotifs(res.data.notifications || [])
+      apiFetch<{ notifications: AppNotification[]; total: number }>(`/api/notifications?pageSize=10`).then((res) => {
+        if (res.success && res.data) setTopNotifs(res.data.notifications || [])
       })
+      // Mark ALL as read on server — single API call
+      if (unreadCount > 0) {
+        apiFetch('/api/notifications/read-all', { method: 'PUT' }).then(() => {
+          markAllAsRead()
+        }).catch(() => {})
+      }
     }
   }, [showModal])
+
+  // Fetch deal when a notification with dealId is opened
+  useEffect(() => {
+    if (selectedNotif) {
+      setNotifDeal(null)
+      let dealId = selectedNotif.dealId
+      if (!dealId && selectedNotif.data) {
+        try { dealId = JSON.parse(selectedNotif.data).dealId } catch { /* */ }
+      }
+      if (dealId) {
+        apiFetch<Deal>(`/api/deals/${dealId}`).then((res) => {
+          if (res.success && res.data) setNotifDeal(res.data)
+        }).catch(() => {})
+      }
+    }
+  }, [selectedNotif])
+
+  const handleClearAll = async () => {
+    try {
+      await apiFetch('/api/notifications/clear-all', { method: 'DELETE' })
+      setTopNotifs([])
+      clearAll()
+      toast.success('All notifications cleared')
+    } catch {
+      toast.error('Failed to clear notifications')
+    }
+  }
 
   return (
     <>
@@ -6414,25 +6450,28 @@ const NotificationBell = memo(function NotificationBell() {
       >
         <Bell className="w-5 h-5 text-[#E53935]" />
         {unreadCount > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center"
-          >
+          <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center">
             {unreadCount > 9 ? '9+' : unreadCount}
           </motion.span>
         )}
       </button>
 
-      <Dialog open={showModal} onOpenChange={setShowModal}>
+      <Dialog open={showModal} onOpenChange={(v) => { setShowModal(v); if (!v) setSelectedNotif(null) }}>
         <DialogContent className="rounded-2xl max-w-md max-h-[85vh] overflow-y-auto p-0">
           <DialogHeader className="bg-gradient-to-br from-[#E53935]/20 to-[#E53935]/5 px-5 pt-5 pb-3">
-            <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
-              <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {fullNotifs.length} notification{fullNotifs.length === 1 ? '' : 's'} · {unreadCount} unread
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
+                  <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
+                </DialogTitle>
+                <DialogDescription className="text-xs">{topNotifs.length} recent</DialogDescription>
+              </div>
+              {topNotifs.length > 0 && !selectedNotif && (
+                <Button variant="outline" size="sm" onClick={handleClearAll} className="h-7 px-2.5 rounded-lg text-[10px] font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10">
+                  <Trash2 className="w-3 h-3 mr-1" /> Clear All
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           {selectedNotif ? (
@@ -6441,44 +6480,55 @@ const NotificationBell = memo(function NotificationBell() {
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </button>
               <div className="bg-[#f8faf9] rounded-xl p-4">
-                <h3 className="font-bold text-sm text-[#1a1c1e] mb-2">{selectedNotif.title}</h3>
+                {/* Vendor name as header */}
+                <div className="flex items-center gap-2 mb-2">
+                  <Store className="w-4 h-4 text-[#E53935]" />
+                  <h3 className="font-bold text-sm text-[#1a1c1e]">{selectedNotif.title}</h3>
+                </div>
+                {/* Broadcast message */}
                 <p className="text-xs text-[#414841] leading-relaxed mb-3">{selectedNotif.message}</p>
-                <p className="text-[10px] text-[#717971]">{new Date(selectedNotif.createdAt).toLocaleString()}</p>
-                {(() => {
-                  // Parse dealId from the data JSON field (broadcast notifications
-                  // store dealId inside data: {"vendorId":"...","dealId":"...","senderUserId":"..."})
-                  let parsedDealId: string | undefined = selectedNotif.dealId
-                  if (!parsedDealId && selectedNotif.data) {
-                    try {
-                      const parsed = JSON.parse(selectedNotif.data)
-                      parsedDealId = parsed.dealId || undefined
-                    } catch { /* not JSON */ }
-                  }
-                  if (parsedDealId) {
-                    return (
-                      <Button size="sm" onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: parsedDealId! }) }} className="mt-3 w-full h-9 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold">
-                        <Flame className="w-3.5 h-3.5 mr-1.5" /> View Deal
-                      </Button>
-                    )
-                  }
-                  return null
-                })()}
+                <p className="text-[10px] text-[#717971] mb-3">{new Date(selectedNotif.createdAt).toLocaleString()}</p>
+
+                {/* Deal card if attached */}
+                {notifDeal && (
+                  <button
+                    onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: notifDeal.id }) }}
+                    className="w-full flex gap-3 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
+                  >
+                    <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2] relative">
+                      {notifDeal.imageUrl ? (
+                        <Image src={notifDeal.imageUrl} alt={notifDeal.title} fill className="object-cover" sizes="64px" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center"><Utensils className="w-6 h-6 text-[#c1c9c0]" /></div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-xs font-bold text-[#1a1c1e] truncate">{notifDeal.title}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-sm font-extrabold text-[#E53935]">RM{notifDeal.dealPrice.toFixed(2)}</span>
+                        <span className="text-[10px] text-[#717971] line-through">RM{notifDeal.originalPrice.toFixed(2)}</span>
+                        <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded text-[9px]">-{notifDeal.discountPercent}%</Badge>
+                      </div>
+                      <p className="text-[10px] text-[#717971] mt-0.5">{notifDeal.availableQuantity} left</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#717971] flex-shrink-0 self-center" />
+                  </button>
+                )}
               </div>
             </div>
           ) : (
-            <div className="px-3 pb-4 pt-2 space-y-1.5 max-h-[60vh] overflow-y-auto">
-              {fullNotifs.length === 0 ? (
+            <div className="px-3 pb-4 pt-2 space-y-1.5">
+              {topNotifs.length === 0 ? (
                 <div className="text-center py-8">
                   <Bell className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
                   <p className="text-sm text-[#717971]">No notifications yet</p>
                 </div>
               ) : (
-                fullNotifs.map((notif) => (
-                  <button key={notif.id} onClick={() => { setSelectedNotif(notif); if (!notif.read) { apiFetch(`/api/notifications/${notif.id}/read`, { method: 'PUT' }).catch(() => {}) } }} className={`w-full text-left p-3 rounded-xl transition-all ${notif.read ? 'bg-[#f8faf9]' : 'bg-[#E53935]/5 border border-[#E53935]/15'}`}>
+                topNotifs.map((notif) => (
+                  <button key={notif.id} onClick={() => setSelectedNotif(notif)} className={`w-full text-left p-3 rounded-xl transition-all ${notif.read ? 'bg-[#f8faf9]' : 'bg-[#E53935]/5 border border-[#E53935]/15'}`}>
                     <div className="flex items-start gap-2">
-                      {!notif.read && <div className="w-2 h-2 rounded-full bg-[#E53935] flex-shrink-0 mt-1.5" />}
                       <div className="flex-1 min-w-0">
-                        <p className={`text-xs ${notif.read ? 'font-medium text-[#1a1c1e]' : 'font-bold text-[#1a1c1e]'}`}>{notif.title}</p>
+                        <p className="text-xs font-bold text-[#1a1c1e]">{notif.title}</p>
                         <p className="text-[10px] text-[#717971] mt-0.5 line-clamp-2">{notif.message}</p>
                         <p className="text-[9px] text-[#717971] mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
                       </div>
@@ -6486,11 +6536,6 @@ const NotificationBell = memo(function NotificationBell() {
                     </div>
                   </button>
                 ))
-              )}
-              {unreadCount > 0 && (
-                <button onClick={() => { markAllAsRead(); apiFetch('/api/notifications?unReadOnly=true').then((res) => { if (res.success && res.data) { (res.data.notifications || []).forEach((n) => { apiFetch(`/api/notifications/${n.id}/read`, { method: 'PUT' }).catch(() => {}) }) } }); setFullNotifs(prev => prev.map(n => ({ ...n, read: true }))) }} className="w-full text-center text-xs font-bold text-[#E53935] py-2 mt-2">
-                  Mark all as read
-                </button>
               )}
             </div>
           )}

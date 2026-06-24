@@ -6,6 +6,18 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  return markAsRead(params)
+}
+
+// Also accept PUT — the client uses PUT for marking as read
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return markAsRead(params)
+}
+
+async function markAsRead(params: Promise<{ id: string }>) {
   try {
     const { id } = await params
     const authUser = await getAuthUser()
@@ -17,43 +29,28 @@ export async function POST(
       )
     }
 
-    const notifRes = await supabase
+    // Use .eq('read', false) for idempotency — no-op if already read
+    const { data: updatedNotification, error } = await supabase
       .from('Notification')
-      .select('*')
+      .update({ read: true })
       .eq('id', id)
+      .eq('userId', authUser.userId)
+      .eq('read', false)
+      .select()
       .single()
 
-    if (notifRes.error || !notifRes.data) {
+    if (error) {
+      // PGRST116 = no rows (already read or not found) — treat as success
+      if (error.code === 'PGRST116') {
+        return NextResponse.json({ success: true, data: null })
+      }
       return NextResponse.json(
         { success: false, error: 'Notification not found' },
         { status: 404 }
       )
     }
 
-    const notification = notifRes.data
-
-    // Verify ownership
-    if (notification.userId !== authUser.userId) {
-      return NextResponse.json(
-        { success: false, error: 'You can only mark your own notifications as read' },
-        { status: 403 }
-      )
-    }
-
-    const updatedNotification = unwrap(
-      await supabase
-        .from('Notification')
-        .update({ read: true })
-        .eq('id', id)
-        .select()
-        .single(),
-      'Mark notification as read'
-    )
-
-    return NextResponse.json({
-      success: true,
-      data: updatedNotification,
-    })
+    return NextResponse.json({ success: true, data: updatedNotification })
   } catch (error) {
     console.error('Mark notification read error:', error)
     return NextResponse.json(
