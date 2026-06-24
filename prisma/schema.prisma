@@ -299,6 +299,8 @@ model ScheduledBroadcast {
   id             String   @id @default(cuid())
   vendorId       String
   vendor         Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  // Issue 6: optional title for the broadcast notification (supports emojis).
+  title          String?
   message        String
   dealId         String?
   scheduledAt    DateTime

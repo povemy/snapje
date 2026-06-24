@@ -75,7 +75,7 @@ export async function GET(
 
     const { data, error } = await supabase
       .from('ScheduledBroadcast')
-      .select('id, message, dealId, scheduledAt, status, createdAt, sentAt, recipientCount')
+      .select('id, title, message, dealId, scheduledAt, status, createdAt, sentAt, recipientCount')
       .eq('vendorId', id)
       .order('scheduledAt', { ascending: false })
       .limit(100)
@@ -158,6 +158,8 @@ export async function POST(
     const body = await request.json().catch(() => ({}))
     const message = typeof body.message === 'string' ? body.message.trim() : ''
     const dealId = typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null
+    // Issue 6: optional title (max 100 chars, supports emojis via UTF-8).
+    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 100) : null
     const scheduledAtDate = parseDateSafe(body.scheduledAt)
 
     if (!message) {
@@ -247,6 +249,8 @@ export async function POST(
       .insert({
         id: genId('sb'),
         vendorId: id,
+        // Issue 6: store the title (nullable for backward compat).
+        title,
         message,
         dealId,
         scheduledAt: scheduledAtDate.toISOString(),

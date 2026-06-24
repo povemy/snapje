@@ -250,12 +250,13 @@ export default function RootLayout({
           containerAriaLabel="Notifications"
           className="snapje-toaster"
           toastOptions={{
-            // Issue 11: white background, black font, 98% width, +25% height
-            // (padding increased from 14px→18px vertical = ~25% taller).
+            // Issue 1: width matches the "Order Confirmed" success card
+            // (left-3 right-3 = 12px margins each side, max-w-lg = 512px max).
+            // Using calc(100vw - 24px) ensures identical width + centering.
             style: {
               fontFamily: '"Nunito Sans", sans-serif',
-              width: '98vw',
-              maxWidth: '480px',
+              width: 'calc(100vw - 24px)',
+              maxWidth: '512px',
               minWidth: '280px',
               borderRadius: '16px',
               background: '#ffffff',
@@ -266,6 +267,7 @@ export default function RootLayout({
               fontSize: '14px',
               fontWeight: 700,
               animation: 'snapjeToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
+              margin: '0 auto',
             },
             info: {
               style: { background: '#ffffff', color: '#1a1c1e' },

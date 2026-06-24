@@ -30,10 +30,15 @@ export interface BroadcastInput {
   message: string
   dealId?: string | null
   senderUserId: string
+  // Issue 6: optional title for the notification. If provided, used as the
+  // notification's title (highlighted). Falls back to vendorBusinessName.
+  notificationTitle?: string
 }
 
 export async function fanOutBroadcast(input: BroadcastInput): Promise<number> {
   const { vendorId, vendorBusinessName, message, dealId, senderUserId } = input
+  // Issue 6: use the vendor-provided title, or fall back to business name.
+  const title = input.notificationTitle || vendorBusinessName
 
   // 1. Fetch the vendor's subscribers
   const { data: subscriberRows, error: subError } = await supabase
@@ -79,7 +84,7 @@ export async function fanOutBroadcast(input: BroadcastInput): Promise<number> {
   if (users.length === 0) return 0
 
   // 3. Build notification rows
-  const title = vendorBusinessName
+  // `title` was already set above (Issue 6: vendor-provided or business name).
   const dataPayload = JSON.stringify({
     vendorId,
     dealId: dealId || null,

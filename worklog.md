@@ -1362,3 +1362,38 @@ Stage Summary:
 - Switch Mode only shows enabled roles, centered.
 - Broadcast Schedule tab scrolls properly.
 - Toast is white bg + black text, 98% width, taller, positioned above the bottom nav.
+
+---
+Task ID: 7-issues-toast-order-logout-near-broadcast-switch
+Agent: Main Agent
+Task: Fix 7 issues: (1) toast width off-center, (2) pickup reminder shows deal card instead of order card, (3) order card sizes inconsistent across tabs, (4) auto-logout within 2 min, (5) Near button deselection race condition, (6) broadcast title field with emoji support, (7) switch mode into bio card.
+
+Work Log:
+- **Issue 1 (toast width/centering)**: Changed toast width from `98vw / max 480px` to `calc(100vw - 24px) / max 512px` — matching the "Order Confirmed" success card's `left-3 right-3 max-w-lg` (12px margins, 512px max). Added `margin: '0 auto'` for perfect centering.
+- **Issue 2 (pickup reminder shows order card)**: Updated NotificationBell's entity-fetching effect to treat `pickup_reminder` the same as `claim_confirmed` — both now fetch the order via `/api/orders/[orderId]` and display the order-id card (click → Orders page). Also added a Clock icon for pickup_reminder in the notification list.
+- **Issue 3 (order card sizes)**: Changed Active tab from `p-3` back to `p-3.5` (matching Completed tab). Changed Burnt tab thumbnail from `w-14 h-14` to `w-12 h-12` (matching Completed). All four tabs (Active/Completed/Burnt/Expired) now use identical `p-3.5` padding + `w-12 h-12` thumbnail.
+- **Issue 4 (auto-logout)**: Root cause was TWO issues: (a) the idle-timeout effect I added in the previous task was firing false positives, and (b) the cookie `maxAge` values were still 15 min (access) / 7 days (refresh) — NOT matching the updated JWT expiries (24h / 30d). The 15-min cookie deletion forced a refresh on every request, and if the refresh failed (cookie blocking), the user got logged out. Fix: removed the idle-timeout effect entirely + updated cookie maxAge to 24h (access) / 30d (refresh). No auto-logout at all now — only the Sign Out button logs you out.
+- **Issue 5 (Near button race condition)**: Root cause was a dual-effect race. When deselecting "Near", `handleNearMe` set `radiusEnabled=false` AND bumped `geoNonce`. Two effects fired simultaneously: (1) the `fetchDeals` effect (correct — fetches without radius), (2) the `geoNonce` effect which hardcoded `{ withRadius: true }` (wrong — overrides back to radius-filtered). Fix: (a) removed `setGeoNonce` from the toggle-off branch (the `fetchDeals` effect auto-fires when `radiusEnabled` changes), (b) changed the geoNonce effect from `{ withRadius: true }` to `{ withRadius: radiusEnabled }` so it respects the current toggle state.
+- **Issue 6 (broadcast title + emojis)**:
+  - DB: Added `title TEXT` column to ScheduledBroadcast table (nullable). Migration applied.
+  - Schema: Updated prisma/schema.prisma with `title String?` on ScheduledBroadcast.
+  - API (broadcast route): Accepts `title` in POST body (max 100 chars). Passes it to `fanOutBroadcast` as `notificationTitle`. Falls back to `vendor.businessName` if no title provided.
+  - API (scheduled-broadcasts route): Accepts `title` in POST body. Stores it on the ScheduledBroadcast row. GET returns `title` in the select.
+  - Helper (`src/lib/broadcast.ts`): Added `notificationTitle?` to `BroadcastInput`. Uses it as the notification title, falling back to `vendorBusinessName`.
+  - Scheduler (realtime-service): Updated `executeScheduledBroadcast` to accept `title` from the row. Query includes `title`. Uses `row.title || vendor.businessName` as the notification title.
+  - Frontend: Added `broadcastTitle` state + a Title input field in the modal (above the Message field). Placeholder shows emoji example "🔥 Flash Sale This Weekend!". Title is sent in both "Now" and "Schedule" API calls. Scheduled list displays the title in bold above the message. Emojis are preserved because Postgres TEXT is UTF-8 native — no encoding conversion needed.
+  - Verified: typed "🔥 Flash Sale!" in the Title field — emoji preserved in the input value.
+- **Issue 7 (switch mode in bio card)**: Removed the standalone "Switch Mode" section (was above the bio card). Added a compact Switch Mode INSIDE the user bio Card, below the email, separated by a `border-t`. Uses small pill-style buttons (`px-3 py-1.5 rounded-lg` with `w-3.5 h-3.5` icons + `text-[10px]` labels). Only renders when `roles.length > 1` (single-role users don't see it). Only enabled roles are shown, centered via `flex justify-center`. Verified: foodie+vendor user sees "Foodie" and "Vendor" pills inside the bio card.
+
+- **Lint**: `bun run lint` → 0 errors, 0 warnings.
+- **Browser verification**: Verified Issue 6 (Title field with emoji), Issue 7 (Switch Mode inside bio card). Issues 1-5 verified via code review + lint.
+
+Stage Summary:
+- All 7 issues fixed.
+- Toast width matches the success card (calc(100vw-24px), max 512px, centered).
+- Pickup reminder notifications now show the order-id card (click → Orders).
+- All order tabs use the same card size (p-3.5, w-12 h-12 thumbnail).
+- Auto-logout completely removed. Cookie session = 30 days. Only Sign Out logs you out.
+- Near button deselection no longer flashes radius-filtered results.
+- Broadcast modal has a Title field (supports emojis). Title is used as the notification title.
+- Switch Mode is compact and inside the bio card, below the email.

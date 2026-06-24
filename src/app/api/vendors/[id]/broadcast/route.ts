@@ -87,9 +87,17 @@ export async function POST(
     }
 
     // Parse + validate body.
+    // Issue 6: added optional `title` field. The title is used as the
+    // notification's title (highlighted in the UI). It supports emojis —
+    // we accept it as a UTF-8 string and store it verbatim in the DB.
+    // Postgres TEXT columns are UTF-8 natively, so emoji characters are
+    // preserved without any encoding issues.
     const body = await request.json().catch(() => ({}))
     const message = typeof body.message === 'string' ? body.message.trim() : ''
     const dealId = typeof body.dealId === 'string' && body.dealId.trim() ? body.dealId.trim() : null
+    // Title: optional, max 100 chars. If not provided, falls back to the
+    // vendor's business name (legacy behavior).
+    const title = typeof body.title === 'string' ? body.title.trim().slice(0, 100) : ''
 
     if (!message) {
       return NextResponse.json(
@@ -128,9 +136,14 @@ export async function POST(
 
     // Task 4 + Task 5: delegate fan-out to the shared helper so the same
     // logic is reused by the scheduled-broadcast scheduler.
+    // Issue 6: pass the vendor-provided title (or fall back to business name).
+    const broadcastTitle = title || vendor.businessName
     const recipients = await fanOutBroadcast({
       vendorId: vendor.id,
       vendorBusinessName: vendor.businessName,
+      // Issue 6: use the vendor-provided title as the notification title.
+      // If no title was provided, fall back to the vendor's business name.
+      notificationTitle: broadcastTitle,
       message,
       dealId,
       senderUserId: authUser.userId,
@@ -141,7 +154,7 @@ export async function POST(
       data: {
         recipients,
         vendorId: vendor.id,
-        title: vendor.businessName,
+        title: broadcastTitle,
         message,
         dealId,
       },

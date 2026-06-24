@@ -191,6 +191,8 @@ async function executeScheduledBroadcast(row: {
   vendorId: string
   message: string
   dealId: string | null
+  // Issue 6: optional title from the ScheduledBroadcast row.
+  title: string | null
 }) {
   console.log(`[Scheduler] Executing scheduled broadcast ${row.id} for vendor ${row.vendorId}`)
 
@@ -259,7 +261,8 @@ async function executeScheduledBroadcast(row: {
   }
 
   // 5. Insert Notification rows (chunked at 500)
-  const title = vendor.businessName
+  // Issue 6: use the vendor-provided title, or fall back to business name.
+  const title = row.title || vendor.businessName
   const dataPayload = JSON.stringify({
     vendorId: vendor.id,
     dealId: row.dealId,
@@ -318,7 +321,7 @@ async function schedulerTick() {
     const nowIso = new Date().toISOString()
     const { data: dueRows, error } = await supabase
       .from('ScheduledBroadcast')
-      .select('id, vendorId, message, dealId')
+      .select('id, vendorId, message, dealId, title')
       .eq('status', 'pending')
       .lte('scheduledAt', nowIso)
       .limit(50) // cap per tick to avoid runaway fan-out
@@ -329,7 +332,7 @@ async function schedulerTick() {
     if (!dueRows || dueRows.length === 0) return
     console.log(`[Scheduler] Found ${dueRows.length} due scheduled broadcast(s)`)
     // Execute sequentially to avoid hammering Supabase with concurrent fan-outs
-    for (const row of dueRows as Array<{ id: string; vendorId: string; message: string; dealId: string | null }>) {
+    for (const row of dueRows as Array<{ id: string; vendorId: string; message: string; dealId: string | null; title: string | null }>) {
       await executeScheduledBroadcast(row)
     }
   } catch (e) {

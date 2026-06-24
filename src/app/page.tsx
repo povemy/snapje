@@ -1008,23 +1008,30 @@ function FoodieHomeView() {
   }, [fetchDeals])
 
   // ISSUE 2: when geoNonce changes (i.e. the user just granted location via
-  // the "Near me" button), re-fetch with the radius filter active.
+  // the "Near me" button), re-fetch. We pass `{ withRadius: radiusEnabled }`
+  // so the fetch respects the CURRENT toggle state — if the user just turned
+  // "Near" off, this won't override it back to radius-filtered results.
   useEffect(() => {
     if (geoNonce === 0) return
     const controller = new AbortController()
-    fetchDeals(controller.signal, { withRadius: true })
+    fetchDeals(controller.signal, { withRadius: radiusEnabled })
     return () => controller.abort()
-  }, [geoNonce, fetchDeals])
+  }, [geoNonce, fetchDeals, radiusEnabled])
 
   // ISSUE 2: "Near me" button handler. Requests geolocation, then flips on
   // the radius filter and bumps geoNonce to trigger a re-fetch.
   const handleNearMe = useCallback(() => {
     if (geo.loading) return
-    // Issue 1: toggle behavior. If "Near" is already active, clicking it
-    // again should turn it OFF so the foodie goes back to seeing all deals.
+    // Issue 1 + Issue 5: toggle behavior. If "Near" is already active, clicking
+    // it again turns it OFF. We do NOT bump geoNonce here — the fetchDeals
+    // useCallback dependency on `radiusEnabled` will automatically trigger a
+    // re-fetch (without radius) via the main effect. Bumping geoNonce would
+    // cause the geoNonce effect to fire with `{ withRadius: radiusEnabled }`,
+    // but since React batches state updates, radiusEnabled might still be the
+    // old value (true) in the effect's closure, causing a brief flash of
+    // radius-filtered results before reverting to all deals.
     if (radiusEnabled) {
       setRadiusEnabled(false)
-      setGeoNonce(n => n + 1)
       toast.info('Showing all deals')
       return
     }
@@ -2051,10 +2058,9 @@ function FoodieOrdersView() {
                 {nonBurntActive.map((order) => (
                   <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
                     <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
-                      {/* Issue 6: uniform p-3 padding (top/bottom = left/right),
-                          tighter internal spacing to reduce card height. */}
-                      <CardContent className="p-3">
-                        <div className="flex gap-2.5">
+                      {/* Issue 3: p-3.5 to match Completed tab's card size. */}
+                      <CardContent className="p-3.5">
+                        <div className="flex gap-3">
                           {/* Thumbnail */}
                           <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
                             {order.deal?.imageUrl ? (
@@ -2075,7 +2081,7 @@ function FoodieOrdersView() {
                               <QrCode className="w-4 h-4 text-[#E53935] flex-shrink-0" />
                             </div>
                             {/* Pickup time with red */}
-                            <div className="flex items-center gap-1.5 mt-1">
+                            <div className="flex items-center gap-1.5 mt-1.5">
                               <Clock className="w-3 h-3 text-[#E53935]" />
                               <span className="text-[11px] font-bold text-[#E53935]">
                                 Pickup by {parseDbDate(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -2170,12 +2176,13 @@ function FoodieOrdersView() {
                   <Card key={order.id} className="border-0 shadow-card rounded-2xl opacity-60">
                     <CardContent className="p-3.5">
                       <div className="flex gap-3">
-                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                        {/* Issue 3: w-12 h-12 to match Completed tab. */}
+                        <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
                           {order.deal?.imageUrl ? (
-                            <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={56} height={56} className="w-full h-full object-cover grayscale" />
+                            <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={48} height={48} className="w-full h-full object-cover grayscale" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <Utensils className="w-6 h-6 text-[#c1c9c0]" />
+                              <Utensils className="w-5 h-5 text-[#c1c9c0]" />
                             </div>
                           )}
                         </div>
@@ -2527,35 +2534,8 @@ function FoodieProfileView() {
     <div className="pb-28 px-5 pt-2">
       <h1 className="text-2xl font-extrabold text-[#1a1c1e] mb-4">Me</h1>
 
-      {/* Role Switching - TOP */}
-      <h3 className="font-bold text-[#1a1c1e] text-sm mb-2">Switch Mode</h3>
-      {/* Issue 9: only show enabled modes (hide disabled ones entirely),
-          center the selection with flex + justify-center. */}
-      <div className="flex justify-center gap-2 mb-4">
-        {(['foodie', 'vendor', 'admin'] as AppRole[])
-          .filter((role) => roles.includes(role))
-          .map((role) => {
-            const isActive = user?.activeRole === role
-            const icons = { foodie: Utensils, vendor: Store, admin: Shield }
-            const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
-            const Icon = icons[role]
-            return (
-              <button
-                key={role}
-                onClick={() => handleRoleSwitch(role)}
-                className={`flex flex-col items-center gap-1 px-6 py-3 rounded-xl transition-all ${
-                  isActive ? 'bg-[#E53935] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
-                }`}
-              >
-                <Icon className="w-5 h-5" />
-                <span className="text-[11px] font-bold">{labels[role]}</span>
-                {isActive && <Check className="w-3 h-3" />}
-              </button>
-            )
-          })}
-      </div>
-
-      {/* User Card - COMPACT with avatar upload */}
+      {/* User Card - COMPACT with avatar upload + Switch Mode inside */}
+      {/* Issue 7: Switch Mode moved INTO the bio card, below the email. */}
       <Card className="border-0 shadow-card rounded-xl mb-4">
         <CardContent className="p-3">
           <div className="flex items-center gap-3">
@@ -2591,6 +2571,36 @@ function FoodieProfileView() {
               {activeRole === 'foodie' ? '🍽️ Foodie' : activeRole === 'vendor' ? '🏪 Vendor' : '🛡️ Admin'}
             </Badge>
           </div>
+
+          {/* Issue 7: compact Switch Mode inside the bio card, below the email.
+              Only shows enabled roles, centered, small pill-style buttons. */}
+          {roles.length > 1 && (
+            <div className="mt-3 pt-3 border-t border-[#e8edea]">
+              <div className="flex justify-center gap-1.5">
+                {(['foodie', 'vendor', 'admin'] as AppRole[])
+                  .filter((role) => roles.includes(role))
+                  .map((role) => {
+                    const isActive = user?.activeRole === role
+                    const icons = { foodie: Utensils, vendor: Store, admin: Shield }
+                    const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
+                    const Icon = icons[role]
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => handleRoleSwitch(role)}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg transition-all ${
+                          isActive ? 'bg-[#E53935] text-white shadow-sm' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" />
+                        <span className="text-[10px] font-bold">{labels[role]}</span>
+                        {isActive && <Check className="w-2.5 h-2.5" />}
+                      </button>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -3141,13 +3151,15 @@ function VendorDashboardView() {
   // Broadcast modal state (VIP vendors only — gated by user.vipFlag).
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
   const [broadcastMessage, setBroadcastMessage] = useState('')
+  // Issue 6: optional title for the broadcast (supports emojis).
+  const [broadcastTitle, setBroadcastTitle] = useState('')
   const [broadcastDealId, setBroadcastDealId] = useState<string>('')
   const [sendingBroadcast, setSendingBroadcast] = useState(false)
   // Task 5: Now/Schedule tabs in the broadcast modal + scheduled-broadcast state
   const [broadcastTab, setBroadcastTab] = useState<'now' | 'schedule'>('now')
   const [scheduledAt, setScheduledAt] = useState<string>('') // datetime-local string
   const [scheduledList, setScheduledList] = useState<Array<{
-    id: string; message: string; dealId: string | null; scheduledAt: string;
+    id: string; title: string | null; message: string; dealId: string | null; scheduledAt: string;
     status: string; sentAt: string | null; recipientCount: number
   }>>([])
   const [loadingScheduled, setLoadingScheduled] = useState(false)
@@ -3201,7 +3213,7 @@ function VendorDashboardView() {
     if (!vendor) return
     setLoadingScheduled(true)
     apiFetch<{ scheduled: Array<{
-      id: string; message: string; dealId: string | null; scheduledAt: string;
+      id: string; title: string | null; message: string; dealId: string | null; scheduledAt: string;
       status: string; sentAt: string | null; recipientCount: number
     }> }>(`/api/vendors/${vendor.id}/scheduled-broadcasts`).then((res) => {
       if (res.success && res.data) {
@@ -3417,6 +3429,8 @@ function VendorDashboardView() {
           {
             method: 'POST',
             body: JSON.stringify({
+              // Issue 6: include the title (empty string → null on server).
+              title: broadcastTitle.trim() || undefined,
               message: trimmed,
               dealId: broadcastDealId || undefined,
               scheduledAt: scheduledDate.toISOString(),
@@ -3427,6 +3441,7 @@ function VendorDashboardView() {
           toast.success(`Broadcast scheduled for ${scheduledDate.toLocaleString()} ⏰`)
           setShowBroadcastModal(false)
           setBroadcastMessage('')
+          setBroadcastTitle('')
           setBroadcastDealId('')
           setScheduledAt('')
           // Refresh the scheduled list so the new entry appears
@@ -3448,6 +3463,8 @@ function VendorDashboardView() {
         {
           method: 'POST',
           body: JSON.stringify({
+            // Issue 6: include the title (empty → server falls back to business name).
+            title: broadcastTitle.trim() || undefined,
             message: trimmed,
             dealId: broadcastDealId || undefined,
           }),
@@ -3462,6 +3479,7 @@ function VendorDashboardView() {
         }
         setShowBroadcastModal(false)
         setBroadcastMessage('')
+        setBroadcastTitle('')
         setBroadcastDealId('')
       } else {
         toast.error(res.error || 'Failed to send broadcast')
@@ -4057,6 +4075,25 @@ function VendorDashboardView() {
           </div>
 
           <div className="px-5 pb-5 space-y-4">
+            {/* ── Title input (Issue 6: optional, supports emojis) ── */}
+            <div>
+              <Label htmlFor="broadcast-title" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                Title <span className="text-[#717971] font-normal">({broadcastTitle.length}/100) — optional</span>
+              </Label>
+              <Input
+                id="broadcast-title"
+                // Issue 6: no maxLength on the raw input — we slice in the
+                // onChange handler. `enterKeyHint="next"` for mobile UX.
+                value={broadcastTitle}
+                onChange={(e) => setBroadcastTitle(e.target.value.slice(0, 100))}
+                placeholder="e.g. 🔥 Flash Sale This Weekend!"
+                className="rounded-xl h-11 text-sm"
+              />
+              <p className="text-[10px] text-[#717971] mt-1">
+                Shown as the notification title (highlighted). Emojis from your phone keyboard are supported.
+              </p>
+            </div>
+
             {/* ── Message input (shared by both tabs) ── */}
             <div>
               <Label htmlFor="broadcast-message" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
@@ -4155,7 +4192,11 @@ function VendorDashboardView() {
                       <div key={s.id} className="bg-[#f8faf9] rounded-lg p-2.5 border border-[#e8edea]">
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-[#1a1c1e] truncate">{s.message}</p>
+                            {/* Issue 6: show the title (if set) in bold, then the message. */}
+                            {s.title && (
+                              <p className="text-[11px] font-extrabold text-[#1a1c1e] truncate">{s.title}</p>
+                            )}
+                            <p className={`text-[11px] text-[#414841] truncate ${s.title ? 'mt-0.5' : 'font-bold text-[#1a1c1e]'}`}>{s.message}</p>
                             <p className="text-[9px] text-[#717971] mt-0.5">
                               {parseDbDate(s.scheduledAt).toLocaleString()}
                             </p>
@@ -6862,7 +6903,9 @@ const NotificationBell = memo(function NotificationBell() {
 
   // When a notification is opened, fetch the attached entity (deal OR order).
   // - For `broadcast` notifications with a dealId → fetch the deal (deal card).
-  // - For `claim_confirmed` notifications → fetch the order (order-id card).
+  // - For `claim_confirmed` AND `pickup_reminder` notifications → fetch the
+  //   order (order-id card). Issue 2: pickup_reminder should show the order
+  //   card (click → Orders page), NOT the deal card.
   // - Other types: no attached card.
   useEffect(() => {
     if (!selectedNotif) {
@@ -6878,8 +6921,9 @@ const NotificationBell = memo(function NotificationBell() {
       try { parsedData = JSON.parse(selectedNotif.data) } catch { /* malformed JSON — ignore */ }
     }
 
-    // claim_confirmed → fetch the order for the order-id card
-    if (selectedNotif.type === 'claim_confirmed' && parsedData.orderId) {
+    // Issue 2: claim_confirmed AND pickup_reminder both have an orderId in
+    // their data payload → fetch the order for the order-id card.
+    if ((selectedNotif.type === 'claim_confirmed' || selectedNotif.type === 'pickup_reminder') && parsedData.orderId) {
       apiFetch<Order>(`/api/orders/${parsedData.orderId}`).then((res) => {
         if (res.success && res.data) setNotifOrder(res.data)
       }).catch(() => {})
@@ -7009,8 +7053,9 @@ const NotificationBell = memo(function NotificationBell() {
                 <p className="text-xs text-[#414841] leading-relaxed mb-3">{selectedNotif.message}</p>
                 <p className="text-[10px] text-[#717971] mb-3">{parseDbDate(selectedNotif.createdAt).toLocaleString()}</p>
 
-                {/* ── Order-id card (for claim_confirmed notifications) ── */}
-                {selectedNotif.type === 'claim_confirmed' && notifOrder && (
+                {/* ── Order-id card (for claim_confirmed AND pickup_reminder) ── */}
+                {/* Issue 2: pickup_reminder also shows the order card, not the deal card. */}
+                {(selectedNotif.type === 'claim_confirmed' || selectedNotif.type === 'pickup_reminder') && notifOrder && (
                   <button
                     onClick={handleOrderCardClick}
                     className="w-full flex gap-3 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
@@ -7032,7 +7077,7 @@ const NotificationBell = memo(function NotificationBell() {
                     <ChevronRight className="w-4 h-4 text-[#717971] flex-shrink-0 self-center" />
                   </button>
                 )}
-                {selectedNotif.type === 'claim_confirmed' && !notifOrder && (
+                {(selectedNotif.type === 'claim_confirmed' || selectedNotif.type === 'pickup_reminder') && !notifOrder && (
                   <button
                     onClick={handleOrderCardClick}
                     className="w-full flex items-center gap-2 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
@@ -7096,6 +7141,7 @@ const NotificationBell = memo(function NotificationBell() {
                         {!notif.read && <span className="w-2 h-2 rounded-full bg-[#E53935]" aria-label="Unread" />}
                         {notif.type === 'broadcast' && <Megaphone className="w-3.5 h-3.5 text-[#E53935]" />}
                         {notif.type === 'claim_confirmed' && <CheckCircle className="w-3.5 h-3.5 text-[#E53935]" />}
+                        {notif.type === 'pickup_reminder' && <Clock className="w-3.5 h-3.5 text-[#E53935]" />}
                       </div>
                     </div>
                   </button>
@@ -8222,35 +8268,10 @@ export default function SnapJeApp() {
     }).finally(() => setLoading(false))
   }, [login, logout, setLoading])
 
-  // Issue 3: Idle-timeout session. The user requested that the session time
-  // limit applies ONLY to no-activity (not an absolute expiry that logs out
-  // active users). We track the last-activity timestamp in a ref, updated on
-  // user interaction events (pointermove, keydown, touchstart, scroll, click).
-  // A 60-second interval checks if the user has been idle for > IDLE_TIMEOUT_MS.
-  // If so, we call logout() + toast. Active users never get logged out.
-  const IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes of inactivity
-  const lastActivityRef = useRef<number>(Date.now())
-  useEffect(() => {
-    if (!isAuthenticated) return
-    // Any of these events counts as "activity" — reset the idle timer.
-    const markActive = () => { lastActivityRef.current = Date.now() }
-    const events = ['pointermove', 'keydown', 'touchstart', 'scroll', 'click', 'wheel']
-    events.forEach((evt) => window.addEventListener(evt, markActive, { passive: true }))
-    // Check every 60s whether the idle threshold has been crossed.
-    const idleCheck = setInterval(() => {
-      if (Date.now() - lastActivityRef.current > IDLE_TIMEOUT_MS) {
-        clearInterval(idleCheck)
-        try {
-          toast.info('You have been logged out due to 30 minutes of inactivity.')
-          logout()
-        } catch { /* ignore */ }
-      }
-    }, 60_000)
-    return () => {
-      clearInterval(idleCheck)
-      events.forEach((evt) => window.removeEventListener(evt, markActive))
-    }
-  }, [isAuthenticated, logout])
+  // Issue 4: Auto-logout REMOVED completely. The user explicitly requested
+  // that the app should never auto-log-out — sessions persist via the 30-day
+  // cookie + 24h access token. The only way to log out is the Sign Out button.
+  // (Previous idle-timeout logic was causing false logouts within 2 minutes.)
 
   // Fetch notifications (polling fallback — catches DB notifications even if socket misses)
   useEffect(() => {

@@ -189,12 +189,17 @@ export async function setAuthCookies(accessToken: string, refreshToken: string) 
 
   cookieStore.set('access_token', accessToken, {
     ...cookieOptions,
-    maxAge: 15 * 60, // 15 minutes
+    // Issue 4: match the JWT expiry (24h). Was 15 min which caused the cookie
+    // to be deleted while the JWT was still valid, forcing a refresh on every
+    // request — and if the refresh failed (cookie blocking), the user got
+    // logged out while active.
+    maxAge: 24 * 60 * 60, // 24 hours
   })
 
   cookieStore.set('refresh_token', refreshToken, {
     ...cookieOptions,
-    maxAge: 7 * 24 * 60 * 60, // 7 days
+    // Issue 4: 30-day cookie session per user request.
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   })
 }
 
