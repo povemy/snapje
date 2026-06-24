@@ -3789,7 +3789,7 @@ function VendorDashboardView() {
               <Button
                 onClick={handleSendBroadcast}
                 disabled={sendingBroadcast || !broadcastMessage.trim()}
-                className="flex-1 h-11 rounded-xl text-sm font-bold bg-gradient-to-b from-amber-500 to-amber-600 text-white hover:opacity-90 active:scale-95 transition-all"
+                className="flex-1 h-11 rounded-xl text-sm font-bold bg-gradient-to-b from-[#EF5350] to-[#E53935] text-white hover:opacity-90 active:scale-95 transition-all"
               >
                 {sendingBroadcast ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />
@@ -6440,11 +6440,25 @@ const NotificationBell = memo(function NotificationBell() {
                 <h3 className="font-bold text-sm text-[#1a1c1e] mb-2">{selectedNotif.title}</h3>
                 <p className="text-xs text-[#414841] leading-relaxed mb-3">{selectedNotif.message}</p>
                 <p className="text-[10px] text-[#717971]">{new Date(selectedNotif.createdAt).toLocaleString()}</p>
-                {selectedNotif.dealId && (
-                  <Button size="sm" onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: selectedNotif.dealId! }) }} className="mt-3 w-full h-9 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold">
-                    <Flame className="w-3.5 h-3.5 mr-1.5" /> View Deal
-                  </Button>
-                )}
+                {(() => {
+                  // Parse dealId from the data JSON field (broadcast notifications
+                  // store dealId inside data: {"vendorId":"...","dealId":"...","senderUserId":"..."})
+                  let parsedDealId: string | undefined = selectedNotif.dealId
+                  if (!parsedDealId && selectedNotif.data) {
+                    try {
+                      const parsed = JSON.parse(selectedNotif.data)
+                      parsedDealId = parsed.dealId || undefined
+                    } catch { /* not JSON */ }
+                  }
+                  if (parsedDealId) {
+                    return (
+                      <Button size="sm" onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: parsedDealId! }) }} className="mt-3 w-full h-9 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold">
+                        <Flame className="w-3.5 h-3.5 mr-1.5" /> View Deal
+                      </Button>
+                    )
+                  }
+                  return null
+                })()}
               </div>
             </div>
           ) : (

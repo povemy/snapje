@@ -10,6 +10,7 @@ interface NotificationStore {
   markAsRead: (id: string) => void
   markAllAsRead: () => void
   setNotifications: (notifications: AppNotification[]) => void
+  setUnreadCount: (count: number) => void
   clearAll: () => void
 }
 
@@ -19,7 +20,7 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
   
   addNotification: (notification) =>
     set((state) => ({
-      notifications: [notification, ...state.notifications].slice(0, 50), // Keep last 50
+      notifications: [notification, ...state.notifications].slice(0, 50),
       unreadCount: state.unreadCount + 1,
     })),
   
@@ -42,6 +43,9 @@ export const useNotificationStore = create<NotificationStore>()((set) => ({
       notifications,
       unreadCount: notifications.filter((n) => !n.read).length,
     }),
+
+  setUnreadCount: (count) =>
+    set({ unreadCount: Math.max(0, Math.floor(count)) }),
   
   clearAll: () => set({ notifications: [], unreadCount: 0 }),
 }))
