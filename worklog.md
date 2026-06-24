@@ -1397,3 +1397,31 @@ Stage Summary:
 - Near button deselection no longer flashes radius-filtered results.
 - Broadcast modal has a Title field (supports emojis). Title is used as the notification title.
 - Switch Mode is compact and inside the bio card, below the email.
+
+---
+Task ID: 2-issues-mobile-centering-toast-tabs
+Agent: Main Agent
+Task: Fix 2 mobile responsiveness issues: (1) toast not centered + unbold message, (2) Orders tabs not centered.
+
+Work Log:
+- **Issue 1 (toast centering + unbold message)**:
+  - **Centering**: Added CSS rules in layout.tsx targeting both the Sonner container (`.snapje-toaster, [data-sonner-toaster]`) and each toast (`[data-sonner-toast]`). Set `left: 0 !important; right: 0 !important; margin-left: auto !important; margin-right: auto !important;` on both. This pins the container to the viewport center and ensures the toast itself doesn't drift right on mobile (which was happening because Sonner's default `bottom-center` positioning conflicts with `width: calc(100vw - 24px)`).
+  - **Unbold message**: Changed the base toast `fontWeight` from `700` to `400` (normal). Updated the `[data-description]` CSS rule from `font-weight: 600 !important` to `font-weight: 400 !important`. Only the `[data-title]` remains bold (`font-weight: 800 !important`).
+  - **Verified at 375px mobile viewport**: toast left=12, right=363, viewportW=375 → leftMargin=12, rightMargin=12, isCentered=true. titleFontWeight="800", descFontWeight="400". Title text "📣 🔥 Flash Sale:" with emoji preserved.
+
+- **Issue 2 (Orders tabs not centered on mobile)**:
+  - Updated the Orders tab container in page.tsx. Changed each tab button from `flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs` to `flex-1 min-w-0 flex items-center justify-center gap-1 py-2 px-1 rounded-lg text-[11px]`. Key changes:
+    - Added `min-w-0` so each tab can shrink below its content's natural width (prevents overflow pushing the last tab to the right edge).
+    - Reduced gap from `gap-1.5` to `gap-1` and font from `text-xs` (12px) to `text-[11px]`.
+    - Added `px-1` to each tab for tight internal padding.
+    - Wrapped the label in `<span className="truncate">` so long labels truncate instead of overflowing.
+    - Made the icon `w-3 h-3 flex-shrink-0` (was `w-3.5 h-3.5`).
+    - Changed the count badge from `ml-0.5 px-1.5 py-0.5 rounded-full text-[10px]` to `flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] flex items-center justify-center` — a fixed-size compact pill that doesn't push other content.
+  - **Verified at 375px mobile viewport**: all 4 tabs are 79px wide each, evenly distributed. Active: 24–103, Completed: 107–186, Burnt: 190–268, Expired: 272–351. Left margin = 20px, right margin = 20px (equal). The Expired tab is no longer tight to the right edge.
+
+- **Lint**: `bun run lint` → 0 errors, 0 warnings.
+- **Browser verification**: Both issues verified at 375px (iPhone) mobile viewport via Agent Browser.
+
+Stage Summary:
+- Toast is now perfectly centered on mobile (equal 12px margins both sides). Message text is unbold (font-weight 400), only the title is bold (font-weight 800).
+- Orders page tabs are now evenly distributed across the viewport on mobile. All 4 tabs (Active/Completed/Burnt/Expired) have equal width and fit within the screen with equal margins.

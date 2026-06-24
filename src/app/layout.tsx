@@ -265,7 +265,9 @@ export default function RootLayout({
               boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.08)',
               padding: '18px 18px',
               fontSize: '14px',
-              fontWeight: 700,
+              // Issue 1: base font-weight is normal (400). Only the title
+              // ([data-title]) is bolded via the CSS rule below.
+              fontWeight: 400,
               animation: 'snapjeToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
               margin: '0 auto',
             },
@@ -309,7 +311,28 @@ export default function RootLayout({
           [data-sonner-toast] {
             margin-bottom: 10px !important;
           }
-          /* Issue 11: black title + description on white bg */
+          /* Issue 1 (mobile centering): force the Sonner toaster container AND
+             each toast to be horizontally centered on the viewport. Sonner's
+             default bottom-center positioning can drift right on mobile when
+             the toast width is set via calc(100vw - 24px) — these rules
+             pin the container to the center and ensure the toast itself
+             doesn't overflow to one side. */
+          .snapje-toaster,
+          [data-sonner-toaster] {
+            left: 0 !important;
+            right: 0 !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            justify-content: center !important;
+            align-items: center !important;
+          }
+          [data-sonner-toast] {
+            margin-left: auto !important;
+            margin-right: auto !important;
+            left: 0 !important;
+            right: 0 !important;
+          }
+          /* Issue 1: black title (bold) + description (NOT bold) on white bg */
           [data-sonner-toast] [data-title] {
             font-size: 15px !important;
             font-weight: 800 !important;
@@ -318,7 +341,7 @@ export default function RootLayout({
           }
           [data-sonner-toast] [data-description] {
             font-size: 13.5px !important;
-            font-weight: 600 !important;
+            font-weight: 400 !important;
             line-height: 1.3 !important;
             color: #1a1c1e !important;
             opacity: 0.95 !important;

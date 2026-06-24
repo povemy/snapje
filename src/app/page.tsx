@@ -2020,7 +2020,11 @@ function FoodieOrdersView() {
       ) : (
         <>
           {/* ── Order Tabs ── */}
-          <div className="flex gap-1.5 mb-4 bg-[#f0f4f2] p-1 rounded-xl">
+          {/* Issue 2 (mobile centering): use flex-1 + min-w-0 so each tab
+              shrinks equally to fit the viewport. Reduced gap + smaller
+              count badge so all 4 tabs fit on narrow mobile screens without
+              the last one (Expired) being pushed to the right edge. */}
+          <div className="flex gap-1 mb-4 bg-[#f0f4f2] p-1 rounded-xl">
             {tabConfig.map((tab) => {
               const Icon = tab.icon
               const isActive = orderTab === tab.key
@@ -2028,15 +2032,15 @@ function FoodieOrdersView() {
                 <button
                   key={tab.key}
                   onClick={() => setOrderTab(tab.key)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                  className={`flex-1 min-w-0 flex items-center justify-center gap-1 py-2 px-1 rounded-lg text-[11px] font-bold transition-all ${
                     isActive
                       ? 'bg-white shadow-sm text-[#1a1c1e]'
                       : 'text-[#717971]'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" style={{ color: isActive ? tab.color : undefined }} />
-                  {tab.label}
-                  <span className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${
+                  <Icon className="w-3 h-3 flex-shrink-0" style={{ color: isActive ? tab.color : undefined }} />
+                  <span className="truncate">{tab.label}</span>
+                  <span className={`flex-shrink-0 min-w-[16px] h-4 px-1 rounded-full text-[9px] flex items-center justify-center ${
                     isActive ? 'text-white' : 'text-[#717971] bg-[#e0e5e1]'
                   }`} style={isActive ? { backgroundColor: tab.color } : undefined}>
                     {tab.count}
