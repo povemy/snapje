@@ -95,7 +95,12 @@ export async function GET() {
 
       const dayUploads = (recentUploadsRes.data || []).filter(
         (f: { createdAt: string }) => {
-          const t = new Date(f.createdAt).getTime()
+          // TZ-safe parse: DB returns TIMESTAMP WITHOUT TZ (no 'Z' suffix).
+          // Append 'Z' so the value is parsed as UTC (matching how it was stored).
+          const raw = f.createdAt as string
+          const t = (raw && !/[Zz]$|[+-]\d{2}:?\d{2}$/.test(raw.trim())
+            ? new Date(raw + 'Z')
+            : new Date(raw)).getTime()
           return t >= dayStart.getTime() && t < dayEnd.getTime()
         }
       )

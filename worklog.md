@@ -1212,3 +1212,58 @@ EDITED:
 - `bun run scripts/add-vipflag.mts` → ✅ ALTER TABLE applied, column confirmed in information_schema
 - `bun run db:generate` → ✅ Prisma Client v6.19.2 regenerated
 - `bun run lint` → ✅ 0 errors, 0 warnings
+
+---
+Task ID: notif-burnt-fix-v2
+Agent: Main Agent
+Task: Fix 5 notification/burnt-tab issues: (1) broadcast toast format "Vendor: <bold msg>", (2) claim_confirmed → order-id card click→orders, (3) Facebook-style mark-as-read on click, (4) modal margin, (5) burnt tab timezone bug.
+
+Work Log:
+- **Issue 5 (CRITICAL — burnt tab timezone bug)**: Diagnosed root cause via direct Supabase query — all timestamp columns are `TIMESTAMP(3) WITHOUT TIME ZONE` (see prisma/migrations/supabase-schema.sql). PostgREST returns values as ISO 8601 WITHOUT the trailing 'Z' (e.g. `"2026-06-24T05:58:18.523"`). Per ECMAScript spec, `new Date("...T...")` without timezone info is parsed as LOCAL time, not UTC. For a user in Asia/Kuala_Lumpur (UTC+8), a freshly-claimed order's `pickupDeadline` was being interpreted 8 hours earlier than intended → `pickupDeadline.getTime() < Date.now()` returned TRUE → fresh orders landed in the Burnt tab.
+  - Created `parseDbDate(value)` helper in `src/lib/utils.ts` — detects strings lacking 'Z' / `+HH:MM` suffix and appends 'Z' before `new Date()`. Also added `toDatetimeLocalString(date)` for correct local-time formatting of `<input type="datetime-local">` form values.
+  - Applied `parseDbDate` consistently across 25+ locations in `src/app/page.tsx`: burnt filter, PickupProgressSlider, all `pickupDeadline`/`createdAt`/`updatedAt`/`expiresAt`/`qrVerifiedAt`/`completedAt` displays, expired-deal filters, 3-day-ago "new" badge filters, notification timestamps, media file timestamps, broadcast log timestamps.
+  - Also fixed `src/app/api/deals/[id]/confirm/route.ts` line 75 — Reservation.expiresAt comparison now uses TZ-safe parsing.
+  - Also fixed `src/app/api/admin/media/route.ts` line 98 — daily activity bucketing now uses TZ-safe parsing.
+  - Verified via Supabase query: fresh order #FB-1782273498523-1ORS has pickupDeadline = 2h after createdAt. With parseDbDate, `pickupDeadline.getTime() < now` correctly returns FALSE for fresh orders and TRUE only for genuinely overdue ones.
+
+- **Issue 1 (broadcast toast format)**: Updated both toast code paths:
+  - `src/hooks/use-socket.ts` (renamed to `.tsx` for JSX support) — real-time socket toast now uses `toast.info(\`📣 ${n.title}:\`, { description: <span className="font-bold">msg</span> })`.
+  - `src/app/page.tsx` polling fallback toast (line ~7833) — same format.
+  - Format: "📣 Aurynz Eatery:" as title, broadcast message in BOLD as description. Matches user spec exactly.
+  - Verified end-to-end: triggered a broadcast via API as VIP vendor (vendor@test.com / Aurynz Eatery), foodie browser received the toast within 5s polling cycle: `listitem "📣 Aurynz Eatery:Fresh hot deals just dropped! Get them before they are gone."`.
+
+- **Issue 2 (order-id card for claim_confirmed)**: Rewrote NotificationBell's selectedNotif view:
+  - Added `notifOrder` state + fetch logic. When a `claim_confirmed` notification is opened, extracts `orderId` from the notification's `data` JSON, fetches `/api/orders/[id]`, displays an order-id card.
+  - Order-id card shows: "ORDER ID" label, `#FB-...` order number (mono font), `RM X.XX` total, status badge, "Tap to view your orders" CTA.
+  - Clicking the order-id card → `navigate('orders')` (closes modal first).
+  - For `broadcast` notifications with attached `dealId`, the existing deal card is preserved (only claim_confirmed swapped to order-id card, per spec).
+  - Verified: clicked claim_confirmed notification → saw order-id card with "#FB-1782273498523-1ORS RM6.00 Pending Pickup" → clicked → navigated to My Orders page.
+
+- **Issue 3 (Facebook-style mark-as-read on click)**: Rewrote NotificationBell click handler:
+  - Removed the auto-`markAllAsRead` call that fired when the modal opened (was wiping the badge to 0 instantly).
+  - Added `handleNotifClick(notif)` — on click: optimistically calls `markAsRead(id)` in the store (decrements unreadCount by 1), fires `PUT /api/notifications/[id]/read` server-side, and updates the local `topNotifs` list so styling flips to "read".
+  - Added module-level `pendingReadsCount` counter + `trackPendingRead(apiPromise)` helper in page.tsx. The polling's `setUnreadCount` now subtracts `pendingReadsCount` from the server's unread count, preventing the badge from briefly re-appearing between the user's click and the server's ack (5s polling window).
+  - Added module-level `shownToastNotifIds` Set to dedupe social-proof toasts by notification ID — prevents re-firing toasts on every effect re-run (was happening because the old `lastSeenCount` closure variable reset to 0 on remount).
+  - Added 'broadcast' and 'deal_new' to the `NotificationType` union in `src/types/index.ts` (were being compared but not declared, causing TS errors).
+  - Verified: bell showed "1 unread" → clicked the unread notification → bell dropped to "0 unread" → stayed at 0 across multiple polling cycles (no flicker).
+
+- **Issue 4 (modal margin)**: Updated NotificationBell's `DialogContent` className from `max-w-md max-h-[85vh] overflow-y-auto p-0` to `max-w-md w-[calc(100%-1.5rem)] mx-auto max-h-[85vh] overflow-y-auto p-0`. The `w-[calc(100%-1.5rem)]` ensures a 0.75rem (12px) horizontal margin on each side on mobile, while `max-w-md` caps the width on larger screens. Verified via `getBoundingClientRect()`: on 375px mobile viewport, modal is now 351px wide with 12px margins (was previously 375px = 100% width with 0 margin).
+
+- **Lint + TypeScript**: `bun run lint` → 0 errors, 0 warnings. `bunx tsc --noEmit` → 0 NEW errors in edited files (remaining errors are all pre-existing in unrelated files: settings.enableWatermark cast, AppRole string, Transition type, Supabase `possibly null` returns).
+
+- **Browser verification (Agent Browser)**: Logged in as foodie@test.com. Verified:
+  - Orders tab: Active=2 (fresh orders "1h 33m left" / "1h 26m left"), Burnt=1 (only the genuinely old order from June 17). Fresh orders NO LONGER in Burnt. ✅
+  - Notification bell: opened modal, saw 3 notifications with proper margins. ✅
+  - Clicked unread claim_confirmed → saw order-id card (not deal card). Bell decremented 1→0. ✅
+  - Clicked order-id card → navigated to My Orders. ✅
+  - Triggered broadcast via API → foodie received toast "📣 Aurynz Eatery: <bold>Fresh hot deals...</bold>" within 5s. Bell incremented 0→1. ✅
+  - Mobile viewport (375px): modal has 12px margins on each side (not 100% width). ✅
+
+Stage Summary:
+- All 5 issues fixed and verified end-to-end in the browser.
+- Root cause of burnt-tab bug was a TIMESTAMP WITHOUT TIME ZONE → JS Date parsing skew (8 hours in UTC+8). Fixed at the data layer with a single `parseDbDate` helper applied consistently.
+- Notification bell is now Facebook-style: click-to-read, badge decrements per click, no spurious re-appearances.
+- Broadcast social-proof toast now shows "Vendor Name: <bold>message</bold>" format.
+- claim_confirmed notifications show an order-id card (orderNumber + status + total) that navigates to My Orders on click.
+- Notification modal has proper mobile margins (no longer 100% viewport width).
+- Files changed: src/lib/utils.ts (parseDbDate + toDatetimeLocalString), src/types/index.ts (NotificationType + 'broadcast' + 'deal_new'), src/hooks/use-socket.tsx (renamed from .ts, broadcast toast format), src/app/page.tsx (parseDbDate applied everywhere, NotificationBell rewritten, polling reconciliation with pendingReadsCount + shownToastNotifIds, broadcast toast format), src/app/api/deals/[id]/confirm/route.ts (TZ-safe Reservation.expiresAt parse), src/app/api/admin/media/route.ts (TZ-safe createdAt parse).

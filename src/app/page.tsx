@@ -62,6 +62,7 @@ import {
   drivingTimeMinutes,
   DEFAULT_LOCATION,
 } from '@/lib/distance'
+import { parseDbDate, toDatetimeLocalString } from '@/lib/utils'
 import { toast } from 'sonner'
 
 // ============================================
@@ -154,6 +155,43 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ succe
   } catch {
     return { success: false, error: 'Network error' }
   }
+}
+
+// ============================================
+// Notification polling reconciliation state (module-level)
+// ============================================
+// These three module-level values solve two related bugs in the notification
+// polling logic:
+//
+// 1) "Badge comes back after closing the modal" — when the user clicks a
+//    notification, NotificationBell optimistically calls markAsRead(id) which
+//    decrements the local unreadCount by 1. But the server-side PUT takes
+//    ~50-300ms to complete. If the 5-second polling fires DURING that window,
+//    the server still returns the OLD (higher) unread count, which would
+//    overwrite the optimistic decrement and make the badge re-appear.
+//    FIX: `pendingReadsCount` tracks how many mark-as-read calls are in
+//    flight. The polling subtracts this from the server count before calling
+//    setUnreadCount, so the local badge stays at the optimistic value until
+//    the server catches up.
+//
+// 2) "Toasts re-fire on every re-mount" — the old `lastSeenCount` closure
+//    variable reset to 0 whenever the polling useEffect re-ran (e.g. on auth
+//    state changes), causing EVERY existing unread notification to fire a
+//    social-proof toast again on remount.
+//    FIX: `shownToastNotifIds` is a module-level Set that dedupes toasts by
+//    notification ID. A given notification ID will only ever fire one toast
+//    per page session, no matter how many times the polling effect re-runs.
+let pendingReadsCount = 0
+const shownToastNotifIds = new Set<string>()
+
+/** Called by NotificationBell when the user clicks an unread notification.
+ *  Increments the pending-read counter so the polling knows to subtract it
+ *  from the server's unread count. Decrements when the API call settles. */
+function trackPendingRead(apiPromise: Promise<unknown>) {
+  pendingReadsCount++
+  apiPromise.finally(() => {
+    pendingReadsCount = Math.max(0, pendingReadsCount - 1)
+  })
 }
 
 // ============================================
@@ -381,7 +419,7 @@ const CountdownTimer = memo(function CountdownTimer({ expiresAt, compact = false
 
   useEffect(() => {
     const update = () => {
-      const diff = new Date(expiresAt).getTime() - Date.now()
+      const diff = parseDbDate(expiresAt).getTime() - Date.now()
       if (diff <= 0) {
         setTimeLeft('Expired')
         return
@@ -529,7 +567,7 @@ const CountdownTimerOverlay = memo(function CountdownTimerOverlay({ expiresAt }:
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null
     const update = () => {
-      const diff = new Date(expiresAt).getTime() - Date.now()
+      const diff = parseDbDate(expiresAt).getTime() - Date.now()
       if (diff <= 0) {
         setTimeLeft('Expired')
         // LOW 9: once the deadline has passed, stop firing setInterval — the
@@ -1588,7 +1626,7 @@ function DealDetailView() {
                 {order.pickupDeadline && (
                   <span className="flex items-center gap-0.5">
                     · <Clock className="w-2.5 h-2.5" />
-                    {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {parseDbDate(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 )}
               </div>
@@ -1680,12 +1718,16 @@ function PickupProgressSlider({ pickupDeadline, createdAt }: { pickupDeadline: s
 
   useEffect(() => {
     const calcProgress = () => {
-      const deadline = new Date(pickupDeadline).getTime()
+      const deadline = parseDbDate(pickupDeadline).getTime()
       // MEDIUM 11: use the actual order createdAt (passed in) to compute the
       // pickup window, instead of assuming a fixed 2-hour window. Falls back
       // to the legacy 2-hour assumption if createdAt is not provided.
+      // NOTE: parseDbDate is mandatory here — DB stores TIMESTAMP WITHOUT TZ,
+      // so the raw string would be parsed as LOCAL time and skew the deadline
+      // by the user's UTC offset (8h in Asia/Kuala_Lumpur), which is what
+      // caused freshly-claimed orders to land in the Burnt tab.
       const totalWindow = createdAt
-        ? Math.max(60_000, deadline - new Date(createdAt).getTime())
+        ? Math.max(60_000, deadline - parseDbDate(createdAt).getTime())
         : 2 * 60 * 60 * 1000
       const created = deadline - totalWindow
       const now = Date.now()
@@ -1786,7 +1828,7 @@ function FoodieOrdersView() {
   // Burnt = pickup overdue (deadline passed but still pending_pickup — no refund)
   // Only pending_pickup orders can be burnt; picked_up orders are already being processed.
   const now = Date.now()
-  const burntOrders = orders.filter(o => o.status === 'pending_pickup' && o.pickupDeadline && new Date(o.pickupDeadline).getTime() < now)
+  const burntOrders = orders.filter(o => o.status === 'pending_pickup' && o.pickupDeadline && parseDbDate(o.pickupDeadline).getTime() < now)
   const nonBurntActive = activeOrders.filter(o => !burntOrders.some(b => b.id === o.id))
 
   const tabConfig = [
@@ -1881,7 +1923,7 @@ function FoodieOrdersView() {
                             <div className="flex items-center gap-1.5 mt-1.5">
                               <Clock className="w-3 h-3 text-[#E53935]" />
                               <span className="text-[11px] font-bold text-[#E53935]">
-                                Pickup by {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                Pickup by {parseDbDate(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                             <PickupProgressSlider pickupDeadline={order.pickupDeadline} createdAt={order.createdAt} />
@@ -1988,7 +2030,7 @@ function FoodieOrdersView() {
                           <div className="flex items-center gap-1.5 mt-1.5">
                             <Flame className="w-3 h-3 text-[#EF4444]" />
                             <span className="text-[11px] font-bold text-[#EF4444]">
-                              BURNT — Pickup was due {order.pickupDeadline ? new Date(order.pickupDeadline).toLocaleString() : ''}
+                              BURNT — Pickup was due {order.pickupDeadline ? parseDbDate(order.pickupDeadline).toLocaleString() : ''}
                             </span>
                           </div>
                           <p className="text-[10px] text-[#717971] mt-0.5">No refund for burnt deals.</p>
@@ -2070,7 +2112,7 @@ function FoodieOrdersView() {
               <p className="text-sm text-[#414841] mt-1">RM{selectedOrder.totalPrice.toFixed(2)}</p>
               <p className="text-xs font-bold text-[#E53935] mt-2 flex items-center justify-center gap-1">
                 <Clock className="w-3.5 h-3.5" />
-                Pickup by {new Date(selectedOrder.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Pickup by {parseDbDate(selectedOrder.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
               {selectedOrder.status === 'completed' && (
                 <Badge className="mt-3 bg-[#EF5350]/10 text-[#E53935] border-0 rounded-lg">
@@ -3008,7 +3050,7 @@ function VendorDashboardView() {
   // Classify deals into active and expired
   const isActiveDeal = (d: Deal) => {
     if (d.status === 'expired' || d.status === 'cancelled') return false
-    if (d.status === 'active' && new Date(d.expiresAt) <= new Date()) return false
+    if (d.status === 'active' && parseDbDate(d.expiresAt) <= new Date()) return false
     return d.status === 'active' || d.status === 'paused'
   }
 
@@ -3036,7 +3078,7 @@ function VendorDashboardView() {
       originalPrice: deal.originalPrice.toString(),
       dealPrice: deal.dealPrice.toString(),
       totalQuantity: deal.totalQuantity.toString(),
-      expiresAt: new Date(deal.expiresAt).toISOString().slice(0, 16),
+      expiresAt: toDatetimeLocalString(parseDbDate(deal.expiresAt)),
       status: deal.status,
       pickupInstructions: deal.pickupInstructions || '',
     })
@@ -3104,7 +3146,7 @@ function VendorDashboardView() {
 
   // Format date for display
   const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr)
+    const d = parseDbDate(dateStr)
     return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 
@@ -4057,7 +4099,7 @@ function VendorInventoryView() {
   // Classify deals into active and expired
   const isActiveDeal = (d: Deal) => {
     if (d.status === 'expired' || d.status === 'cancelled') return false
-    if (d.status === 'active' && new Date(d.expiresAt) <= new Date()) return false
+    if (d.status === 'active' && parseDbDate(d.expiresAt) <= new Date()) return false
     return d.status === 'active' || d.status === 'paused'
   }
 
@@ -4355,7 +4397,7 @@ function VendorFulfillmentView() {
                     <p className="font-bold text-sm text-[#1a1c1e] truncate">#{order.orderNumber}</p>
                     <p className="text-xs text-[#414841]">RM{order.totalPrice.toFixed(2)} • Qty: {order.quantity}</p>
                     <p className="text-[10px] text-[#717971] mt-0.5">
-                      Pickup by: {new Date(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Pickup by: {parseDbDate(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0 ml-2">
@@ -4412,13 +4454,13 @@ function VendorFulfillmentView() {
                     <div className="flex items-center gap-2 mt-0.5">
                       <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
                         <Zap className="w-2 h-2 text-[#E53935]" />
-                        {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {parseDbDate(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                       <p className="text-[9px] text-[#717971] flex items-center gap-0.5">
                         <ScanLine className="w-2 h-2 text-[#E53935]" />
                         Redeemed: {order.qrVerifiedAt
-                          ? new Date(order.qrVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                          : new Date(order.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          ? parseDbDate(order.qrVerifiedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : parseDbDate(order.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                         }
                       </p>
                     </div>
@@ -4516,7 +4558,7 @@ function VendorFulfillmentView() {
                 {/* Pickup Deadline */}
                 <div className="flex items-center gap-2 text-sm text-[#414841]">
                   <Clock className="w-4 h-4 text-[#E53935]" />
-                  Pickup by: {new Date(scanResult.order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  Pickup by: {parseDbDate(scanResult.order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>
 
                 {/* Actions */}
@@ -4571,7 +4613,7 @@ function VendorFulfillmentView() {
               )}
               <p className="text-lg font-extrabold text-[#1a1c1e] mt-2">RM{completedOrder.totalPrice.toFixed(2)}</p>
               <p className="text-xs text-[#717971] mt-1">
-                Completed at {new Date(completedOrder.completedAt).toLocaleTimeString()}
+                Completed at {parseDbDate(completedOrder.completedAt).toLocaleTimeString()}
               </p>
               <Button
                 onClick={() => setCompletedOrder(null)}
@@ -5199,11 +5241,11 @@ function AdminDealsView() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-[#414841]">
                     <Timer className="w-4 h-4 text-[#E53935]" />
-                    Expires: {new Date(selectedDeal.expiresAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    Expires: {parseDbDate(selectedDeal.expiresAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-[#414841]">
                     <Clock className="w-4 h-4 text-[#E53935]" />
-                    Created: {new Date(selectedDeal.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    Created: {parseDbDate(selectedDeal.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
               </div>
@@ -5258,7 +5300,7 @@ function AdminVendorsView() {
         // Client-side "new" filter
         if (f === 'new') {
           const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
-          vList = vList.filter((v) => new Date(v.createdAt) >= threeDaysAgo)
+          vList = vList.filter((v) => parseDbDate(v.createdAt) >= threeDaysAgo)
         }
         setVendors(vList)
         setTotal(res.data.total || 0)
@@ -5589,7 +5631,7 @@ function AdminUsersView() {
   // Client-side filter for "new" (registered within 3 days)
   const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
   const filteredUsers = filter === 'new'
-    ? users.filter(u => (u as AuthUser & { createdAt?: string }).createdAt && new Date((u as AuthUser & { createdAt?: string }).createdAt!) >= threeDaysAgo)
+    ? users.filter(u => (u as AuthUser & { createdAt?: string }).createdAt && parseDbDate((u as AuthUser & { createdAt?: string }).createdAt!) >= threeDaysAgo)
     : users
 
   // Safely parse roles - handles both string and array
@@ -5643,7 +5685,7 @@ function AdminUsersView() {
           <div className="space-y-1.5">
             {filteredUsers.map((u) => {
               const userWithDate = u as AuthUser & { createdAt?: string; vipFlag?: boolean; isBanned?: boolean }
-              const isNew = userWithDate.createdAt && new Date(userWithDate.createdAt) >= threeDaysAgo
+              const isNew = userWithDate.createdAt && parseDbDate(userWithDate.createdAt) >= threeDaysAgo
               const isVip = !!userWithDate.vipFlag
               const isBanned = !!userWithDate.isBanned
               return (
@@ -6312,7 +6354,7 @@ function AdminBroadcastLogView() {
 
   const fmtDate = (iso: string) => {
     try {
-      return new Date(iso).toLocaleString('en-MY', {
+      return parseDbDate(iso).toLocaleString('en-MY', {
         day: 'numeric', month: 'short', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       })
@@ -6392,43 +6434,94 @@ function AdminBroadcastLogView() {
 // NOTIFICATION BELL
 // ============================================
 const NotificationBell = memo(function NotificationBell() {
-  const { unreadCount, markAllAsRead, setUnreadCount, clearAll } = useNotificationStore()
+  const { unreadCount, markAsRead, clearAll } = useNotificationStore()
   const { navigate } = useAppStore()
   const [showModal, setShowModal] = useState(false)
   const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null)
   const [topNotifs, setTopNotifs] = useState<AppNotification[]>([])
   const [notifDeal, setNotifDeal] = useState<Deal | null>(null)
+  const [notifOrder, setNotifOrder] = useState<Order | null>(null)
 
-  // Fetch top 10 notifications when modal opens, and mark all as read server-side
+  // Fetch top 10 notifications when modal opens.
+  // NOTE: We intentionally do NOT auto-mark-all-as-read on modal open.
+  // Per the user's spec (Facebook-style), each notification is marked as read
+  // ONLY when the user clicks on it — so the bell badge decrements by 1 per
+  // click, not all at once when the modal opens.
   useEffect(() => {
     if (showModal) {
       apiFetch<{ notifications: AppNotification[]; total: number }>(`/api/notifications?pageSize=10`).then((res) => {
         if (res.success && res.data) setTopNotifs(res.data.notifications || [])
       })
-      // Mark ALL as read on server — single API call
-      if (unreadCount > 0) {
-        apiFetch('/api/notifications/read-all', { method: 'PUT' }).then(() => {
-          markAllAsRead()
-        }).catch(() => {})
-      }
+    } else {
+      // Reset state when modal closes so a reopen is clean.
+      setSelectedNotif(null)
+      setNotifDeal(null)
+      setNotifOrder(null)
     }
   }, [showModal])
 
-  // Fetch deal when a notification with dealId is opened
+  // When a notification is opened, fetch the attached entity (deal OR order).
+  // - For `broadcast` notifications with a dealId → fetch the deal (deal card).
+  // - For `claim_confirmed` notifications → fetch the order (order-id card).
+  // - Other types: no attached card.
   useEffect(() => {
-    if (selectedNotif) {
+    if (!selectedNotif) {
       setNotifDeal(null)
-      let dealId = selectedNotif.dealId
-      if (!dealId && selectedNotif.data) {
-        try { dealId = JSON.parse(selectedNotif.data).dealId } catch { /* */ }
-      }
-      if (dealId) {
-        apiFetch<Deal>(`/api/deals/${dealId}`).then((res) => {
-          if (res.success && res.data) setNotifDeal(res.data)
-        }).catch(() => {})
-      }
+      setNotifOrder(null)
+      return
+    }
+    setNotifDeal(null)
+    setNotifOrder(null)
+
+    let parsedData: { orderId?: string; dealId?: string; vendorId?: string } = {}
+    if (selectedNotif.data) {
+      try { parsedData = JSON.parse(selectedNotif.data) } catch { /* malformed JSON — ignore */ }
+    }
+
+    // claim_confirmed → fetch the order for the order-id card
+    if (selectedNotif.type === 'claim_confirmed' && parsedData.orderId) {
+      apiFetch<Order>(`/api/orders/${parsedData.orderId}`).then((res) => {
+        if (res.success && res.data) setNotifOrder(res.data)
+      }).catch(() => {})
+      return
+    }
+
+    // broadcast with attached dealId → fetch the deal for the deal card
+    const dealId = selectedNotif.dealId || parsedData.dealId
+    if (dealId) {
+      apiFetch<Deal>(`/api/deals/${dealId}`).then((res) => {
+        if (res.success && res.data) setNotifDeal(res.data)
+      }).catch(() => {})
     }
   }, [selectedNotif])
+
+  // Facebook-style mark-as-read: called when a notification is CLICKED.
+  // Fires a single PUT /api/notifications/[id]/read, then decrements the
+  // local unreadCount by 1 (via markAsRead in the store). If the API call
+  // fails (network error), we still mark it locally so the UI is responsive.
+  // The in-flight call is tracked via `trackPendingRead` so the polling
+  // doesn't overwrite the optimistic decrement while the server catches up.
+  const handleNotifClick = useCallback(async (notif: AppNotification) => {
+    setSelectedNotif(notif)
+    if (!notif.read) {
+      // Optimistically mark as read in the store (decrements unreadCount by 1)
+      markAsRead(notif.id)
+      // Persist server-side. The PUT endpoint is idempotent (uses .eq('read', false))
+      // so a duplicate click is a no-op. trackPendingRead increments a
+      // module-level counter that the polling subtracts from the server's
+      // unread count, preventing the badge from briefly re-appearing between
+      // this click and the server's ack.
+      const apiPromise = apiFetch(`/api/notifications/${notif.id}/read`, { method: 'PUT' })
+      trackPendingRead(apiPromise)
+      apiPromise.catch(() => {
+        // Silently ignore — the local state is already correct. If the server
+        // call genuinely failed, the next polling cycle will re-fetch the true
+        // unread count and the badge will self-correct.
+      })
+      // Also update the local topNotifs list so the styling flips to "read"
+      setTopNotifs((prev) => prev.map((n) => n.id === notif.id ? { ...n, read: true } : n))
+    }
+  }, [markAsRead])
 
   const handleClearAll = async () => {
     try {
@@ -6439,6 +6532,22 @@ const NotificationBell = memo(function NotificationBell() {
     } catch {
       toast.error('Failed to clear notifications')
     }
+  }
+
+  // Click handler for the order-id card on claim_confirmed notifications.
+  // Closes the modal and navigates to the foodie "orders" tab.
+  const handleOrderCardClick = () => {
+    setShowModal(false)
+    setSelectedNotif(null)
+    navigate('orders')
+  }
+
+  // Click handler for the deal card on broadcast notifications.
+  const handleDealCardClick = () => {
+    if (!notifDeal) return
+    setShowModal(false)
+    setSelectedNotif(null)
+    navigate('deal-detail', { id: notifDeal.id })
   }
 
   return (
@@ -6457,14 +6566,16 @@ const NotificationBell = memo(function NotificationBell() {
       </button>
 
       <Dialog open={showModal} onOpenChange={(v) => { setShowModal(v); if (!v) setSelectedNotif(null) }}>
-        <DialogContent className="rounded-2xl max-w-md max-h-[85vh] overflow-y-auto p-0">
+        <DialogContent className="rounded-2xl max-w-md w-[calc(100%-1.5rem)] mx-auto max-h-[85vh] overflow-y-auto p-0">
           <DialogHeader className="bg-gradient-to-br from-[#E53935]/20 to-[#E53935]/5 px-5 pt-5 pb-3">
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
                   <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
                 </DialogTitle>
-                <DialogDescription className="text-xs">{topNotifs.length} recent</DialogDescription>
+                <DialogDescription className="text-xs">
+                  {unreadCount > 0 ? `${unreadCount} unread · ${topNotifs.length} recent` : `${topNotifs.length} recent`}
+                </DialogDescription>
               </div>
               {topNotifs.length > 0 && !selectedNotif && (
                 <Button variant="outline" size="sm" onClick={handleClearAll} className="h-7 px-2.5 rounded-lg text-[10px] font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10">
@@ -6480,19 +6591,59 @@ const NotificationBell = memo(function NotificationBell() {
                 <ArrowLeft className="w-3.5 h-3.5" /> Back
               </button>
               <div className="bg-[#f8faf9] rounded-xl p-4">
-                {/* Vendor name as header */}
+                {/* Title + icon header */}
                 <div className="flex items-center gap-2 mb-2">
-                  <Store className="w-4 h-4 text-[#E53935]" />
+                  {selectedNotif.type === 'broadcast' ? (
+                    <Megaphone className="w-4 h-4 text-[#E53935]" />
+                  ) : selectedNotif.type === 'claim_confirmed' ? (
+                    <CheckCircle className="w-4 h-4 text-[#E53935]" />
+                  ) : (
+                    <Bell className="w-4 h-4 text-[#E53935]" />
+                  )}
                   <h3 className="font-bold text-sm text-[#1a1c1e]">{selectedNotif.title}</h3>
                 </div>
-                {/* Broadcast message */}
+                {/* Full message body */}
                 <p className="text-xs text-[#414841] leading-relaxed mb-3">{selectedNotif.message}</p>
-                <p className="text-[10px] text-[#717971] mb-3">{new Date(selectedNotif.createdAt).toLocaleString()}</p>
+                <p className="text-[10px] text-[#717971] mb-3">{parseDbDate(selectedNotif.createdAt).toLocaleString()}</p>
 
-                {/* Deal card if attached */}
+                {/* ── Order-id card (for claim_confirmed notifications) ── */}
+                {selectedNotif.type === 'claim_confirmed' && notifOrder && (
+                  <button
+                    onClick={handleOrderCardClick}
+                    className="w-full flex gap-3 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
+                  >
+                    <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#FFEBEE] flex items-center justify-center">
+                      <QrCode className="w-6 h-6 text-[#E53935]" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <p className="text-[10px] text-[#717971] uppercase tracking-wide">Order ID</p>
+                      <p className="text-xs font-bold text-[#1a1c1e] font-mono truncate">#{notifOrder.orderNumber}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-sm font-extrabold text-[#E53935]">RM{notifOrder.totalPrice.toFixed(2)}</span>
+                        <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded text-[9px] capitalize">
+                          {String(notifOrder.status).replace(/_/g, ' ')}
+                        </Badge>
+                      </div>
+                      <p className="text-[10px] text-[#717971] mt-0.5">Tap to view your orders</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#717971] flex-shrink-0 self-center" />
+                  </button>
+                )}
+                {selectedNotif.type === 'claim_confirmed' && !notifOrder && (
+                  <button
+                    onClick={handleOrderCardClick}
+                    className="w-full flex items-center gap-2 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
+                  >
+                    <ShoppingBag className="w-4 h-4 text-[#E53935]" />
+                    <span className="text-xs font-bold text-[#E53935] flex-1 text-left">View My Orders</span>
+                    <ChevronRight className="w-4 h-4 text-[#717971]" />
+                  </button>
+                )}
+
+                {/* ── Deal card (for broadcast notifications with attached dealId) ── */}
                 {notifDeal && (
                   <button
-                    onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: notifDeal.id }) }}
+                    onClick={handleDealCardClick}
                     className="w-full flex gap-3 p-3 rounded-xl bg-white border border-[#E53935]/20 hover:border-[#E53935]/40 transition-all active:scale-95"
                   >
                     <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2] relative">
@@ -6525,14 +6676,24 @@ const NotificationBell = memo(function NotificationBell() {
                 </div>
               ) : (
                 topNotifs.map((notif) => (
-                  <button key={notif.id} onClick={() => setSelectedNotif(notif)} className={`w-full text-left p-3 rounded-xl transition-all ${notif.read ? 'bg-[#f8faf9]' : 'bg-[#E53935]/5 border border-[#E53935]/15'}`}>
+                  <button
+                    key={notif.id}
+                    onClick={() => handleNotifClick(notif)}
+                    className={`w-full text-left p-3 rounded-xl transition-all ${notif.read ? 'bg-[#f8faf9]' : 'bg-[#E53935]/5 border border-[#E53935]/15'}`}
+                  >
                     <div className="flex items-start gap-2">
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-[#1a1c1e]">{notif.title}</p>
+                        <p className={`text-xs ${notif.read ? 'font-semibold text-[#414841]' : 'font-bold text-[#1a1c1e]'}`}>
+                          {notif.title}
+                        </p>
                         <p className="text-[10px] text-[#717971] mt-0.5 line-clamp-2">{notif.message}</p>
-                        <p className="text-[9px] text-[#717971] mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                        <p className="text-[9px] text-[#717971] mt-1">{parseDbDate(notif.createdAt).toLocaleString()}</p>
                       </div>
-                      {notif.type === 'broadcast' && <Megaphone className="w-3.5 h-3.5 text-[#E53935] flex-shrink-0" />}
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {!notif.read && <span className="w-2 h-2 rounded-full bg-[#E53935]" aria-label="Unread" />}
+                        {notif.type === 'broadcast' && <Megaphone className="w-3.5 h-3.5 text-[#E53935]" />}
+                        {notif.type === 'claim_confirmed' && <CheckCircle className="w-3.5 h-3.5 text-[#E53935]" />}
+                      </div>
                     </div>
                   </button>
                 ))
@@ -6771,7 +6932,7 @@ function AdminMediaView() {
                               {file.fileName}
                             </p>
                             <p className="text-[10px] text-[#717971]">
-                              {file.group} · {file.uploader?.name || 'Unknown'} · {new Date(file.createdAt).toLocaleDateString()}
+                              {file.group} · {file.uploader?.name || 'Unknown'} · {parseDbDate(file.createdAt).toLocaleDateString()}
                             </p>
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -6829,7 +6990,7 @@ function AdminMediaView() {
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-[#1a1c1e] truncate">{file.fileName}</p>
                             <p className="text-[10px] text-[#717971]">
-                              {file.group} · {new Date(file.createdAt).toLocaleString()}
+                              {file.group} · {parseDbDate(file.createdAt).toLocaleString()}
                             </p>
                           </div>
                           <span className={`text-xs font-bold ${c.text} flex-shrink-0`}>{fmtSize(file.sizeMB)}</span>
@@ -7661,32 +7822,54 @@ export default function SnapJeApp() {
   // Fetch notifications (polling fallback — catches DB notifications even if socket misses)
   useEffect(() => {
     if (!isAuthenticated) return
-    let lastSeenCount = 0
     const fetchNotifications = async () => {
       const res = await apiFetch<{ notifications: AppNotification[]; unreadCount: number }>('/api/notifications?unReadOnly=true')
       if (res.success && res.data) {
-        const newCount = res.data.unreadCount ?? 0
+        const serverUnread = res.data.unreadCount ?? 0
         const newNotifs = res.data.notifications || []
 
-        // If we got NEW unread notifications (count increased), show social-proof toast
-        if (newCount > lastSeenCount && newNotifs.length > 0) {
-          const freshNotifs = newNotifs.slice(0, newCount - lastSeenCount)
-          freshNotifs.forEach((n) => {
-            if (n.type === 'broadcast') {
-              toast.info(`📣 ${n.title}`, {
-                description: (n.message || '').slice(0, 100) + ((n.message || '').length > 100 ? '...' : ''),
-                duration: 6000,
-              })
-            } else if (n.type === 'order_status_update') {
-              toast.info(`📦 ${n.title}`, { duration: 4000 })
-            } else if (n.type === 'deal_new' || n.type === 'deal_expiring') {
-              toast.success(`🔥 ${n.title}`, { duration: 4000 })
-            }
-          })
+        // Toast deduplication: only fire a social-proof toast for notification
+        // IDs we have NOT shown yet this session. This prevents re-firing
+        // toasts on every remount (e.g. when auth state briefly changes and
+        // the polling effect re-runs).
+        newNotifs.forEach((n) => {
+          if (shownToastNotifIds.has(n.id)) return
+          shownToastNotifIds.add(n.id)
+          // Broadcast format: "📣 <Vendor Name>:" as title + the message in
+          // BOLD as the description (per user spec — Facebook-style social proof).
+          if (n.type === 'broadcast') {
+            const msg = n.message || ''
+            toast.info(`📣 ${n.title}:`, {
+              description: (
+                <span className="font-bold text-[#1a1c1e]">
+                  {msg.slice(0, 140) + (msg.length > 140 ? '…' : '')}
+                </span>
+              ),
+              duration: 6000,
+            })
+          } else if (n.type === 'claim_confirmed') {
+            toast.success(`✅ ${n.title}`, { duration: 4000 })
+          } else if (n.type === 'order_status_update') {
+            toast.info(`📦 ${n.title}`, { duration: 4000 })
+          } else if (n.type === 'deal_new' || n.type === 'deal_expiring') {
+            toast.success(`🔥 ${n.title}`, { duration: 4000 })
+          }
+        })
+        // Cap the dedupe set to prevent unbounded growth over a long session.
+        if (shownToastNotifIds.size > 200) {
+          const arr = Array.from(shownToastNotifIds)
+          arr.splice(0, arr.length - 200)
+          shownToastNotifIds.clear()
+          arr.forEach((id) => shownToastNotifIds.add(id))
         }
 
-        lastSeenCount = newCount
-        useNotificationStore.getState().setUnreadCount(newCount)
+        // Reconcile the bell badge count with the server.
+        // `pendingReadsCount` tracks mark-as-read API calls that the
+        // NotificationBell fired but the server hasn't acknowledged yet.
+        // Without this subtraction, the badge would briefly re-appear
+        // between the user's click and the server's ack (5s polling window).
+        const adjustedUnread = Math.max(0, serverUnread - pendingReadsCount)
+        useNotificationStore.getState().setUnreadCount(adjustedUnread)
       }
     }
     fetchNotifications()

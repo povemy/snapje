@@ -69,15 +69,24 @@ export function useSocket() {
     // Listen for notifications — show social-proof toast for broadcasts
     socket.on('notification:new', (notification: AppNotification) => {
       safeAddNotification(notification)
-      // Social-proof toast for broadcast messages
+      // Social-proof toast for broadcast messages.
+      // Format: "📣 <Vendor Name>:" as title, with the broadcast message in
+      // BOLD as the description (per user spec — Facebook-style social proof).
       try {
         if (notification.type === 'broadcast') {
-          toast.info(`📣 ${notification.title}`, {
-            description: notification.message?.slice(0, 100) + (notification.message?.length > 100 ? '...' : ''),
+          const msg = notification.message || ''
+          toast.info(`📣 ${notification.title}:`, {
+            description: (
+              <span className="font-bold text-[#1a1c1e]">
+                {msg.slice(0, 140) + (msg.length > 140 ? '…' : '')}
+              </span>
+            ),
             duration: 6000,
           })
         } else if (notification.type === 'order_status_update') {
           toast.info(`📦 ${notification.title}`, { duration: 4000 })
+        } else if (notification.type === 'claim_confirmed') {
+          toast.success(`✅ ${notification.title}`, { duration: 4000 })
         } else if (notification.type === 'deal_new' || notification.type === 'deal_expiring') {
           toast.success(`🔥 ${notification.title}`, { duration: 4000 })
         } else {

@@ -72,7 +72,15 @@ export async function POST(
           { status: 409 }
         )
       }
-      if (new Date(existing.data.expiresAt) <= new Date()) {
+      // TZ-safe parse: Supabase returns TIMESTAMP WITHOUT TZ as a naive
+      // datetime string (no 'Z'). Without appending 'Z', `new Date()` would
+      // parse it as LOCAL server time — which on a UTC+8 server would make
+      // the comparison wrong by 8 hours.
+      const expiresAtStr = existing.data.expiresAt as string
+      const expiresAtDate = expiresAtStr && !/[Zz]$|[+-]\d{2}:?\d{2}$/.test(expiresAtStr.trim())
+        ? new Date(expiresAtStr + 'Z')
+        : new Date(expiresAtStr)
+      if (expiresAtDate <= new Date()) {
         return NextResponse.json(
           { success: false, error: 'Reservation has expired' },
           { status: 410 }

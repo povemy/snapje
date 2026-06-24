@@ -248,16 +248,18 @@ export interface AppNotification {
   dealId?: string
 }
 
-export type NotificationType = 
-  | 'deal_sold_out' 
-  | 'deal_expiring' 
-  | 'claim_confirmed' 
-  | 'pickup_reminder' 
-  | 'vendor_approved' 
-  | 'vendor_rejected' 
+export type NotificationType =
+  | 'deal_sold_out'
+  | 'deal_expiring'
+  | 'deal_new'
+  | 'claim_confirmed'
+  | 'pickup_reminder'
+  | 'vendor_approved'
+  | 'vendor_rejected'
   | 'siren_push'
   | 'new_deal_nearby'
   | 'order_status_update'
+  | 'broadcast'
 
 // ============================================
 // Socket.io Event Types
