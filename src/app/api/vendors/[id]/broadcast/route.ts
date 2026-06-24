@@ -122,13 +122,7 @@ export async function POST(
       }
     }
 
-    // Fan out: create a Notification row for every user.
-    // NOTE: For MVP, subscriptions live in localStorage on the client. There's
-    // no server-side subscriber list, so we create a notification for ALL
-    // users (they will see the broadcast in their notification feed; clients
-    // can choose to filter by type='broadcast' if they only want subscribed
-    // vendors). This is intentionally simple — a future iteration should
-    // replace this with a Subscription-table lookup.
+    // Fan out: create a Notification row for every user AND emit via socket.
     const { data: allUsers, error: usersError } = await supabase
       .from('User')
       .select('id')
@@ -160,15 +154,14 @@ export async function POST(
     const rows = users.map((u) => ({
       id: genId('notif'),
       userId: u.id,
-      type: 'broadcast',
+      type: 'broadcast' as const,
       title,
       message,
       data: dataPayload,
       read: false,
     }))
 
-    // Supabase can batch insert up to a few thousand rows in one call. If the
-    // user base grows large, chunk this.
+    // Insert notifications in chunks
     const CHUNK = 500
     let inserted = 0
     for (let i = 0; i < rows.length; i += CHUNK) {
@@ -176,10 +169,34 @@ export async function POST(
       const ins = await supabase.from('Notification').insert(slice)
       if (ins.error) {
         console.error('Broadcast insert chunk error:', ins.error.message)
-        // Continue with the next chunk — partial fan-out is better than none.
       } else {
         inserted += slice.length
       }
+    }
+
+    // Emit real-time notifications via the socket.io service.
+    // The realtime service listens for HTTP POST on /broadcast which then
+    // emits 'notification:new' to each user's personal room.
+    // This is non-blocking — if the socket service is down, the DB
+    // notifications still exist and will be picked up by polling.
+    try {
+      await fetch(`http://127.0.0.1:3003/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userIds: users.map(u => u.id),
+          notification: {
+            type: 'broadcast',
+            title,
+            message,
+            data: dataPayload,
+            dealId: dealId || undefined,
+          },
+        }),
+        signal: AbortSignal.timeout(3000),
+      })
+    } catch (socketErr) {
+      console.warn('Socket emit failed (non-fatal — DB notifications still created):', socketErr instanceof Error ? socketErr.message : socketErr)
     }
 
     return NextResponse.json({

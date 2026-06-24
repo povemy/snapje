@@ -1,8 +1,11 @@
 import { Server } from 'socket.io'
+import { createServer } from 'http'
 
 const PORT = 3003
 
-const io = new Server(PORT, {
+const httpServer = createServer()
+
+const io = new Server(httpServer, {
   cors: {
     origin: '*',
     methods: ['GET', 'POST'],
@@ -90,4 +93,41 @@ io.on('connection', (socket) => {
   })
 })
 
+// HTTP endpoint for server-to-server broadcast (called by the Next.js API route)
+httpServer.on('request', (req, res) => {
+  if (req.method === 'POST' && req.url === '/broadcast') {
+    let body = ''
+    req.on('data', (chunk) => { body += chunk })
+    req.on('end', () => {
+      try {
+        const { userIds, notification } = JSON.parse(body)
+        if (userIds && Array.isArray(userIds) && notification) {
+          let emitted = 0
+          for (const userId of userIds) {
+            io.to(`user:${userId}`).emit('notification:new', {
+              ...notification,
+              id: `broadcast_${Date.now()}_${userId}`,
+              userId,
+              read: false,
+              createdAt: new Date().toISOString(),
+            })
+            emitted++
+          }
+          console.log(`[Socket] Broadcast emitted to ${emitted} users`)
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: true }))
+      } catch (e) {
+        console.error('[Socket] Broadcast parse error:', e)
+        res.writeHead(400, { 'Content-Type': 'application/json' })
+        res.end(JSON.stringify({ success: false, error: 'Invalid JSON' }))
+      }
+    })
+  } else {
+    res.writeHead(404, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify({ error: 'Not found' }))
+  }
+})
+
+httpServer.listen(PORT)
 console.log(`[SnapJe Real-time] Socket.io server running on port ${PORT}`)

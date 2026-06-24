@@ -1100,66 +1100,53 @@ function FoodieHomeView() {
             />
           </div>
         </div>
-      </div>
 
-      {/* ===== Category Pills — single-line horizontal scroll with chevrons ===== */}
-      <div className="bg-white px-2 py-1.5 border-b border-[#e8edea]">
-        <div className="flex items-center gap-1">
-          {/* Left chevron */}
-          <button
-            onClick={() => {
-              const el = document.getElementById('category-scroll')
-              el?.scrollBy({ left: -200, behavior: 'smooth' })
-            }}
-            className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
-            aria-label="Scroll categories left"
-          >
-            <ChevronRight className="w-4 h-4 text-[#717971] rotate-180" />
-          </button>
-
-          {/* Scrollable category pills */}
-          <div
-            id="category-scroll"
-            className="flex-1 flex gap-1.5 overflow-x-auto scroll-smooth snap-x"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch',
-              scrollBehavior: 'smooth',
-            }}
-            ref={(el) => {
-              if (el) el.style.scrollbarWidth = 'none'
-            }}
-          >
-            {CATEGORY_ICONS.map((cat) => {
-              const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
-              const Icon = cat.icon
-              return (
-                <button
-                  key={cat.key}
-                  onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
-                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full flex-shrink-0 snap-start transition-all duration-150 active:scale-95 ${
-                    isActive ? 'bg-[#E53935] text-white' : 'bg-[#f0f4f2] text-[#1a1c1e]'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" style={isActive ? { color: '#fff' } : { color: cat.color }} />
-                  <span className="text-[10px] font-bold leading-none">{cat.label}</span>
-                </button>
-              )
-            })}
+        {/* ===== Category Pills — single-line horizontal scroll with chevrons ===== */}
+        <div className="px-2 py-1.5 border-t border-[#e8edea]">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                const el = document.getElementById('category-scroll')
+                el?.scrollBy({ left: -200, behavior: 'smooth' })
+              }}
+              className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
+              aria-label="Scroll categories left"
+            >
+              <ChevronRight className="w-4 h-4 text-[#717971] rotate-180" />
+            </button>
+            <div
+              id="category-scroll"
+              className="flex-1 flex gap-1.5 overflow-x-auto scroll-smooth snap-x"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch', scrollBehavior: 'smooth' }}
+            >
+              {CATEGORY_ICONS.map((cat) => {
+                const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
+                const Icon = cat.icon
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
+                    className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full flex-shrink-0 snap-start transition-all duration-150 active:scale-95 ${
+                      isActive ? 'bg-[#E53935] text-white' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5" style={isActive ? { color: '#fff' } : { color: cat.color }} />
+                    <span className="text-[10px] font-bold leading-none">{cat.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <button
+              onClick={() => {
+                const el = document.getElementById('category-scroll')
+                el?.scrollBy({ left: 200, behavior: 'smooth' })
+              }}
+              className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
+              aria-label="Scroll categories right"
+            >
+              <ChevronRight className="w-4 h-4 text-[#717971]" />
+            </button>
           </div>
-
-          {/* Right chevron */}
-          <button
-            onClick={() => {
-              const el = document.getElementById('category-scroll')
-              el?.scrollBy({ left: 200, behavior: 'smooth' })
-            }}
-            className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
-            aria-label="Scroll categories right"
-          >
-            <ChevronRight className="w-4 h-4 text-[#717971]" />
-          </button>
         </div>
       </div>
 
@@ -3716,11 +3703,11 @@ function VendorDashboardView() {
 
       {/* ===== Broadcast Modal (VIP vendors only) ===== */}
       <Dialog open={showBroadcastModal} onOpenChange={setShowBroadcastModal}>
-        <DialogContent className="rounded-2xl max-w-sm p-0">
-          <div className="bg-gradient-to-br from-amber-100/60 to-amber-50 px-5 pt-5 pb-3">
+        <DialogContent className="rounded-2xl max-w-sm p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-[#E53935]/10 to-[#E53935]/5 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
-                <Megaphone className="w-5 h-5 text-amber-600" />
+                <Megaphone className="w-5 h-5 text-[#E53935]" />
                 Broadcast to Subscribers
               </DialogTitle>
               <DialogDescription className="text-[#414841] text-xs">
@@ -7608,18 +7595,18 @@ export default function SnapJeApp() {
     }).finally(() => setLoading(false))
   }, [login, logout, setLoading])
 
-  // Fetch notifications (only as fallback - socket.io handles real-time)
+  // Fetch notifications (polling fallback — socket.io handles real-time)
   useEffect(() => {
     if (!isAuthenticated) return
     const fetchNotifications = async () => {
       const res = await apiFetch<{ notifications: AppNotification[]; unreadCount: number }>('/api/notifications?unReadOnly=true')
       if (res.success && res.data) {
-        const count = res.data.unreadCount ?? res.data.notifications?.length ?? 0
-        useAppStore.getState().setUnreadCount(count)
+        // Update the notification store (which the bell reads from)
+        useNotificationStore.getState().setUnreadCount(res.data.unreadCount ?? 0)
       }
     }
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 120000) // Reduced from 60s to 120s - socket handles real-time
+    const interval = setInterval(fetchNotifications, 15000) // 15s polling
     return () => clearInterval(interval)
   }, [isAuthenticated])
 
