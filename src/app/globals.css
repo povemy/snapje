@@ -276,3 +276,8 @@
     outline: none;
   }
 }
+
+/* Hide scrollbar for category pills */
+#category-scroll::-webkit-scrollbar { display: none; }
+#category-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+

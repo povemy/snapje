@@ -1036,9 +1036,9 @@ function FoodieHomeView() {
         style={{ paddingTop: 'max(8px, env(safe-area-inset-top, 8px))' }}
       >
         {/* Delivery Address Bar */}
-        <div className="px-4 pb-2">
+        <div className="px-4 pb-1">
           <div className="flex items-center justify-between">
-            <button className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
               <div className="w-8 h-8 rounded-full bg-[#E53935] flex items-center justify-center flex-shrink-0">
                 <MapPin className="w-4 h-4 text-white" />
               </div>
@@ -1049,7 +1049,7 @@ function FoodieHomeView() {
                 </p>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-[#717971] flex-shrink-0" />
-            </button>
+            </div>
             <div className="flex items-center gap-2 ml-2">
               {/* ISSUE 2: "Near me" button. Toggles distance-based filtering
                   on the deals list using the user's deal-alert radius. */}
@@ -1102,34 +1102,64 @@ function FoodieHomeView() {
         </div>
       </div>
 
-      {/* ===== Category Icon Grid (grid-cols-4) ===== */}
-      <div className="bg-white px-4 py-3 mb-2">
-        <div className="grid grid-cols-4 gap-2">
-          {CATEGORY_ICONS.map((cat) => {
-            const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
-            const Icon = cat.icon
-            return (
-              <button
-                key={cat.key}
-                onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
-                className={`flex flex-col items-center gap-1.5 py-2 rounded-xl transition-all duration-150 ${
-                  isActive ? 'bg-[#E53935]/10 ring-1 ring-[#E53935]/30' : ''
-                }`}
-              >
-                <div 
-                  className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ backgroundColor: cat.bg }}
+      {/* ===== Category Pills — single-line horizontal scroll with chevrons ===== */}
+      <div className="bg-white px-2 py-1.5 border-b border-[#e8edea]">
+        <div className="flex items-center gap-1">
+          {/* Left chevron */}
+          <button
+            onClick={() => {
+              const el = document.getElementById('category-scroll')
+              el?.scrollBy({ left: -200, behavior: 'smooth' })
+            }}
+            className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
+            aria-label="Scroll categories left"
+          >
+            <ChevronRight className="w-4 h-4 text-[#717971] rotate-180" />
+          </button>
+
+          {/* Scrollable category pills */}
+          <div
+            id="category-scroll"
+            className="flex-1 flex gap-1.5 overflow-x-auto scroll-smooth snap-x"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+              scrollBehavior: 'smooth',
+            }}
+            ref={(el) => {
+              if (el) el.style.scrollbarWidth = 'none'
+            }}
+          >
+            {CATEGORY_ICONS.map((cat) => {
+              const isActive = selectedCategory === cat.key || (cat.key === 'All' && !selectedCategory)
+              const Icon = cat.icon
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => setSelectedCategory(cat.key === 'All' ? null : cat.key)}
+                  className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full flex-shrink-0 snap-start transition-all duration-150 active:scale-95 ${
+                    isActive ? 'bg-[#E53935] text-white' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                  }`}
                 >
-                  <Icon className="w-5 h-5" style={{ color: cat.color }} />
-                </div>
-                <span className={`text-[10px] font-bold leading-tight ${
-                  isActive ? 'text-[#E53935]' : 'text-[#1a1c1e]'
-                }`}>
-                  {cat.label}
-                </span>
-              </button>
-            )
-          })}
+                  <Icon className="w-3.5 h-3.5" style={isActive ? { color: '#fff' } : { color: cat.color }} />
+                  <span className="text-[10px] font-bold leading-none">{cat.label}</span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Right chevron */}
+          <button
+            onClick={() => {
+              const el = document.getElementById('category-scroll')
+              el?.scrollBy({ left: 200, behavior: 'smooth' })
+            }}
+            className="w-7 h-7 rounded-full bg-[#f0f4f2] flex items-center justify-center flex-shrink-0 hover:bg-[#e8edea] transition-colors active:scale-90"
+            aria-label="Scroll categories right"
+          >
+            <ChevronRight className="w-4 h-4 text-[#717971]" />
+          </button>
         </div>
       </div>
 
@@ -1735,7 +1765,7 @@ function FoodieOrdersView() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-  const [orderTab, setOrderTab] = useState<'active' | 'completed' | 'expired'>('active')
+  const [orderTab, setOrderTab] = useState<'active' | 'completed' | 'expired' | 'burnt'>('active')
   const { navigate } = useAppStore()
   const { isAuthenticated } = useAuthStore()
 
@@ -1766,11 +1796,16 @@ function FoodieOrdersView() {
   const activeOrders = orders.filter(o => o.status === 'pending_pickup' || o.status === 'picked_up')
   const completedOrders = orders.filter(o => o.status === 'completed')
   const expiredOrders = orders.filter(o => o.status === 'expired' || o.status === 'cancelled')
+  // Burnt = pickup overdue (deadline passed but still pending_pickup — no refund)
+  const now = Date.now()
+  const burntOrders = activeOrders.filter(o => o.pickupDeadline && new Date(o.pickupDeadline).getTime() < now)
+  const nonBurntActive = activeOrders.filter(o => !o.pickupDeadline || new Date(o.pickupDeadline).getTime() >= now)
 
   const tabConfig = [
-    { key: 'active' as const, label: 'Active', count: activeOrders.length, icon: Clock, color: '#E53935' },
+    { key: 'active' as const, label: 'Active', count: nonBurntActive.length, icon: Clock, color: '#E53935' },
     { key: 'completed' as const, label: 'Completed', count: completedOrders.length, icon: CheckCircle, color: '#E53935' },
-    { key: 'expired' as const, label: 'Expired', count: expiredOrders.length, icon: Timer, color: '#EF4444' },
+    { key: 'burnt' as const, label: 'Burnt', count: burntOrders.length, icon: Flame, color: '#EF4444' },
+    { key: 'expired' as const, label: 'Expired', count: expiredOrders.length, icon: Timer, color: '#717971' },
   ]
 
   return (
@@ -1830,7 +1865,7 @@ function FoodieOrdersView() {
               </div>
             ) : (
               <div className="space-y-3">
-                {activeOrders.map((order) => (
+                {nonBurntActive.map((order) => (
                   <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
                     <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
                       <CardContent className="p-3.5">
@@ -1931,6 +1966,51 @@ function FoodieOrdersView() {
                       </CardContent>
                     </Card>
                   </motion.div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* ── Burnt Orders (pickup overdue — no refund) ── */}
+          {orderTab === 'burnt' && (
+            burntOrders.length === 0 ? (
+              <div className="text-center py-12">
+                <Flame className="w-12 h-12 text-[#c1c9c0] mx-auto mb-3" />
+                <p className="text-sm text-[#717971]">No burnt orders</p>
+                <p className="text-[10px] text-[#717971] mt-1">Pick up your deals on time to avoid losing them!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {burntOrders.map((order) => (
+                  <Card key={order.id} className="border-0 shadow-card rounded-2xl opacity-60">
+                    <CardContent className="p-3.5">
+                      <div className="flex gap-3">
+                        <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                          {order.deal?.imageUrl ? (
+                            <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={56} height={56} className="w-full h-full object-cover grayscale" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Utensils className="w-6 h-6 text-[#c1c9c0]" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
+                          <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <Flame className="w-3 h-3 text-[#EF4444]" />
+                            <span className="text-[11px] font-bold text-[#EF4444]">
+                              BURNT — Pickup was due {order.pickupDeadline ? new Date(order.pickupDeadline).toLocaleString() : ''}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[#717971] mt-0.5">No refund for burnt deals.</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className="text-sm font-extrabold text-[#717971]">RM{order.dealPrice.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )
@@ -3666,21 +3746,47 @@ function VendorDashboardView() {
 
             {activeDeals.length > 0 && (
               <div>
-                <Label htmlFor="broadcast-deal" className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
-                  Attach a deal (optional)
+                <Label className="text-xs font-semibold text-[#1a1c1e] mb-1.5 block">
+                  Attach a deal (optional) — tap to select
                 </Label>
-                <Select value={broadcastDealId} onValueChange={setBroadcastDealId}>
-                  <SelectTrigger id="broadcast-deal" className="h-10 rounded-xl">
-                    <SelectValue placeholder="No deal attached" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeDeals.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.title} — RM{d.dealPrice.toFixed(2)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
+                  {activeDeals.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setBroadcastDealId(broadcastDealId === d.id ? '' : d.id)}
+                      className={`relative rounded-xl overflow-hidden border-2 transition-all active:scale-95 ${
+                        broadcastDealId === d.id ? 'border-[#E53935] ring-2 ring-[#E53935]/20' : 'border-transparent'
+                      }`}
+                    >
+                      <div className="aspect-[4/3] bg-[#f0f4f2] relative">
+                        {d.imageUrl ? (
+                          <Image src={d.imageUrl} alt={d.title} fill className="object-cover" sizes="150px" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Utensils className="w-6 h-6 text-[#c1c9c0]" />
+                          </div>
+                        )}
+                        {broadcastDealId === d.id && (
+                          <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#E53935] flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-1.5 bg-white">
+                        <p className="text-[10px] font-bold text-[#1a1c1e] truncate">{d.title}</p>
+                        <p className="text-[10px] text-[#E53935] font-bold">RM{d.dealPrice.toFixed(2)}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {broadcastDealId && (
+                  <button
+                    onClick={() => setBroadcastDealId('')}
+                    className="text-[10px] text-[#717971] mt-1.5 hover:text-[#1a1c1e]"
+                  >
+                    Clear selection
+                  </button>
+                )}
               </div>
             )}
 
@@ -6294,25 +6400,98 @@ function AdminBroadcastLogView() {
 // NOTIFICATION BELL
 // ============================================
 const NotificationBell = memo(function NotificationBell() {
-  const { unreadCount } = useNotificationStore()
+  const { unreadCount, markAllAsRead } = useNotificationStore()
   const { navigate } = useAppStore()
+  const [showModal, setShowModal] = useState(false)
+  const [selectedNotif, setSelectedNotif] = useState<AppNotification | null>(null)
+  const [fullNotifs, setFullNotifs] = useState<AppNotification[]>([])
+
+  useEffect(() => {
+    if (showModal) {
+      apiFetch<{ notifications: AppNotification[] }>('/api/notifications?pageSize=50').then((res) => {
+        if (res.success && res.data) setFullNotifs(res.data.notifications || [])
+      })
+    }
+  }, [showModal])
 
   return (
-    <button
-      onClick={() => navigate('orders')}
-      className="relative p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors"
-    >
-      <Bell className="w-5 h-5 text-[#E53935]" />
-      {unreadCount > 0 && (
-        <motion.span
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center"
-        >
-          {unreadCount > 9 ? '9+' : unreadCount}
-        </motion.span>
-      )}
-    </button>
+    <>
+      <button
+        onClick={() => setShowModal(true)}
+        className="relative p-2 rounded-xl bg-[#f0f4f2] hover:bg-[#dfe5e1] transition-colors"
+        aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+      >
+        <Bell className="w-5 h-5 text-[#E53935]" />
+        {unreadCount > 0 && (
+          <motion.span
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#EF4444] text-white text-[10px] font-bold flex items-center justify-center"
+          >
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </motion.span>
+        )}
+      </button>
+
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="rounded-2xl max-w-md max-h-[85vh] overflow-y-auto p-0">
+          <DialogHeader className="bg-gradient-to-br from-[#E53935]/20 to-[#E53935]/5 px-5 pt-5 pb-3">
+            <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
+              <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {fullNotifs.length} notification{fullNotifs.length === 1 ? '' : 's'} · {unreadCount} unread
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedNotif ? (
+            <div className="px-5 py-4">
+              <button onClick={() => setSelectedNotif(null)} className="flex items-center gap-1 text-xs font-bold text-[#E53935] mb-3">
+                <ArrowLeft className="w-3.5 h-3.5" /> Back
+              </button>
+              <div className="bg-[#f8faf9] rounded-xl p-4">
+                <h3 className="font-bold text-sm text-[#1a1c1e] mb-2">{selectedNotif.title}</h3>
+                <p className="text-xs text-[#414841] leading-relaxed mb-3">{selectedNotif.message}</p>
+                <p className="text-[10px] text-[#717971]">{new Date(selectedNotif.createdAt).toLocaleString()}</p>
+                {selectedNotif.dealId && (
+                  <Button size="sm" onClick={() => { setShowModal(false); setSelectedNotif(null); navigate('deal-detail', { id: selectedNotif.dealId! }) }} className="mt-3 w-full h-9 rounded-xl bg-[#E53935] hover:bg-[#C62828] text-white text-xs font-bold">
+                    <Flame className="w-3.5 h-3.5 mr-1.5" /> View Deal
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="px-3 pb-4 pt-2 space-y-1.5 max-h-[60vh] overflow-y-auto">
+              {fullNotifs.length === 0 ? (
+                <div className="text-center py-8">
+                  <Bell className="w-10 h-10 text-[#c1c9c0] mx-auto mb-2" />
+                  <p className="text-sm text-[#717971]">No notifications yet</p>
+                </div>
+              ) : (
+                fullNotifs.map((notif) => (
+                  <button key={notif.id} onClick={() => { setSelectedNotif(notif); if (!notif.read) { apiFetch(`/api/notifications/${notif.id}/read`, { method: 'PUT' }).catch(() => {}) } }} className={`w-full text-left p-3 rounded-xl transition-all ${notif.read ? 'bg-[#f8faf9]' : 'bg-[#E53935]/5 border border-[#E53935]/15'}`}>
+                    <div className="flex items-start gap-2">
+                      {!notif.read && <div className="w-2 h-2 rounded-full bg-[#E53935] flex-shrink-0 mt-1.5" />}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs ${notif.read ? 'font-medium text-[#1a1c1e]' : 'font-bold text-[#1a1c1e]'}`}>{notif.title}</p>
+                        <p className="text-[10px] text-[#717971] mt-0.5 line-clamp-2">{notif.message}</p>
+                        <p className="text-[9px] text-[#717971] mt-1">{new Date(notif.createdAt).toLocaleString()}</p>
+                      </div>
+                      {notif.type === 'broadcast' && <Megaphone className="w-3.5 h-3.5 text-[#E53935] flex-shrink-0" />}
+                    </div>
+                  </button>
+                ))
+              )}
+              {unreadCount > 0 && (
+                <button onClick={() => { markAllAsRead(); apiFetch('/api/notifications?unReadOnly=true').then((res) => { if (res.success && res.data) { (res.data.notifications || []).forEach((n) => { apiFetch(`/api/notifications/${n.id}/read`, { method: 'PUT' }).catch(() => {}) }) } }); setFullNotifs(prev => prev.map(n => ({ ...n, read: true }))) }} className="w-full text-center text-xs font-bold text-[#E53935] py-2 mt-2">
+                  Mark all as read
+                </button>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 })
 

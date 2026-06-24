@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
+import { toast } from 'sonner'
 import { useAuthStore } from '@/stores/auth-store'
 import { useNotificationStore } from '@/stores/notification-store'
 import type { AppNotification, DealStatus, OrderStatus } from '@/types'
@@ -65,18 +66,31 @@ export function useSocket() {
       }
     })
 
-    // Listen for notifications
+    // Listen for notifications — show social-proof toast for broadcasts
     socket.on('notification:new', (notification: AppNotification) => {
       safeAddNotification(notification)
+      // Social-proof toast for broadcast messages
+      try {
+        if (notification.type === 'broadcast') {
+          toast.info(`📣 ${notification.title}`, {
+            description: notification.message?.slice(0, 100) + (notification.message?.length > 100 ? '...' : ''),
+            duration: 6000,
+          })
+        } else if (notification.type === 'order_status_update') {
+          toast.info(`📦 ${notification.title}`, { duration: 4000 })
+        } else if (notification.type === 'deal_new' || notification.type === 'deal_expiring') {
+          toast.success(`🔥 ${notification.title}`, { duration: 4000 })
+        } else {
+          toast.info(notification.title, { duration: 3000 })
+        }
+      } catch { /* ignore toast errors */ }
     })
 
     // Listen for order status updates
     socket.on('order:status_update', (data: { orderId: string; status: OrderStatus }) => {
       try {
-        console.log('[Socket] Order status update:', data)
-      } catch {
-        // ignore
-      }
+        toast.info(`📦 Order updated: ${data.status.replace(/_/g, ' ')}`, { duration: 4000 })
+      } catch { /* ignore */ }
     })
 
     socketRef.current = socket

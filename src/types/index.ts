@@ -245,6 +245,7 @@ export interface AppNotification {
   data: string
   read: boolean
   createdAt: string
+  dealId?: string
 }
 
 export type NotificationType = 
