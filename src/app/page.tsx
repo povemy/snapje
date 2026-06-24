@@ -3998,6 +3998,10 @@ function VendorCreateDealView() {
                   <p className="font-bold text-[#1a1c1e]">{form.totalQuantity}</p>
                 </div>
                 <div>
+                  <p className="text-[#717971]">Max Claims/User</p>
+                  <p className="font-bold text-[#1a1c1e]">{form.maxClaimsPerUser}</p>
+                </div>
+                <div>
                   <p className="text-[#717971]">Pickup</p>
                   <p className="font-bold text-[#1a1c1e]">Only</p>
                 </div>
@@ -7609,18 +7613,39 @@ export default function SnapJeApp() {
     }).finally(() => setLoading(false))
   }, [login, logout, setLoading])
 
-  // Fetch notifications (polling fallback — socket.io handles real-time)
+  // Fetch notifications (polling fallback — catches DB notifications even if socket misses)
   useEffect(() => {
     if (!isAuthenticated) return
+    let lastSeenCount = 0
     const fetchNotifications = async () => {
       const res = await apiFetch<{ notifications: AppNotification[]; unreadCount: number }>('/api/notifications?unReadOnly=true')
       if (res.success && res.data) {
-        // Update the notification store (which the bell reads from)
-        useNotificationStore.getState().setUnreadCount(res.data.unreadCount ?? 0)
+        const newCount = res.data.unreadCount ?? 0
+        const newNotifs = res.data.notifications || []
+
+        // If we got NEW unread notifications (count increased), show social-proof toast
+        if (newCount > lastSeenCount && newNotifs.length > 0) {
+          const freshNotifs = newNotifs.slice(0, newCount - lastSeenCount)
+          freshNotifs.forEach((n) => {
+            if (n.type === 'broadcast') {
+              toast.info(`📣 ${n.title}`, {
+                description: (n.message || '').slice(0, 100) + ((n.message || '').length > 100 ? '...' : ''),
+                duration: 6000,
+              })
+            } else if (n.type === 'order_status_update') {
+              toast.info(`📦 ${n.title}`, { duration: 4000 })
+            } else if (n.type === 'deal_new' || n.type === 'deal_expiring') {
+              toast.success(`🔥 ${n.title}`, { duration: 4000 })
+            }
+          })
+        }
+
+        lastSeenCount = newCount
+        useNotificationStore.getState().setUnreadCount(newCount)
       }
     }
     fetchNotifications()
-    const interval = setInterval(fetchNotifications, 15000) // 15s polling
+    const interval = setInterval(fetchNotifications, 5000) // 5s polling for near-real-time
     return () => clearInterval(interval)
   }, [isAuthenticated])
 
