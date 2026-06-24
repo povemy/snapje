@@ -1020,6 +1020,14 @@ function FoodieHomeView() {
   // the radius filter and bumps geoNonce to trigger a re-fetch.
   const handleNearMe = useCallback(() => {
     if (geo.loading) return
+    // Issue 1: toggle behavior. If "Near" is already active, clicking it
+    // again should turn it OFF so the foodie goes back to seeing all deals.
+    if (radiusEnabled) {
+      setRadiusEnabled(false)
+      setGeoNonce(n => n + 1)
+      toast.info('Showing all deals')
+      return
+    }
     if (geo.location) {
       // Already have a fix — just toggle the filter on and re-fetch.
       setRadiusEnabled(true)
@@ -1057,7 +1065,7 @@ function FoodieHomeView() {
         // ignore — keep polling
       }
     }, 300)
-  }, [geo, readDealAlertRadius])
+  }, [geo, readDealAlertRadius, radiusEnabled])
 
   // Assign card sizes for visual variety
   const getCardSize = (index: number): CardSize => {
@@ -1675,42 +1683,72 @@ function DealDetailView() {
                 <ChevronRight className={`w-4 h-4 text-[#717971] transition-transform ${pickupOpen ? 'rotate-90' : ''}`} />
               </button>
               {pickupOpen && (
-                <div
-                  className="absolute z-30 left-0 right-0 mt-1 bg-white border border-[#e8edea] rounded-xl shadow-lg max-h-64 overflow-y-auto"
-                  role="listbox"
-                >
-                  {pickupSlots.map((slot) => {
-                    const slotDate = parseDbDate(slot)
-                    const isSelected = slot === pickupTime
-                    return (
+                <>
+                  {/* Issue 2: dark backdrop + centered fixed modal so the
+                      time picker appears in the MIDDLE of the viewport
+                      (not cramped below the button where it was easy to miss). */}
+                  <div
+                    className="fixed inset-0 z-40 bg-black/40 flex items-center justify-center p-4"
+                    onClick={() => setPickupOpen(false)}
+                    role="presentation"
+                  />
+                  <div
+                    className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-sm bg-white border border-[#e8edea] rounded-2xl shadow-2xl overflow-hidden"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Select pickup time"
+                  >
+                    <div className="bg-gradient-to-br from-[#E53935]/10 to-[#E53935]/5 px-4 py-3 flex items-center justify-between">
+                      <p className="text-sm font-bold text-[#1a1c1e] flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-[#E53935]" /> Select Pickup Time
+                      </p>
                       <button
-                        key={slot}
                         type="button"
-                        role="option"
-                        aria-selected={isSelected}
-                        onClick={() => {
-                          setPickupTime(slot)
-                          setPickupOpen(false)
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 text-left text-sm transition-colors ${
-                          isSelected
-                            ? 'bg-[#E53935] text-white font-bold'
-                            : 'text-[#1a1c1e] hover:bg-[#f0f4f2]'
-                        }`}
+                        onClick={() => setPickupOpen(false)}
+                        className="w-7 h-7 rounded-full bg-white/80 flex items-center justify-center hover:bg-white"
+                        aria-label="Close"
                       >
-                        <span className="flex items-center gap-2">
-                          <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#E53935]'}`} />
-                          {slotDate.toLocaleString([], {
-                            weekday: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        {isSelected && <Check className="w-4 h-4" />}
+                        <X className="w-4 h-4 text-[#717971]" />
                       </button>
-                    )
-                  })}
-                </div>
+                    </div>
+                    <div
+                      className="max-h-[60vh] overflow-y-auto"
+                      role="listbox"
+                    >
+                      {pickupSlots.map((slot) => {
+                        const slotDate = parseDbDate(slot)
+                        const isSelected = slot === pickupTime
+                        return (
+                          <button
+                            key={slot}
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            onClick={() => {
+                              setPickupTime(slot)
+                              setPickupOpen(false)
+                            }}
+                            className={`w-full flex items-center justify-between px-4 py-3 text-left text-sm transition-colors ${
+                              isSelected
+                                ? 'bg-[#E53935] text-white font-bold'
+                                : 'text-[#1a1c1e] hover:bg-[#f0f4f2]'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : 'text-[#E53935]'}`} />
+                              {slotDate.toLocaleString([], {
+                                weekday: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {isSelected && <Check className="w-4 h-4" />}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -1937,12 +1975,14 @@ function FoodieOrdersView() {
 
   const activeOrders = orders.filter(o => o.status === 'pending_pickup' || o.status === 'picked_up')
   const completedOrders = orders.filter(o => o.status === 'completed')
-  const expiredOrders = orders.filter(o => o.status === 'expired' || o.status === 'cancelled')
-  // Burnt = pickup overdue (deadline passed but still pending_pickup — no refund)
-  // Only pending_pickup orders can be burnt; picked_up orders are already being processed.
-  const now = Date.now()
-  const burntOrders = orders.filter(o => o.status === 'pending_pickup' && o.pickupDeadline && parseDbDate(o.pickupDeadline).getTime() < now)
-  const nonBurntActive = activeOrders.filter(o => !burntOrders.some(b => b.id === o.id))
+  // Issue 8: the server-side scheduler (realtime-service) now marks orders as
+  // status='expired' when the vendor's closing time has passed and the foodie
+  // hasn't picked up. Those are the "Burnt" orders. status='cancelled' covers
+  // vendor/admin cancellations — those go in the "Expired" tab.
+  const burntOrders = orders.filter(o => o.status === 'expired')
+  const expiredOrders = orders.filter(o => o.status === 'cancelled')
+  // activeOrders already excludes expired/cancelled (they're not pending_pickup/picked_up)
+  const nonBurntActive = activeOrders
 
   const tabConfig = [
     { key: 'active' as const, label: 'Active', count: nonBurntActive.length, icon: Clock, color: '#E53935' },
@@ -2011,15 +2051,17 @@ function FoodieOrdersView() {
                 {nonBurntActive.map((order) => (
                   <motion.div key={order.id} whileTap={{ scale: 0.98 }} onClick={() => setSelectedOrder(order)} className="cursor-pointer">
                     <Card className="border-0 shadow-card rounded-2xl overflow-hidden">
-                      <CardContent className="p-3.5">
-                        <div className="flex gap-3">
+                      {/* Issue 6: uniform p-3 padding (top/bottom = left/right),
+                          tighter internal spacing to reduce card height. */}
+                      <CardContent className="p-3">
+                        <div className="flex gap-2.5">
                           {/* Thumbnail */}
-                          <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
+                          <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#f0f4f2]">
                             {order.deal?.imageUrl ? (
-                              <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={56} height={56} className="w-full h-full object-cover" />
+                              <Image src={order.deal.imageUrl} alt={order.deal?.title || 'Deal'} width={48} height={48} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
-                                <Utensils className="w-6 h-6 text-[#EF5350]" />
+                                <Utensils className="w-5 h-5 text-[#EF5350]" />
                               </div>
                             )}
                           </div>
@@ -2030,10 +2072,10 @@ function FoodieOrdersView() {
                                 <p className="font-bold text-sm text-[#1a1c1e] truncate">{order.deal?.title || 'Deal'}</p>
                                 <p className="text-[10px] text-[#717971] mt-0.5 font-mono truncate">#{order.orderNumber}</p>
                               </div>
-                              <QrCode className="w-5 h-5 text-[#E53935] flex-shrink-0" />
+                              <QrCode className="w-4 h-4 text-[#E53935] flex-shrink-0" />
                             </div>
                             {/* Pickup time with red */}
-                            <div className="flex items-center gap-1.5 mt-1.5">
+                            <div className="flex items-center gap-1.5 mt-1">
                               <Clock className="w-3 h-3 text-[#E53935]" />
                               <span className="text-[11px] font-bold text-[#E53935]">
                                 Pickup by {parseDbDate(order.pickupDeadline).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -2041,11 +2083,11 @@ function FoodieOrdersView() {
                             </div>
                             <PickupProgressSlider pickupDeadline={order.pickupDeadline} createdAt={order.createdAt} />
                             {/* Price & Status */}
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#e8edea]">
+                            <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-[#e8edea]">
                               <div>
-                                <span className="text-base font-extrabold text-[#E53935]">RM{order.dealPrice.toFixed(2)}</span>
+                                <span className="text-sm font-extrabold text-[#E53935]">RM{order.dealPrice.toFixed(2)}</span>
                                 {order.originalPrice > order.dealPrice && (
-                                  <span className="text-[10px] text-[#EF4444] line-through ml-1.5">RM{order.originalPrice.toFixed(2)}</span>
+                                  <span className="text-[10px] text-[#EF4444] line-through ml-1">RM{order.originalPrice.toFixed(2)}</span>
                                 )}
                               </div>
                               <Badge className="bg-[#E53935]/10 text-[#E53935] border-0 rounded-lg font-bold text-[10px]">
@@ -2487,28 +2529,30 @@ function FoodieProfileView() {
 
       {/* Role Switching - TOP */}
       <h3 className="font-bold text-[#1a1c1e] text-sm mb-2">Switch Mode</h3>
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {(['foodie', 'vendor', 'admin'] as AppRole[]).map((role) => {
-          const isAvailable = roles.includes(role)
-          const isActive = user?.activeRole === role
-          const icons = { foodie: Utensils, vendor: Store, admin: Shield }
-          const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
-          const Icon = icons[role]
-          return (
-            <button
-              key={role}
-              onClick={() => handleRoleSwitch(role)}
-              disabled={!isAvailable}
-              className={`flex flex-col items-center gap-1 p-3 rounded-xl transition-all ${
-                isActive ? 'bg-[#E53935] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
-              } ${!isAvailable ? 'opacity-40 cursor-not-allowed' : ''}`}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[11px] font-bold">{labels[role]}</span>
-              {isActive && <Check className="w-3 h-3" />}
-            </button>
-          )
-        })}
+      {/* Issue 9: only show enabled modes (hide disabled ones entirely),
+          center the selection with flex + justify-center. */}
+      <div className="flex justify-center gap-2 mb-4">
+        {(['foodie', 'vendor', 'admin'] as AppRole[])
+          .filter((role) => roles.includes(role))
+          .map((role) => {
+            const isActive = user?.activeRole === role
+            const icons = { foodie: Utensils, vendor: Store, admin: Shield }
+            const labels = { foodie: 'Foodie', vendor: 'Vendor', admin: 'Admin' }
+            const Icon = icons[role]
+            return (
+              <button
+                key={role}
+                onClick={() => handleRoleSwitch(role)}
+                className={`flex flex-col items-center gap-1 px-6 py-3 rounded-xl transition-all ${
+                  isActive ? 'bg-[#E53935] text-white shadow-card' : 'bg-[#f0f4f2] text-[#1a1c1e]'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="text-[11px] font-bold">{labels[role]}</span>
+                {isActive && <Check className="w-3 h-3" />}
+              </button>
+            )
+          })}
       </div>
 
       {/* User Card - COMPACT with avatar upload */}
@@ -3975,7 +4019,7 @@ function VendorDashboardView() {
           }
         }}
       >
-        <DialogContent className="rounded-2xl max-w-md w-[calc(100%-1.5rem)] mx-auto p-0 overflow-hidden">
+        <DialogContent className="rounded-2xl max-w-md w-[calc(100%-1.5rem)] mx-auto max-h-[85vh] overflow-y-auto p-0">
           <div className="bg-gradient-to-br from-[#E53935]/10 to-[#E53935]/5 px-5 pt-5 pb-3">
             <DialogHeader>
               <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
@@ -6924,18 +6968,21 @@ const NotificationBell = memo(function NotificationBell() {
       <Dialog open={showModal} onOpenChange={(v) => { setShowModal(v); if (!v) setSelectedNotif(null) }}>
         <DialogContent className="rounded-2xl max-w-md w-[calc(100%-1.5rem)] mx-auto max-h-[85vh] overflow-y-auto p-0">
           <DialogHeader className="bg-gradient-to-br from-[#E53935]/20 to-[#E53935]/5 px-5 pt-5 pb-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2">
-                  <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
-                </DialogTitle>
-                <DialogDescription className="text-xs">
-                  {unreadCount > 0 ? `${unreadCount} unread · ${topNotifs.length} recent` : `${topNotifs.length} recent`}
-                </DialogDescription>
-              </div>
+            {/* Issue 5: title on its own row (X close button is absolutely
+                positioned by the Dialog component at top-right). */}
+            <DialogTitle className="text-lg font-extrabold text-[#1a1c1e] flex items-center gap-2 pr-8">
+              <Bell className="w-5 h-5 text-[#E53935]" /> Notifications
+            </DialogTitle>
+            {/* Issue 5: "recent" text + Clear All button on a second row,
+                aligned left/right. The Clear All button is shrunk 30%
+                (h-5 px-2 text-[9px]) so it no longer overlaps the X button. */}
+            <div className="flex items-center justify-between mt-1">
+              <DialogDescription className="text-xs">
+                {unreadCount > 0 ? `${unreadCount} unread · ${topNotifs.length} recent` : `${topNotifs.length} recent`}
+              </DialogDescription>
               {topNotifs.length > 0 && !selectedNotif && (
-                <Button variant="outline" size="sm" onClick={handleClearAll} className="h-7 px-2.5 rounded-lg text-[10px] font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10">
-                  <Trash2 className="w-3 h-3 mr-1" /> Clear All
+                <Button variant="outline" size="sm" onClick={handleClearAll} className="h-5 px-2 rounded-md text-[9px] font-bold text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10 leading-none">
+                  <Trash2 className="w-2.5 h-2.5 mr-0.5" /> Clear All
                 </Button>
               )}
             </div>
@@ -8175,6 +8222,36 @@ export default function SnapJeApp() {
     }).finally(() => setLoading(false))
   }, [login, logout, setLoading])
 
+  // Issue 3: Idle-timeout session. The user requested that the session time
+  // limit applies ONLY to no-activity (not an absolute expiry that logs out
+  // active users). We track the last-activity timestamp in a ref, updated on
+  // user interaction events (pointermove, keydown, touchstart, scroll, click).
+  // A 60-second interval checks if the user has been idle for > IDLE_TIMEOUT_MS.
+  // If so, we call logout() + toast. Active users never get logged out.
+  const IDLE_TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes of inactivity
+  const lastActivityRef = useRef<number>(Date.now())
+  useEffect(() => {
+    if (!isAuthenticated) return
+    // Any of these events counts as "activity" — reset the idle timer.
+    const markActive = () => { lastActivityRef.current = Date.now() }
+    const events = ['pointermove', 'keydown', 'touchstart', 'scroll', 'click', 'wheel']
+    events.forEach((evt) => window.addEventListener(evt, markActive, { passive: true }))
+    // Check every 60s whether the idle threshold has been crossed.
+    const idleCheck = setInterval(() => {
+      if (Date.now() - lastActivityRef.current > IDLE_TIMEOUT_MS) {
+        clearInterval(idleCheck)
+        try {
+          toast.info('You have been logged out due to 30 minutes of inactivity.')
+          logout()
+        } catch { /* ignore */ }
+      }
+    }, 60_000)
+    return () => {
+      clearInterval(idleCheck)
+      events.forEach((evt) => window.removeEventListener(evt, markActive))
+    }
+  }, [isAuthenticated, logout])
+
   // Fetch notifications (polling fallback — catches DB notifications even if socket misses)
   useEffect(() => {
     if (!isAuthenticated) return
@@ -8205,6 +8282,10 @@ export default function SnapJeApp() {
             })
           } else if (n.type === 'claim_confirmed') {
             toast.success(`✅ ${n.title}`, { duration: 4000 })
+          } else if (n.type === 'pickup_reminder') {
+            toast.info(`⏰ ${n.title}`, { description: n.message, duration: 5000 })
+          } else if (n.type === 'order_burnt') {
+            toast.error(`🔥 ${n.title}`, { duration: 5000 })
           } else if (n.type === 'order_status_update') {
             toast.info(`📦 ${n.title}`, { duration: 4000 })
           } else if (n.type === 'deal_new' || n.type === 'deal_expiring') {

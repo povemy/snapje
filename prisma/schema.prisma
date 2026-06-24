@@ -184,6 +184,10 @@ model Order {
   qrCode          String   @unique
   qrVerifiedAt    DateTime?
   pickupDeadline  DateTime
+  // Issue 8: tracks the last time a pickup-reminder notification was sent.
+  // The reminder scheduler in realtime-service reads this to ensure reminders
+  // fire at most every 30 minutes (not on every tick).
+  lastReminderSentAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

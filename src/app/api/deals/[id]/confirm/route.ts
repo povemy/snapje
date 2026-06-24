@@ -161,16 +161,24 @@ export async function POST(
     await supabase.from('Deal').update(dealUpdateData).eq('id', deal.id)
 
     // 3. Create notification
+    // Issue 4: do NOT format the pickup time in the message — the server runs
+    // in UTC so toLocaleTimeString() would show UTC time (8 hours off for
+    // Malaysia). Instead, store the pickupDeadline ISO in the `data` JSON and
+    // let the client (NotificationBell) format it in the viewer's local
+    // timezone when displaying the notification. The message now just says
+    // "is confirmed" without a time, since the order-id card already shows
+    // the correctly-formatted pickup time.
     await supabase.from('Notification').insert({
       id: genId('notif'),
       userId: authUser.userId,
       type: 'claim_confirmed',
       title: 'Order Confirmed!',
-      message: `Your order for "${deal.title}" from ${deal.vendor.businessName} is confirmed. Pick up before ${pickupDeadline.toLocaleTimeString()}.`,
+      message: `Your order for "${deal.title}" from ${deal.vendor.businessName} is confirmed. Tap to view your pickup time.`,
       data: JSON.stringify({
         orderId: newOrder.id,
         dealId: deal.id,
         vendorId: deal.vendorId,
+        pickupDeadline: pickupDeadline.toISOString(),
       }),
     })
 

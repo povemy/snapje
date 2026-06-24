@@ -281,3 +281,15 @@
 #category-scroll::-webkit-scrollbar { display: none; }
 #category-scroll { -ms-overflow-style: none; scrollbar-width: none; }
 
+
+/* Issue 7: Hide ALL scrollbars (horizontal & vertical) across the app.
+   The scroll behavior itself is preserved — only the visual scrollbar is hidden. */
+* {
+  scrollbar-width: none !important;          /* Firefox */
+  -ms-overflow-style: none !important;        /* IE / Edge legacy */
+}
+*::-webkit-scrollbar {
+  display: none !important;                    /* Chrome, Safari, Edge, Opera */
+  width: 0 !important;
+  height: 0 !important;
+}

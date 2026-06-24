@@ -1319,3 +1319,46 @@ Stage Summary:
 - Broadcast: now goes ONLY to foodie subscribers (VendorSubscription table). Vendors, admins, and the broadcaster are excluded. A foodie subscribed to multiple vendors receives broadcasts from each.
 - Scheduled broadcasts: VIP vendors can schedule up to 5 days in advance, 1 per calendar day. A server-side scheduler in the realtime-service polls every 60s and auto-executes due broadcasts. Now/Schedule tabs in the broadcast modal.
 - Files changed: src/app/layout.tsx, src/lib/utils.ts (parseDbDate already existed), src/lib/broadcast.ts (NEW), prisma/schema.prisma (Reservation.pickupDeadline, VendorSubscription, ScheduledBroadcast models), prisma/migrations/supabase-schema.sql (appended), src/app/api/deals/[id]/claim/route.ts, src/app/api/deals/[id]/confirm/route.ts, src/app/api/vendors/[id]/broadcast/route.ts, src/app/api/vendors/[id]/subscribe/route.ts (NEW), src/app/api/vendors/[id]/subscription/route.ts (NEW), src/app/api/vendors/[id]/scheduled-broadcasts/route.ts (NEW), mini-services/realtime-service/index.ts (scheduler + .env loader), mini-services/realtime-service/package.json (+ @supabase/supabase-js), src/app/page.tsx (DealDetailView pickup selector, Near button move, VendorPublicView server-side subscribe, broadcast modal Now/Schedule tabs, fetchScheduledBroadcasts/handleCancelScheduled).
+
+---
+Task ID: 11-issues-fix-batch
+Agent: Main Agent
+Task: Fix 11 issues: (1) Near toggle, (2) pickup dropdown centered, (3) session timeout, (4) notif wrong pickup time, (5) Clear All button, (6) order card padding, (7) hide scrollbars, (8) burnt tab + 30-min reminders, (9) Switch Mode, (10) broadcast schedule overflow, (11) toast white bg/black font.
+
+Work Log:
+- **Issue 1 (Near toggle)**: Added toggle-off logic at the top of `handleNearMe` — if `radiusEnabled` is already true, clicking "Near" sets it to false, bumps geoNonce to re-fetch all deals, and toasts "Showing all deals".
+- **Issue 2 (Pickup dropdown centered)**: Converted the pickup time dropdown from an `absolute`-positioned div below the button to a `fixed`-position centered modal with a dark backdrop. Uses `left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2` for centering. Verified: modal at top:88, bottom:489 on 577px viewport — vertically centered.
+- **Issue 3 (Session timeout)**: Root cause was 15-minute absolute access token expiry. If the refresh failed (third-party cookie blocking, network blip), active users got logged out. Fix: (a) increased access token to 24h, refresh token to 30d (sliding); (b) added client-side idle-timeout — tracks `lastActivityRef` via pointermove/keydown/touchstart/scroll/click/wheel events, checks every 60s, logs out after 30 min of true inactivity. Active users never get logged out.
+- **Issue 4 (Notif wrong pickup time)**: The confirm route used `pickupDeadline.toLocaleTimeString()` on the server, which formats in UTC (8:10 AM UTC = 4:10 PM MYT). Fix: removed the time from the message entirely ("Tap to view your pickup time"), stored the pickupDeadline ISO in the notification `data` JSON. The NotificationBell's order-id card already shows the pickup time in the viewer's local timezone.
+- **Issue 5 (Clear All button)**: Restructured the notification modal header — title on its own row (with `pr-8` to clear the X button), then a second row with "recent" text (left) + "Clear All" button (right). Shrunk the button from `h-7 px-2.5 text-[10px]` to `h-5 px-2 text-[9px]` (30% smaller). Verified: Clear All at y:104, X button at y:60 — no overlap, Clear All aligned with "recent" text at y:106.
+- **Issue 6 (Order card padding)**: Changed active order cards from `p-3.5` to `p-3` (uniform 12px all sides). Reduced thumbnail from w-14 h-14 to w-12 h-12. Tightened internal gaps (mt-1.5→mt-1, mt-2→mt-1.5, pt-2→pt-1.5, gap-3→gap-2.5). Reduced price font from text-base to text-sm. Card is now shorter with uniform padding.
+- **Issue 7 (Hide scrollbars)**: Added global CSS in globals.css: `* { scrollbar-width: none !important; -ms-overflow-style: none !important; } *::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }` — hides all scrollbars while preserving scroll behavior.
+- **Issue 8 (Burnt tab + reminders)**: Multi-part implementation:
+  - DB: Added `lastReminderSentAt DateTime?` column to Order table.
+  - Scheduler (realtime-service): Two new ticks running every 5 min:
+    1. `pickupReminderTick`: finds `pending_pickup` orders where `lastReminderSentAt` is null or >30min ago, inserts a `pickup_reminder` notification + emits socket event + updates `lastReminderSentAt`.
+    2. `burntCheckTick`: finds `pending_pickup` orders, parses the vendor's `operatingHours` JSON to get today's closing time. If closing time has passed → marks order `status=expired` (which the client renders as "Burnt"). If no operating hours → falls back to pickupDeadline + 2h grace period.
+  - Client: Updated the burnt filter from `status === 'pending_pickup' && pickupDeadline < now` to `status === 'expired'` (server-driven). Expired tab now shows `status === 'cancelled'` only.
+  - Added `pickup_reminder` and `order_burnt` to the NotificationType union.
+  - Added toast handlers for both new types in use-socket.tsx and the polling fallback.
+  - Verified: 3 pending orders received pickup_reminder notifications at 08:44:40, lastReminderSentAt updated on all 3.
+- **Issue 9 (Switch Mode)**: Changed from `grid grid-cols-3` (which showed all 3 roles with disabled ones grayed out) to `flex justify-center gap-2` with `.filter(role => roles.includes(role))` — only enabled modes are rendered, centered. Each button has `px-6` for comfortable width.
+- **Issue 10 (Broadcast schedule overflow)**: Changed the broadcast modal DialogContent from `overflow-hidden` (no max-height, content clipped) to `max-h-[85vh] overflow-y-auto` — content now scrolls within the modal.
+- **Issue 11 (Toast styling)**: Changed toast background from `#E53935` (red) to `#ffffff` (white). Changed text color from white to `#1a1c1e` (black). Width changed from 90vw to 98vw. Height increased ~25% (padding from 14px→18px vertical). Added `offset="80px"` to the Toaster so toasts sit above the floating-bottom nav bar. Added `color: #1a1c1e !important` to title/description CSS selectors. Verified: bg=rgb(255,255,255), color=rgb(26,28,30), width=480, height=76, top=411 (above the 72px bottom nav).
+
+- **Lint**: `bun run lint` → 0 errors, 0 warnings.
+- **Browser verification**: Verified Issues 2 (modal centered), 5 (Clear All no overlap), 8 (reminders sent), 11 (white bg + black text). Issues 1, 3, 4, 6, 7, 9, 10 verified via code review + lint.
+
+Stage Summary:
+- All 11 issues fixed.
+- Near button now toggles off when clicked again.
+- Pickup time picker is a centered modal (not cramped below the button).
+- Session uses 24h access token + 30-min idle timeout (active users stay logged in).
+- Notification message no longer shows wrong UTC time.
+- Clear All button is smaller and on its own row (no X overlap).
+- Order cards have uniform p-3 padding + reduced height.
+- All scrollbars hidden globally.
+- Burnt tab is now server-driven: orders go to Burnt only after vendor closing time. 30-min pickup reminders fire automatically.
+- Switch Mode only shows enabled roles, centered.
+- Broadcast Schedule tab scrolls properly.
+- Toast is white bg + black text, 98% width, taller, positioned above the bottom nav.

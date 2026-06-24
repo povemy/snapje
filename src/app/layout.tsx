@@ -244,48 +244,37 @@ export default function RootLayout({
         <Toaster
           position="bottom-center"
           duration={3000}
-          // Render toasts in a portal fixed to the viewport so they slide up
-          // from the bottom of the screen and don't shift the page layout.
+          // Issue 11: offset the toaster above the floating-bottom nav bar
+          // (~72px + safe area) so toasts don't overlap the bottom menu.
+          offset="80px"
           containerAriaLabel="Notifications"
           className="snapje-toaster"
           toastOptions={{
-            // Default style — solid bright-red theme color, NO glassmorphism.
-            // 90% viewport width, larger fonts per user spec.
+            // Issue 11: white background, black font, 98% width, +25% height
+            // (padding increased from 14px→18px vertical = ~25% taller).
             style: {
               fontFamily: '"Nunito Sans", sans-serif',
-              width: '90vw',
-              maxWidth: '440px',
+              width: '98vw',
+              maxWidth: '480px',
               minWidth: '280px',
               borderRadius: '16px',
-              background: '#E53935',
-              color: '#ffffff',
-              border: 'none',
-              boxShadow: '0 10px 30px rgba(229, 57, 53, 0.35), 0 2px 8px rgba(0,0,0,0.15)',
-              padding: '14px 18px',
+              background: '#ffffff',
+              color: '#1a1c1e',
+              border: '1px solid rgba(229, 57, 53, 0.15)',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0,0,0,0.08)',
+              padding: '18px 18px',
               fontSize: '14px',
               fontWeight: 700,
               animation: 'snapjeToastIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards',
             },
-            // Info toasts (used for broadcasts) — bright red, white text
             info: {
-              style: {
-                background: '#E53935',
-                color: '#ffffff',
-              },
+              style: { background: '#ffffff', color: '#1a1c1e' },
             },
-            // Success toasts — slightly darker red for visual distinction
             success: {
-              style: {
-                background: '#C62828',
-                color: '#ffffff',
-              },
+              style: { background: '#ffffff', color: '#1a1c1e' },
             },
-            // Error toasts — deep red
             error: {
-              style: {
-                background: '#B71C1C',
-                color: '#ffffff',
-              },
+              style: { background: '#ffffff', color: '#1a1c1e' },
             },
           }}
         />
@@ -318,21 +307,24 @@ export default function RootLayout({
           [data-sonner-toast] {
             margin-bottom: 10px !important;
           }
-          /* Larger title + description text per user spec (90% width toast) */
+          /* Issue 11: black title + description on white bg */
           [data-sonner-toast] [data-title] {
             font-size: 15px !important;
             font-weight: 800 !important;
             line-height: 1.25 !important;
+            color: #1a1c1e !important;
           }
           [data-sonner-toast] [data-description] {
             font-size: 13.5px !important;
             font-weight: 600 !important;
             line-height: 1.3 !important;
-            opacity: 0.98 !important;
+            color: #1a1c1e !important;
+            opacity: 0.95 !important;
           }
           [data-sonner-toast] [data-icon] svg {
             width: 20px !important;
             height: 20px !important;
+            color: #E53935 !important;
           }
           /* Hide the close button — the toast auto-dismisses after 3s */
           [data-sonner-toast] [data-close-button] {

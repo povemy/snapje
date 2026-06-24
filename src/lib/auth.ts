@@ -22,8 +22,15 @@ function getJwtSecret(envVar: 'JWT_SECRET' | 'JWT_REFRESH_SECRET', label: string
 const ACCESS_TOKEN_SECRET = getJwtSecret('JWT_SECRET', 'access')
 const REFRESH_TOKEN_SECRET = getJwtSecret('JWT_REFRESH_SECRET', 'refresh')
 
-const ACCESS_TOKEN_EXPIRY = '15m'
-const REFRESH_TOKEN_EXPIRY = '7d'
+// Issue 3: access token expiry. Was 15m (absolute) which caused active users
+// to get logged out when the refresh failed for any reason (third-party cookie
+// blocking in preview iframes, transient network errors, etc.).
+// Now 24h so the access token survives a full work session. The idle-timeout
+// (implemented client-side in page.tsx) is what actually enforces "log out
+// after N minutes of INACTIVITY" — which is the correct UX. Active users stay
+// logged in; inactive users get logged out after 30 min.
+const ACCESS_TOKEN_EXPIRY = '24h'
+const REFRESH_TOKEN_EXPIRY = '30d'
 
 export interface TokenPayload {
   userId: string
@@ -51,7 +58,8 @@ export async function generateRefreshToken(userId: string, familyId?: string): P
   // (login/register) we mint a new familyId; subsequent rotations reuse it.
   // If a stolen token is reused after rotation, we revoke the entire family.
   const famId = familyId || `fam_${crypto.randomUUID()}`
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  // Issue 3: 30-day refresh token (sliding — each rotation extends it).
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
 
   unwrap(
     await supabase.from('RefreshToken').insert({

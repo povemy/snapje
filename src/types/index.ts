@@ -260,6 +260,7 @@ export type NotificationType =
   | 'new_deal_nearby'
   | 'order_status_update'
   | 'broadcast'
+  | 'order_burnt'
 
 // ============================================
 // Socket.io Event Types

@@ -87,6 +87,13 @@ export function useSocket() {
           toast.info(`📦 ${notification.title}`, { duration: 4000 })
         } else if (notification.type === 'claim_confirmed') {
           toast.success(`✅ ${notification.title}`, { duration: 4000 })
+        } else if (notification.type === 'pickup_reminder') {
+          toast.info(`⏰ ${notification.title}`, {
+            description: notification.message,
+            duration: 5000,
+          })
+        } else if (notification.type === 'order_burnt') {
+          toast.error(`🔥 ${notification.title}`, { duration: 5000 })
         } else if (notification.type === 'deal_new' || notification.type === 'deal_expiring') {
           toast.success(`🔥 ${notification.title}`, { duration: 4000 })
         } else {

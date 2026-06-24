@@ -343,6 +343,212 @@ setInterval(schedulerTick, 60 * 1000)
 // service was down (e.g. a deploy/restart).
 setTimeout(schedulerTick, 5000)
 
+// ───────────────────────────────────────────────────────────────────────────
+// Issue 8: Pickup Reminder + Burnt-Check Scheduler
+// ───────────────────────────────────────────────────────────────────────────
+// Runs every 5 minutes. Two jobs per tick:
+//
+// 1. PICKUP REMINDERS: For every `pending_pickup` order where
+//    `lastReminderSentAt` is null OR > 30 min ago, insert a `pickup_reminder`
+//    notification and update `lastReminderSentAt`. This fires every 30 min
+//    from order creation until the order is picked up or goes burnt.
+//
+// 2. BURNT CHECK: For every `pending_pickup` order, determine if the vendor's
+//    shop has closed for the pickup day. If so, mark the order `status=expired`
+//    (which the client renders as "Burnt"). If the vendor has no operating
+//    hours, fall back to pickupDeadline + 2h grace period.
+//
+// Operating-hours format: {"mon": {"open": "09:00", "close": "18:00"}, ...}
+// Legacy format: {"mon": "9-18", ...} — also supported via parse.
+const PICKUP_REMINDER_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+
+interface OperatingHours {
+  [day: string]: { open?: string; close?: string } | string | undefined
+}
+
+/**
+ * Parse the vendor's operatingHours JSON and return today's closing time
+ * as a Date object (today's date + the close time), or null if unknown.
+ */
+function getVendorClosingTimeToday(operatingHoursRaw: string | null | undefined): Date | null {
+  if (!operatingHoursRaw) return null
+  let hours: OperatingHours
+  try {
+    hours = JSON.parse(operatingHoursRaw)
+  } catch {
+    return null
+  }
+  if (!hours || typeof hours !== 'object') return null
+
+  // Day-of-week keys: mon, tue, wed, thu, fri, sat, sun
+  const dayKeys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+  const now = new Date()
+  const todayKey = dayKeys[now.getDay()]
+  const todayHours = hours[todayKey]
+  if (!todayHours) return null
+
+  let closeTime: string | null = null
+  if (typeof todayHours === 'string') {
+    // Legacy format: "9-18" or "09:00-18:00"
+    const parts = todayHours.split('-')
+    if (parts.length === 2) {
+      closeTime = parts[1].trim()
+    }
+  } else if (typeof todayHours === 'object' && todayHours.close) {
+    closeTime = todayHours.close
+  }
+
+  if (!closeTime) return null
+
+  // Parse "18:00" or "18" → hours and minutes
+  const closeParts = closeTime.split(':')
+  const closeHour = parseInt(closeParts[0], 10)
+  const closeMin = closeParts.length > 1 ? parseInt(closeParts[1], 10) : 0
+  if (isNaN(closeHour)) return null
+
+  const closing = new Date(now)
+  closing.setHours(closeHour, closeMin, 0, 0)
+  return closing
+}
+
+async function pickupReminderTick() {
+  try {
+    // Find pending_pickup orders that need a reminder.
+    // A reminder is due if lastReminderSentAt is null OR > 30 min ago.
+    const thirtyMinAgo = new Date(Date.now() - PICKUP_REMINDER_INTERVAL_MS).toISOString()
+    const { data: dueOrders, error } = await supabase
+      .from('Order')
+      .select('id, userId, orderNumber, pickupDeadline, lastReminderSentAt, dealId, deal:Deal(title)')
+      .eq('status', 'pending_pickup')
+      .or(`lastReminderSentAt.is.null,lastReminderSentAt.lte.${thirtyMinAgo}`)
+      .limit(100)
+    if (error) {
+      console.error('[Reminders] query error:', error.message)
+      return
+    }
+    if (!dueOrders || dueOrders.length === 0) return
+
+    console.log(`[Reminders] Found ${dueOrders.length} order(s) needing a pickup reminder`)
+
+    for (const order of dueOrders as Array<{
+      id: string; userId: string; orderNumber: string;
+      pickupDeadline: string; lastReminderSentAt: string | null;
+      dealId: string; deal?: { title: string } | { title: string }[]
+    }>) {
+      const dealTitle = Array.isArray(order.deal) ? order.deal[0]?.title : order.deal?.title
+      const pickupTime = new Date(order.pickupDeadline + (order.pickupDeadline.endsWith('Z') ? '' : 'Z'))
+      const pickupStr = pickupTime.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kuala_Lumpur' })
+
+      // Insert a pickup_reminder notification
+      const notifId = await genId('notif')
+      const { error: insErr } = await supabase.from('Notification').insert({
+        id: notifId,
+        userId: order.userId,
+        type: 'pickup_reminder',
+        title: '⏰ Pickup Reminder',
+        message: `Don't forget to pick up your order${dealTitle ? ` for "${dealTitle}"` : ''} (#${order.orderNumber}) by ${pickupStr}.`,
+        data: JSON.stringify({ orderId: order.id, dealId: order.dealId }),
+        read: false,
+      })
+      if (insErr) {
+        console.error(`[Reminders] insert error for order ${order.id}:`, insErr.message)
+        continue
+      }
+
+      // Emit via socket.io for real-time delivery
+      try {
+        io.to(`user:${order.userId}`).emit('notification:new', {
+          id: notifId,
+          userId: order.userId,
+          type: 'pickup_reminder',
+          title: '⏰ Pickup Reminder',
+          message: `Don't forget to pick up your order${dealTitle ? ` for "${dealTitle}"` : ''} (#${order.orderNumber}) by ${pickupStr}.`,
+          data: JSON.stringify({ orderId: order.id, dealId: order.dealId }),
+          read: false,
+          createdAt: new Date().toISOString(),
+        })
+      } catch { /* non-fatal */ }
+
+      // Update lastReminderSentAt
+      await supabase.from('Order').update({ lastReminderSentAt: new Date().toISOString() }).eq('id', order.id)
+    }
+  } catch (e) {
+    console.error('[Reminders] tick error:', e)
+  }
+}
+
+async function burntCheckTick() {
+  try {
+    // Find all pending_pickup orders (with vendor operatingHours for the burnt check)
+    const { data: orders, error } = await supabase
+      .from('Order')
+      .select('id, pickupDeadline, createdAt, vendor:Vendor(operatingHours)')
+      .eq('status', 'pending_pickup')
+      .limit(200)
+    if (error) {
+      console.error('[BurntCheck] query error:', error.message)
+      return
+    }
+    if (!orders || orders.length === 0) return
+
+    const now = new Date()
+    const toBurn: string[] = []
+
+    for (const order of orders as Array<{
+      id: string; pickupDeadline: string; createdAt: string;
+      vendor?: { operatingHours: string | null } | { operatingHours: string | null }[]
+    }>) {
+      const vendorHours = Array.isArray(order.vendor) ? order.vendor[0]?.operatingHours : order.vendor?.operatingHours
+      const pickupDate = new Date(order.pickupDeadline + (order.pickupDeadline.endsWith('Z') ? '' : 'Z'))
+
+      // Determine the burnt threshold:
+      // - If the vendor has today's closing time → burnt when closing time has passed
+      // - If no operating hours → fall back to pickupDeadline + 2h grace period
+      const closingTime = getVendorClosingTimeToday(vendorHours)
+      let burntThreshold: Date
+      if (closingTime && closingTime.getTime() > pickupDate.getTime()) {
+        // Closing time is after pickup deadline — use closing time as threshold
+        burntThreshold = closingTime
+      } else if (closingTime) {
+        // Closing time is before or equal to pickup deadline — use closing time
+        burntThreshold = closingTime
+      } else {
+        // No operating hours — fall back to pickupDeadline + 2h
+        burntThreshold = new Date(pickupDate.getTime() + 2 * 60 * 60 * 1000)
+      }
+
+      if (now > burntThreshold) {
+        toBurn.push(order.id)
+      }
+    }
+
+    if (toBurn.length > 0) {
+      console.log(`[BurntCheck] Marking ${toBurn.length} order(s) as expired (burnt)`)
+      const { error: updErr } = await supabase
+        .from('Order')
+        .update({ status: 'expired' })
+        .in('id', toBurn)
+      if (updErr) {
+        console.error('[BurntCheck] update error:', updErr.message)
+      }
+    }
+  } catch (e) {
+    console.error('[BurntCheck] tick error:', e)
+  }
+}
+
+// Reminder + burnt check: run every 5 minutes
+setInterval(async () => {
+  await pickupReminderTick()
+  await burntCheckTick()
+}, 5 * 60 * 1000)
+// Run once on startup
+setTimeout(async () => {
+  await pickupReminderTick()
+  await burntCheckTick()
+}, 8000)
+
 httpServer.listen(PORT)
 console.log(`[SnapJe Real-time] Socket.io server running on port ${PORT}`)
 console.log(`[SnapJe Real-time] Scheduled-broadcast scheduler active (60s interval)`)
+console.log(`[SnapJe Real-time] Pickup-reminder + burnt-check scheduler active (5m interval)`)
